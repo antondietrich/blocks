@@ -4,3 +4,4 @@ build
 compile.bat
 *.ilk
 *.pdb
+*.suo

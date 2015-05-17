@@ -1,20 +1,34 @@
 #include <Windows.h>
 
 #include "game.h"
+#include "config.h"
+
+using namespace Blocks;
+
+ConfigType Blocks::Config;
 
 LRESULT CALLBACK WndProc( HWND windowHandle, UINT message, WPARAM wParam, LPARAM lParam );
+bool LoadConfig();
 
 int __stdcall wWinMain( HINSTANCE thisInstance, HINSTANCE prevInstance, LPWSTR cmdLine, int cmdShow )
 {
 	UNREFERENCED_PARAMETER( prevInstance );
 	UNREFERENCED_PARAMETER( cmdLine );
 
+	/* Load config */
+	if( !LoadConfig() )
+	{
+		OutputDebugStringA( "Failed to load config!" );
+		return 1;
+	}
+
+	/* Create a window */
 	WNDCLASSEX windowClass = { 0 };
 	windowClass.cbSize = sizeof( WNDCLASSEX );
 	windowClass.style = CS_HREDRAW | CS_VREDRAW;
 	windowClass.lpfnWndProc = WndProc;
 	windowClass.hInstance = thisInstance;
-	windowClass.hIcon = LoadIcon(thisInstance, MAKEINTRESOURCE(IDI_APPLICATION));;
+	windowClass.hIcon = LoadIcon(thisInstance, MAKEINTRESOURCE(IDI_APPLICATION));
 	windowClass.hCursor = LoadCursor( NULL, IDC_ARROW );
 	windowClass.hbrBackground = (HBRUSH)( COLOR_WINDOW + 1 );
 	windowClass.lpszMenuName = NULL;
@@ -58,6 +72,14 @@ int __stdcall wWinMain( HINSTANCE thisInstance, HINSTANCE prevInstance, LPWSTR c
 		return 1;
 	}
 
+	Game game = Game();
+	if( !game.Start( window ) )
+	{
+		OutputDebugStringA( "Failed to start the game" );
+		return 1;
+	}
+
+	/* Main loop */
 
 	MSG msg = { 0 };
 	while( msg.message != WM_QUIT )
@@ -66,6 +88,10 @@ int __stdcall wWinMain( HINSTANCE thisInstance, HINSTANCE prevInstance, LPWSTR c
 		{
 			TranslateMessage( &msg );
 			DispatchMessage( &msg );
+		}
+		else
+		{
+			game.DoFrame();
 		}
 	}
 
@@ -97,4 +123,15 @@ LRESULT CALLBACK WndProc( HWND windowHandle, UINT message, WPARAM wParam, LPARAM
 			return DefWindowProc( windowHandle, message, wParam, lParam );
 	}
 	return 0;
+}
+
+bool LoadConfig()
+{
+	// TODO: load config from file
+	Config.fullscreen = false;
+	Config.screenWidth = 960;
+	Config.screenHeight = 540;
+	Config.multisampling = 0;
+
+	return true;
 }
