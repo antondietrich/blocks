@@ -1,1 +1,6 @@
 assets/src
+assets
+build
+compile.bat
+*.ilk
+*.pdb

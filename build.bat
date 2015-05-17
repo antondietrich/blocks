@@ -12,6 +12,8 @@ if /I "%1"=="/release" goto RELEASE
 set compilerFlags=-Od -Oi -Zi -EHsc -GR- -MTd -W4 -nologo
 rem set suppressedWarnings=-wd4530
 set output=-Fdbin\ -Fobuild\ -Febin\blocks.exe
+if not exist "build" md build
+if not exist "bin" md bin
 goto COMMON
 
 :RELEASE
