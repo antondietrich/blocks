@@ -8,6 +8,8 @@ extern ConfigType Config;
 bool Renderer::isInstantiated_ = false;
 
 Renderer::Renderer()
+:
+colorShader()
 {
 	assert( !isInstantiated_ );
 	isInstantiated_ = true;
@@ -16,6 +18,7 @@ Renderer::Renderer()
 	context_ = 0;
 	swapChain_ = 0;
 	backBufferView_ = 0;
+	triangleVB_ = 0;
 }
 
 Renderer::~Renderer()
@@ -23,6 +26,7 @@ Renderer::~Renderer()
 	ID3D11Debug* DebugDevice = nullptr;
 	device_->QueryInterface(__uuidof(ID3D11Debug), (void**)(&DebugDevice));
 
+	RELEASE( triangleVB_ );
 	RELEASE( defaultRasterizerState_ );
 	RELEASE( backBufferView_ );
 	RELEASE( swapChain_ );
@@ -202,14 +206,167 @@ bool Renderer::Start( HWND wnd )
 
 	context_->RSSetViewports( 1, &screenViewport_ );
 
+	// Temp triangle
+	const int numVertices = 3;
+	VertexPosition vertices[] = {
+		{ 0.0f, 0.5f, 0.5f },
+		{ 0.5f, -0.5f, 0.5f },
+		{ -0.5f, -0.5f, 0.5f },
+	};
+
+	D3D11_BUFFER_DESC vertexBufferDesc;
+	ZeroMemory( &vertexBufferDesc, sizeof( vertexBufferDesc ) );
+	vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+	vertexBufferDesc.CPUAccessFlags = 0;
+	vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	vertexBufferDesc.ByteWidth = sizeof( VertexPosition ) * numVertices;
+
+	D3D11_SUBRESOURCE_DATA resourceData;
+	ZeroMemory( &resourceData, sizeof( resourceData ) );
+	resourceData.pSysMem = vertices;
+
+	hr = device_->CreateBuffer( &vertexBufferDesc, &resourceData, &triangleVB_ );
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "Failed to create vertex buffer!" );
+		return false;
+	}
+
+	unsigned int stride = sizeof( VertexPosition );
+	unsigned int offset = 0;
+
+	context_->IASetVertexBuffers( 0, 1, &triangleVB_, &stride, &offset );
+
+	if( !colorShader.Load( L"assets/shaders/color.fx", device_ ) )
+	{
+		OutputDebugStringA( "Failed to load shaders! " );
+		return false;
+	}
+	SetShader( colorShader );
+
+	context_->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
+
 	return true;
 }
 
 void Renderer::Present()
 {
-	float clearColor[ 4 ] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	float clearColor[ 4 ] = { 0.53f, 0.81f, 0.98f, 1.0f };
 	context_->ClearRenderTargetView( backBufferView_, clearColor );
+	context_->Draw( 3, 0 );
 	swapChain_->Present( 0, 0 );
+}
+
+void Renderer::SetShader( const Shader& shader )
+{
+	context_->IASetInputLayout( shader.inputLayout_ );
+	context_->VSSetShader( shader.vertexShader_, NULL, 0 );
+	context_->PSSetShader( shader.pixelShader_, NULL, 0 );
+}
+
+
+//******************
+// Shader
+//******************
+
+Shader::Shader()
+{
+	vertexShader_ = 0;
+	pixelShader_ = 0;
+	inputLayout_ = 0;
+}
+
+Shader::~Shader()
+{
+	RELEASE( vertexShader_ );
+	RELEASE( pixelShader_ );
+	RELEASE( inputLayout_ );
+}
+
+bool Shader::Load( wchar_t* filename, ID3D11Device *device )
+{
+	HRESULT hr;
+	ID3DBlob *vShaderBytecode = 0;
+
+	// Vertex shader
+	if( !LoadShader( filename, VERTEX_SHADER_ENTRY, "vs_4_0", &vShaderBytecode ) )
+	{
+		OutputDebugStringA( "Shader compiltaion failed!" );
+		RELEASE( vShaderBytecode );
+		return false;
+	}
+
+	hr = device->CreateVertexShader( vShaderBytecode->GetBufferPointer(), vShaderBytecode->GetBufferSize(), NULL, &vertexShader_ );
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "Shader creation failed!" );
+		RELEASE( vertexShader_ );
+		RELEASE( vShaderBytecode );
+		return false;
+	}
+
+	// Input layout
+	D3D11_INPUT_ELEMENT_DESC layout[] =
+	{
+	    { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },  
+	};
+	UINT numElements = ARRAYSIZE(layout);
+
+	hr = device->CreateInputLayout( layout, numElements, vShaderBytecode->GetBufferPointer(), vShaderBytecode->GetBufferSize(), &inputLayout_ );
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "Input layout creation failed!" );
+		RELEASE( vShaderBytecode );
+		RELEASE( inputLayout_ );
+		return false;
+	}
+	RELEASE( vShaderBytecode );
+
+	ID3DBlob *pShaderBytecode = 0;
+	if( !LoadShader( filename, PIXEL_SHADER_ENTRY, "ps_4_0", &pShaderBytecode ) )
+	{
+		OutputDebugStringA( "Shader compiltaion failed!" );
+		if( pShaderBytecode )
+			pShaderBytecode->Release();
+		return false;
+	}
+
+	hr = device->CreatePixelShader( pShaderBytecode->GetBufferPointer(), pShaderBytecode->GetBufferSize(), NULL, &pixelShader_ );
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "Shader creation failed!" );
+		RELEASE( pixelShader_ );
+		RELEASE( pShaderBytecode );
+		return false;
+	}
+	RELEASE( pShaderBytecode );
+	return true;
+}
+
+
+//********************************
+// Function definitions
+//********************************
+bool LoadShader( wchar_t *filename, const char *entry, const char *shaderModel, ID3DBlob **buffer )
+{
+	HRESULT hr;
+	ID3DBlob *errorBuffer = 0;
+
+	hr = D3DCompileFromFile( filename, 0, 0, entry, shaderModel, 0, 0, buffer, &errorBuffer );
+	if( FAILED( hr ) )
+	{
+		if( errorBuffer )
+		{
+			OutputDebugStringA( (char*)errorBuffer->GetBufferPointer() );
+			errorBuffer->Release();
+		}
+		return false;
+	}
+
+	if( errorBuffer )
+		errorBuffer->Release();
+
+	return true;
 }
 
 }

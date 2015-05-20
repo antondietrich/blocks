@@ -26,7 +26,7 @@ goto BUILD
 
 :BUILD
 rem cl %compilerFlags% %suppressedWarnings% %output% %source% user32.lib d3d11.lib d3dcompiler.lib dxguid.lib Winmm.lib
-cl %compilerFlags% %suppressedWarnings% %output% %source% user32.lib d3d11.lib dxguid.lib DXGI.lib
+cl %compilerFlags% %suppressedWarnings% %output% %source% user32.lib d3d11.lib dxguid.lib DXGI.lib D3DCompiler.lib
 goto END
 
 :NOCANDO
