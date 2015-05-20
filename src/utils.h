@@ -6,4 +6,4 @@
 //
 #define RELEASE(p) if(p) { p->Release(); p = 0; }
 
-#endif
+#endif //__BLOCKS_UTILS__

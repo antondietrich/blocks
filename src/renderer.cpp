@@ -1,6 +1,7 @@
 #include "renderer.h"
 
-using namespace Blocks;
+namespace Blocks
+{
 
 extern ConfigType Config;
 
@@ -19,11 +20,18 @@ Renderer::Renderer()
 
 Renderer::~Renderer()
 {
+	ID3D11Debug* DebugDevice = nullptr;
+	device_->QueryInterface(__uuidof(ID3D11Debug), (void**)(&DebugDevice));
+
 	RELEASE( defaultRasterizerState_ );
 	RELEASE( backBufferView_ );
 	RELEASE( swapChain_ );
 	RELEASE( context_ );
 	RELEASE( device_ );
+
+	DebugDevice->ReportLiveDeviceObjects( D3D11_RLDO_DETAIL );
+	
+	RELEASE(DebugDevice);
 }
 
 bool Renderer::Start( HWND wnd )
@@ -107,15 +115,35 @@ bool Renderer::Start( HWND wnd )
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 	swapChainDesc.Flags = 0;
 
-	IDXGIFactory *dxgiFactory;
-	hr = CreateDXGIFactory(__uuidof(IDXGIFactory), (void**)(&dxgiFactory) );
+	// Retrieve the Factory from the device
+	IDXGIDevice *dxgiDevice = 0;
+	hr = device_->QueryInterface(__uuidof(IDXGIDevice), (void **)&dxgiDevice);
 	if( FAILED( hr ) )
 	{
-		OutputDebugStringA( "Failed to create DCGI Factory!" );
+		OutputDebugStringA( "Failed to retrieve IDXGIDevice!" );
 		return false;
 	}
+	      
+	IDXGIAdapter *dxgiAdapter = 0;
+	hr = dxgiDevice->GetParent(__uuidof(IDXGIAdapter), (void **)&dxgiAdapter);
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "Failed to retrieve IDXGIAdapter!" );
+		return false;
+	}
+
+	IDXGIFactory *dxgiFactory = 0;
+	hr = dxgiAdapter->GetParent(__uuidof(IDXGIFactory), (void **)&dxgiFactory);
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "Failed to retrieve DXGIFactory!" );
+		return false;
+	}
+
 	dxgiFactory->CreateSwapChain( device_, &swapChainDesc, &swapChain_ );
 	RELEASE( dxgiFactory );
+	RELEASE( dxgiAdapter );
+	RELEASE( dxgiDevice );
 
 	// back buffer
 	ID3D11Texture2D* backBufferTexture = 0;
@@ -182,4 +210,6 @@ void Renderer::Present()
 	float clearColor[ 4 ] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	context_->ClearRenderTargetView( backBufferView_, clearColor );
 	swapChain_->Present( 0, 0 );
+}
+
 }

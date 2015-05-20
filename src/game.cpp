@@ -1,6 +1,7 @@
 #include "game.h"
 
-using namespace Blocks;
+namespace Blocks
+{
 
 bool Game::isInstantiated_ = false;
 
@@ -30,4 +31,6 @@ bool Game::Start( HWND wnd )
 void Game::DoFrame()
 {
 	renderer_.Present();
+}
+
 }

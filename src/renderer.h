@@ -31,4 +31,4 @@ private:
 
 }
 
-#endif
+#endif // __BLOCKS_RENDERER__

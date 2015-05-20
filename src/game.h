@@ -24,4 +24,4 @@ private:
 	
 }
 
-#endif
+#endif // __BLOCKS_GAME__
