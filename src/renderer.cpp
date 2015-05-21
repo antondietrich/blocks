@@ -86,7 +86,7 @@ bool Renderer::Start( HWND wnd )
 	// TODO: get these values from the device
 	swapChainDesc.BufferDesc.RefreshRate.Numerator = 60;
 	swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
-	swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	swapChainDesc.BufferDesc.Format = BACK_BUFFER_FORMAT;
 
 	if( Config.multisampling == 2 || Config.multisampling == 4 || Config.multisampling == 8 || Config.multisampling == 16 )
 	{
@@ -114,7 +114,7 @@ bool Renderer::Start( HWND wnd )
 	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	swapChainDesc.BufferCount = 1;
 	swapChainDesc.OutputWindow = wnd;
-	swapChainDesc.Windowed = !Config.fullscreen;
+	swapChainDesc.Windowed = TRUE;
 	// TODO: look into this more https://msdn.microsoft.com/en-us/library/windows/desktop/bb205075(v=vs.85).aspx
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 	swapChainDesc.Flags = 0;
@@ -145,30 +145,22 @@ bool Renderer::Start( HWND wnd )
 	}
 
 	dxgiFactory->CreateSwapChain( device_, &swapChainDesc, &swapChain_ );
+
+	// Respond to alt-enter
+	hr = dxgiFactory->MakeWindowAssociation( wnd, 0 );
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "MakeWindowAssociation call failed!" );
+		return false;
+	}
+
 	RELEASE( dxgiFactory );
 	RELEASE( dxgiAdapter );
 	RELEASE( dxgiDevice );
 
 	// back buffer
-	ID3D11Texture2D* backBufferTexture = 0;
-	hr = swapChain_->GetBuffer( 0, __uuidof( ID3D11Texture2D ), (LPVOID*)&backBufferTexture );
-	if( FAILED( hr ) )
-	{
-		OutputDebugStringA( "Failed to get the swap chain buffer!" );
-		return false;
-	}
-
-	hr = device_->CreateRenderTargetView( backBufferTexture, 0, &backBufferView_ );
-
-	RELEASE( backBufferTexture );
-
-	if( FAILED( hr ) )
-	{
-		OutputDebugStringA( "Failed to create the render target view!" );
-		return false;
-	}
-
-	context_->OMSetRenderTargets( 1, &backBufferView_, NULL );
+	// TODO: Set fullscreen mode based on Config.fullscreen
+	ResizeBuffers( Config.screenWidth, Config.screenHeight );
 
 	// rasterizer state
 	D3D11_RASTERIZER_DESC rasterizerStateDesc;
@@ -255,6 +247,51 @@ void Renderer::Present()
 	context_->ClearRenderTargetView( backBufferView_, clearColor );
 	context_->Draw( 3, 0 );
 	swapChain_->Present( 0, 0 );
+}
+
+bool Renderer::ResizeBuffers( int width, int height )
+{
+	HRESULT hr;
+
+	context_->OMSetRenderTargets( 0, NULL, NULL );
+
+	OutputDebugStringA( "Setting back buffer size to " );
+	OutputDebugStringA( std::to_string( width ).c_str() );
+	OutputDebugStringA( "\n" );
+
+	RELEASE( backBufferView_ );
+	swapChain_->ResizeBuffers( 0, width, height, BACK_BUFFER_FORMAT, 0 );
+
+	ID3D11Texture2D* backBufferTexture = 0;
+	hr = swapChain_->GetBuffer( 0, __uuidof( ID3D11Texture2D ), (LPVOID*)&backBufferTexture );
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "Failed to get the swap chain buffer!" );
+		return false;
+	}
+
+	hr = device_->CreateRenderTargetView( backBufferTexture, 0, &backBufferView_ );
+
+	RELEASE( backBufferTexture );
+
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "Failed to create the render target view!" );
+		RELEASE( backBufferView_ );
+		return false;
+	}
+
+	context_->OMSetRenderTargets( 1, &backBufferView_, NULL );
+
+	screenViewport_.Width = (float)width;
+	screenViewport_.Height = (float)height;
+	screenViewport_.MinDepth = 0.0f;
+	screenViewport_.MaxDepth = 1.0f;
+	screenViewport_.TopLeftX = 0;
+	screenViewport_.TopLeftY = 0;
+	context_->RSSetViewports( 1, &screenViewport_ );
+
+	return true;
 }
 
 void Renderer::SetShader( const Shader& shader )

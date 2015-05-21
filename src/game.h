@@ -16,10 +16,11 @@ public:
 	~Game();
 	bool Start( HWND wnd );
 	void DoFrame();
+
+	Renderer renderer;
 private:
 	static bool isInstantiated_;
 
-	Renderer renderer_;
 };
 	
 }

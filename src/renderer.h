@@ -3,6 +3,7 @@
 
 #include <d3d11.h>
 #include <D3Dcompiler.h>
+#include <string>
 #include <assert.h>
 
 #include "config.h"
@@ -13,6 +14,8 @@ namespace Blocks
 
 #define VERTEX_SHADER_ENTRY "VSMain"
 #define PIXEL_SHADER_ENTRY "PSMain"
+
+#define BACK_BUFFER_FORMAT DXGI_FORMAT_R8G8B8A8_UNORM
 
 bool LoadShader( wchar_t *filename, const char *entry, const char *shaderModel, ID3DBlob **buffer );
 
@@ -28,7 +31,7 @@ public:
 	~Shader();
 
 	bool Load( wchar_t* filename, ID3D11Device *device );
-	
+
 	ID3D11VertexShader *vertexShader_;
 	ID3D11PixelShader *pixelShader_;
 	ID3D11InputLayout *inputLayout_;
@@ -43,6 +46,8 @@ public:
 
 	bool Start( HWND wnd );
 	void Present();
+
+	bool ResizeBuffers( int w, int h );
 
 	void SetShader( const Shader& shader );
 private:

@@ -42,7 +42,7 @@ int __stdcall wWinMain( HINSTANCE thisInstance, HINSTANCE prevInstance, LPWSTR c
 	RECT clientRect, desktopRect;
 	HWND desktop = GetDesktopWindow();
 	GetWindowRect( desktop, &desktopRect );
-	if( Config.screenWidth == 0 || Config.screenHeight == 0 )
+	if( Config.fullscreen || Config.screenWidth == 0 || Config.screenHeight == 0 )
 	{
 		clientRect = desktopRect;
 	}
@@ -79,6 +79,9 @@ int __stdcall wWinMain( HINSTANCE thisInstance, HINSTANCE prevInstance, LPWSTR c
 		return 1;
 	}
 
+	/* pass a game pointer to the window for use in WndProc */
+	SetWindowLongPtr( window, GWLP_USERDATA, (LONG_PTR)&game );
+
 	/* Main loop */
 
 	MSG msg = { 0 };
@@ -102,6 +105,11 @@ LRESULT CALLBACK WndProc( HWND windowHandle, UINT message, WPARAM wParam, LPARAM
 {
 	PAINTSTRUCT paintStruct;
 	HDC hDC;
+
+	Game *game = 0;
+
+	static unsigned int width, height;
+
 	switch( message )
 	{
 		case WM_KEYDOWN:
@@ -110,6 +118,17 @@ LRESULT CALLBACK WndProc( HWND windowHandle, UINT message, WPARAM wParam, LPARAM
 				case VK_ESCAPE:
 					PostQuitMessage( 0 );
 					break;
+			}
+			break;
+		case WM_SIZE:
+			if( wParam == SIZE_RESTORED )
+			{
+				game = (Game*)GetWindowLong( windowHandle, GWLP_USERDATA );
+				if( game )
+				{
+					game->renderer.ResizeBuffers( LOWORD( lParam ), HIWORD( lParam ) );
+				}
+				return 0;
 			}
 			break;
 		case WM_PAINT:
@@ -128,10 +147,10 @@ LRESULT CALLBACK WndProc( HWND windowHandle, UINT message, WPARAM wParam, LPARAM
 bool LoadConfig()
 {
 	// TODO: load config from file
-	Config.fullscreen = false;
+	Config.fullscreen = FALSE;
 	Config.screenWidth = 960;
 	Config.screenHeight = 540;
-	Config.multisampling = 0;
+	Config.multisampling = 4;
 
 	return true;
 }

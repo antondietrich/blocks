@@ -7,7 +7,7 @@ bool Game::isInstantiated_ = false;
 
 Game::Game()
 :
-renderer_()
+renderer()
 {
 	assert( !isInstantiated_ );
 	isInstantiated_ = true;
@@ -20,7 +20,7 @@ Game::~Game()
 
 bool Game::Start( HWND wnd )
 {
-	if( !renderer_.Start( wnd ) )
+	if( !renderer.Start( wnd ) )
 	{
 		return false;
 	}
@@ -30,7 +30,7 @@ bool Game::Start( HWND wnd )
 
 void Game::DoFrame()
 {
-	renderer_.Present();
+	renderer.Present();
 }
 
 }
