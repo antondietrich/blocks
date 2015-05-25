@@ -6,6 +6,7 @@ namespace Blocks
 
 struct ConfigType {
 	bool fullscreen;
+	bool vsync;
 	int screenWidth;
 	int screenHeight;
 	int multisampling;
