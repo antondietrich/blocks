@@ -17,8 +17,10 @@ if not exist "bin" md bin
 goto COMMON
 
 :RELEASE
-rem goto COMMON
-goto NOCANDO
+set compilerFlags=-Ox -Oi -EHsc -GR- -MT -W4 -nologo -D_DEBUG_
+rem set suppressedWarnings=-wd4530
+set output=-Fdbin\ -Fobuild\ -Febin\blocks.exe
+goto COMMON
 
 :COMMON
 set source=src\main.cpp src\game.cpp src\renderer.cpp
