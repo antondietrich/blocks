@@ -13,6 +13,7 @@ colorShader()
 {
 	assert( !isInstantiated_ );
 	isInstantiated_ = true;
+	vsync_ = 0;
 
 	device_ = 0;
 	context_ = 0;
@@ -23,6 +24,7 @@ colorShader()
 
 Renderer::~Renderer()
 {
+	swapChain_->SetFullscreenState( FALSE, 0 );
 	ID3D11Debug* DebugDevice = nullptr;
 	device_->QueryInterface(__uuidof(ID3D11Debug), (void**)(&DebugDevice));
 
@@ -117,7 +119,9 @@ bool Renderer::Start( HWND wnd )
 	swapChainDesc.Windowed = TRUE;
 	// TODO: look into this more https://msdn.microsoft.com/en-us/library/windows/desktop/bb205075(v=vs.85).aspx
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-	swapChainDesc.Flags = 0;
+	swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+
+	vsync_ = Config.vsync;
 
 	// Retrieve the Factory from the device
 	IDXGIDevice *dxgiDevice = 0;
@@ -146,8 +150,8 @@ bool Renderer::Start( HWND wnd )
 
 	dxgiFactory->CreateSwapChain( device_, &swapChainDesc, &swapChain_ );
 
-	// Respond to alt-enter
-	hr = dxgiFactory->MakeWindowAssociation( wnd, 0 );
+	// Handle Alt-Enter ourselves
+	hr = dxgiFactory->MakeWindowAssociation( wnd, DXGI_MWA_NO_ALT_ENTER );
 	if( FAILED( hr ) )
 	{
 		OutputDebugStringA( "MakeWindowAssociation call failed!" );
@@ -157,10 +161,13 @@ bool Renderer::Start( HWND wnd )
 	RELEASE( dxgiFactory );
 	RELEASE( dxgiAdapter );
 	RELEASE( dxgiDevice );
+	
+	// NOTE: as a side-effect, sets the back buffer (consider making a separate function)
+	ResizeBuffers();
 
-	// back buffer
-	// TODO: Set fullscreen mode based on Config.fullscreen
-	ResizeBuffers( Config.screenWidth, Config.screenHeight );
+	if( Config.fullscreen ) {
+		ToggleFullscreen();
+	}
 
 	// rasterizer state
 	D3D11_RASTERIZER_DESC rasterizerStateDesc;
@@ -246,21 +253,39 @@ void Renderer::Present()
 	float clearColor[ 4 ] = { 0.53f, 0.81f, 0.98f, 1.0f };
 	context_->ClearRenderTargetView( backBufferView_, clearColor );
 	context_->Draw( 3, 0 );
-	swapChain_->Present( 0, 0 );
+	swapChain_->Present( vsync_, 0 );
 }
 
-bool Renderer::ResizeBuffers( int width, int height )
+bool Renderer::Fullscreen()
+{
+	BOOL fs;
+	swapChain_->GetFullscreenState( &fs, NULL );
+	return 0 != fs; // avoid warning C4800
+}
+
+void Renderer::ToggleFullscreen()
+{
+	if( !Fullscreen() ) {
+		swapChain_->SetFullscreenState( TRUE, 0 );
+	}
+	else {
+		swapChain_->SetFullscreenState( FALSE, 0 );
+	}
+	ResizeBuffers();
+}
+
+bool Renderer::ResizeBuffers()
 {
 	HRESULT hr;
 
 	context_->OMSetRenderTargets( 0, NULL, NULL );
 
-	OutputDebugStringA( "Setting back buffer size to " );
-	OutputDebugStringA( std::to_string( width ).c_str() );
-	OutputDebugStringA( "\n" );
+	OutputDebugStringA( "Window size changed: resizing buffers\n" );
 
 	RELEASE( backBufferView_ );
-	swapChain_->ResizeBuffers( 0, width, height, BACK_BUFFER_FORMAT, 0 );
+
+	// Let DXGI figure out buffer size and format
+	swapChain_->ResizeBuffers( 0, 0, 0, DXGI_FORMAT_UNKNOWN, 0 );
 
 	ID3D11Texture2D* backBufferTexture = 0;
 	hr = swapChain_->GetBuffer( 0, __uuidof( ID3D11Texture2D ), (LPVOID*)&backBufferTexture );
@@ -281,10 +306,15 @@ bool Renderer::ResizeBuffers( int width, int height )
 		return false;
 	}
 
+	DXGI_SWAP_CHAIN_DESC desc;
+	swapChain_->GetDesc( &desc );
+
 	context_->OMSetRenderTargets( 1, &backBufferView_, NULL );
 
-	screenViewport_.Width = (float)width;
-	screenViewport_.Height = (float)height;
+//	screenViewport_.Width = (float)width;
+//	screenViewport_.Height = (float)height;
+	screenViewport_.Width = (float)desc.BufferDesc.Width;
+	screenViewport_.Height = (float)desc.BufferDesc.Height;
 	screenViewport_.MinDepth = 0.0f;
 	screenViewport_.MaxDepth = 1.0f;
 	screenViewport_.TopLeftX = 0;

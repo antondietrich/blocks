@@ -108,8 +108,6 @@ LRESULT CALLBACK WndProc( HWND windowHandle, UINT message, WPARAM wParam, LPARAM
 
 	Game *game = 0;
 
-	static unsigned int width, height;
-
 	switch( message )
 	{
 		case WM_KEYDOWN:
@@ -120,13 +118,31 @@ LRESULT CALLBACK WndProc( HWND windowHandle, UINT message, WPARAM wParam, LPARAM
 					break;
 			}
 			break;
-		case WM_SIZE:
+		case WM_SYSKEYDOWN:
+			switch( wParam )
+			{
+				case VK_RETURN:
+					game = (Game*)GetWindowLong( windowHandle, GWLP_USERDATA );
+					game->renderer.ToggleFullscreen();
+					return 0;
+					break;
+			}
+			break;
+		case WM_ACTIVATEAPP:
+			if( !wParam ) {
+				game = (Game*)GetWindowLong( windowHandle, GWLP_USERDATA );
+				if( game->renderer.Fullscreen() ) {
+					game->renderer.ToggleFullscreen();
+				}
+			}
+			break;
+		case WM_EXITSIZEMOVE:
 			if( wParam == SIZE_RESTORED )
 			{
 				game = (Game*)GetWindowLong( windowHandle, GWLP_USERDATA );
 				if( game )
 				{
-					game->renderer.ResizeBuffers( LOWORD( lParam ), HIWORD( lParam ) );
+					game->renderer.ResizeBuffers();
 				}
 				return 0;
 			}
@@ -148,9 +164,12 @@ bool LoadConfig()
 {
 	// TODO: load config from file
 	Config.fullscreen = FALSE;
+	Config.vsync = TRUE;
 	Config.screenWidth = 960;
 	Config.screenHeight = 540;
-	Config.multisampling = 4;
+//	Config.screenWidth = 1920;
+//	Config.screenHeight = 1080;
+	Config.multisampling = 0;
 
 	return true;
 }

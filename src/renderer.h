@@ -47,11 +47,15 @@ public:
 	bool Start( HWND wnd );
 	void Present();
 
-	bool ResizeBuffers( int w, int h );
+	/* Window management */
+	void ToggleFullscreen();
+	bool Fullscreen();
+	bool ResizeBuffers();
 
 	void SetShader( const Shader& shader );
 private:
 	static bool isInstantiated_;
+	unsigned int vsync_;
 
 	ID3D11Device *device_;
 	ID3D11DeviceContext *context_;
