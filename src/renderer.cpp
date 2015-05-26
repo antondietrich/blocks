@@ -25,8 +25,11 @@ colorShader()
 Renderer::~Renderer()
 {
 	swapChain_->SetFullscreenState( FALSE, 0 );
+
+#ifdef _DEBUG_
 	ID3D11Debug* DebugDevice = nullptr;
 	device_->QueryInterface(__uuidof(ID3D11Debug), (void**)(&DebugDevice));
+#endif
 
 	RELEASE( triangleVB_ );
 	RELEASE( defaultRasterizerState_ );
@@ -35,9 +38,11 @@ Renderer::~Renderer()
 	RELEASE( context_ );
 	RELEASE( device_ );
 
+#ifdef _DEBUG_
 	DebugDevice->ReportLiveDeviceObjects( D3D11_RLDO_DETAIL );
-	
 	RELEASE(DebugDevice);
+#endif
+	
 }
 
 bool Renderer::Start( HWND wnd )
