@@ -3,6 +3,7 @@
 
 #include <d3d11.h>
 #include <D3Dcompiler.h>
+#include <DirectXMath.h>
 #include <string>
 #include <assert.h>
 
@@ -18,6 +19,8 @@ namespace Blocks
 #define BACK_BUFFER_FORMAT DXGI_FORMAT_R8G8B8A8_UNORM
 
 bool LoadShader( wchar_t *filename, const char *entry, const char *shaderModel, ID3DBlob **buffer );
+/* Based on the implementation by @BobbyAnguelov. Thank you! */
+HRESULT CreateInputLayoutFromShaderBytecode( ID3DBlob* shaderBytecode, ID3D11Device* device, ID3D11InputLayout** inputLayout );
 
 struct VertexPosition
 {
@@ -67,6 +70,37 @@ private:
 	ID3D11Buffer *triangleVB_;
 
 	Shader colorShader;
+
+	friend class Overlay;
+};
+
+//******************************
+// Overlay
+//******************************
+
+#define MAX_OVERLAY_CHARS 1024
+
+struct OverlayVertex
+{
+	float pos[2];
+	float texcoord[2];
+};
+
+class Overlay
+{
+public:
+	Overlay();
+	~Overlay();
+	bool Start( Renderer* renderer );
+
+	void Print( const char* text );
+	void DisplayText( int x, int y, const char* text, DirectX::XMFLOAT4 color );
+
+private:
+	Renderer *renderer_;
+	Shader shader_;
+	ID3D11Buffer *vb_;
+
 };
 
 }

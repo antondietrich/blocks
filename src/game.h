@@ -18,6 +18,7 @@ public:
 	void DoFrame();
 
 	Renderer renderer;
+	Overlay overlay;
 private:
 	static bool isInstantiated_;
 

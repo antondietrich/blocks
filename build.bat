@@ -9,7 +9,7 @@ if /I "%1"=="--release" goto RELEASE
 if /I "%1"=="/release" goto RELEASE
 
 :DEBUG
-set compilerFlags=-Od -Oi -Zi -EHsc -GR- -MTd -W4 -nologo -D_DEBUG_
+set compilerFlags=-Od -Oi -Zi -EHsc -GR- -MTd -W4 -nologo -D_DEBUG_ -D_CRT_SECURE_NO_WARNINGS
 rem set suppressedWarnings=-wd4530
 set output=-Fdbin\ -Fobuild\ -Febin\blocks.exe
 if not exist "build" md build

@@ -3,6 +3,8 @@
 namespace Blocks
 {
 
+using namespace DirectX;
+
 extern ConfigType Config;
 
 bool Renderer::isInstantiated_ = false;
@@ -42,7 +44,7 @@ Renderer::~Renderer()
 	DebugDevice->ReportLiveDeviceObjects( D3D11_RLDO_DETAIL );
 	RELEASE(DebugDevice);
 #endif
-	
+
 }
 
 bool Renderer::Start( HWND wnd )
@@ -378,20 +380,28 @@ bool Shader::Load( wchar_t* filename, ID3D11Device *device )
 	}
 
 	// Input layout
-	D3D11_INPUT_ELEMENT_DESC layout[] =
-	{
-	    { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },  
-	};
-	UINT numElements = ARRAYSIZE(layout);
-
-	hr = device->CreateInputLayout( layout, numElements, vShaderBytecode->GetBufferPointer(), vShaderBytecode->GetBufferSize(), &inputLayout_ );
+//	D3D11_INPUT_ELEMENT_DESC layout[] =
+//	{
+//	    { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },  
+//	};
+//	UINT numElements = ARRAYSIZE(layout);
+//	hr = device->CreateInputLayout( layout, numElements, vShaderBytecode->GetBufferPointer(), vShaderBytecode->GetBufferSize(), &inputLayout_ );
+//	if( FAILED( hr ) )
+//	{
+//		OutputDebugStringA( "Input layout creation failed!" );
+//		RELEASE( vShaderBytecode );
+//		RELEASE( inputLayout_ );
+//		return false;
+//	}
+	hr = CreateInputLayoutFromShaderBytecode( vShaderBytecode, device, &inputLayout_ );
 	if( FAILED( hr ) )
 	{
-		OutputDebugStringA( "Input layout creation failed!" );
-		RELEASE( vShaderBytecode );
-		RELEASE( inputLayout_ );
+		OutputDebugStringA( "Failed to create input layout from shader bytecode!" );
+		if( vShaderBytecode )
+			vShaderBytecode->Release();
 		return false;
 	}
+
 	RELEASE( vShaderBytecode );
 
 	ID3DBlob *pShaderBytecode = 0;
@@ -417,6 +427,75 @@ bool Shader::Load( wchar_t* filename, ID3D11Device *device )
 
 
 //********************************
+// Debug overlay
+//********************************
+Overlay::Overlay()
+:
+shader_()
+{
+	renderer_ = 0;
+	vb_ = 0;
+}
+
+Overlay::~Overlay()
+{
+	RELEASE( vb_ );
+}
+
+bool Overlay::Start( Renderer *renderer )
+{
+	HRESULT hr;
+
+	renderer_ = renderer;
+	if( !shader_.Load( L"assets/shaders/overlay.fx", renderer_->device_ ) )
+		return false;
+
+	D3D11_BUFFER_DESC desc;
+	ZeroMemory( &desc, sizeof( desc ) );
+	desc.Usage = D3D11_USAGE_DYNAMIC;
+	desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	desc.ByteWidth = sizeof( OverlayVertex ) * MAX_OVERLAY_CHARS;
+
+	hr = renderer_->device_->CreateBuffer( &desc, NULL, &vb_ );
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "Failed to create overlay vertex buffer!" );
+	}
+
+	return true;
+}
+
+void Overlay::Print( const char* text )
+{
+	DisplayText( 10, 10, text, XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f ) );
+}
+
+void Overlay::DisplayText( int x, int y, const char* text, DirectX::XMFLOAT4 color )
+{
+	// cut text if too long
+	int textLength = (int)strlen( text );
+	if( textLength > MAX_OVERLAY_CHARS ) {
+		OutputDebugStringA( "Overlay text too long, clamping!\n" );
+		textLength = MAX_OVERLAY_CHARS;
+	}
+
+	char shortText[ MAX_OVERLAY_CHARS + 1 ];
+	strncpy ( shortText, text, textLength );
+	shortText[ textLength ] = '\0';
+
+	OverlayVertex vertices[ MAX_OVERLAY_CHARS ];
+	for( int i = 0; i < textLength; i++ )
+	{
+		char letterTemp[2];
+		letterTemp[0] = shortText[i];
+		letterTemp[1] = '\0';
+		OutputDebugStringA( letterTemp );
+	}
+	OutputDebugStringA( "\n" );
+}
+
+//********************************
 // Function definitions
 //********************************
 bool LoadShader( wchar_t *filename, const char *entry, const char *shaderModel, ID3DBlob **buffer )
@@ -439,6 +518,78 @@ bool LoadShader( wchar_t *filename, const char *entry, const char *shaderModel, 
 		errorBuffer->Release();
 
 	return true;
+}
+
+HRESULT CreateInputLayoutFromShaderBytecode( ID3DBlob* shaderBytecode, ID3D11Device* device, ID3D11InputLayout** inputLayout )
+{
+	HRESULT hr;
+	// Reflect shader info
+	ID3D11ShaderReflection* vShaderReflection = NULL;
+	if( FAILED( hr = D3DReflect( shaderBytecode->GetBufferPointer(), shaderBytecode->GetBufferSize(), IID_ID3D11ShaderReflection, (void**)&vShaderReflection ) ) )
+	{
+		return hr;
+	}
+
+	// Get shader info
+	D3D11_SHADER_DESC shaderDesc;
+	vShaderReflection->GetDesc( &shaderDesc );
+
+	// Read input layout description from shader info
+	unsigned int numInputParameters = shaderDesc.InputParameters;
+	D3D11_INPUT_ELEMENT_DESC *inputLayoutDesc = new D3D11_INPUT_ELEMENT_DESC[ numInputParameters ];
+	for( unsigned int i = 0; i < numInputParameters; ++i )
+	{
+		D3D11_SIGNATURE_PARAMETER_DESC paramDesc;
+		vShaderReflection->GetInputParameterDesc( i, &paramDesc );
+
+		// fill out input element desc
+		D3D11_INPUT_ELEMENT_DESC elementDesc;
+		elementDesc.SemanticName = paramDesc.SemanticName;
+		elementDesc.SemanticIndex = paramDesc.SemanticIndex;
+		elementDesc.InputSlot = 0;
+		elementDesc.AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;
+		elementDesc.InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
+		elementDesc.InstanceDataStepRate = 0;
+
+		// determine DXGI format
+		if( paramDesc.Mask == 1 )
+		{
+			if( paramDesc.ComponentType == D3D_REGISTER_COMPONENT_UINT32 ) elementDesc.Format = DXGI_FORMAT_R32_UINT;
+			else if( paramDesc.ComponentType == D3D_REGISTER_COMPONENT_SINT32 ) elementDesc.Format = DXGI_FORMAT_R32_SINT;
+			else if( paramDesc.ComponentType == D3D_REGISTER_COMPONENT_FLOAT32 ) elementDesc.Format = DXGI_FORMAT_R32_FLOAT;
+		}
+		else if( paramDesc.Mask <= 3 )
+		{
+			if( paramDesc.ComponentType == D3D_REGISTER_COMPONENT_UINT32 ) elementDesc.Format = DXGI_FORMAT_R32G32_UINT;
+			else if( paramDesc.ComponentType == D3D_REGISTER_COMPONENT_SINT32 ) elementDesc.Format = DXGI_FORMAT_R32G32_SINT;
+			else if( paramDesc.ComponentType == D3D_REGISTER_COMPONENT_FLOAT32 ) elementDesc.Format = DXGI_FORMAT_R32G32_FLOAT;
+		}
+		else if( paramDesc.Mask <= 7 )
+		{
+			if( paramDesc.ComponentType == D3D_REGISTER_COMPONENT_UINT32 ) elementDesc.Format = DXGI_FORMAT_R32G32B32_UINT;
+			else if( paramDesc.ComponentType == D3D_REGISTER_COMPONENT_SINT32 ) elementDesc.Format = DXGI_FORMAT_R32G32B32_SINT;
+			else if( paramDesc.ComponentType == D3D_REGISTER_COMPONENT_FLOAT32 ) elementDesc.Format = DXGI_FORMAT_R32G32B32_FLOAT;
+		}
+		else if( paramDesc.Mask <= 15 )
+		{
+			if( paramDesc.ComponentType == D3D_REGISTER_COMPONENT_UINT32 ) elementDesc.Format = DXGI_FORMAT_R32G32B32A32_UINT;
+			else if( paramDesc.ComponentType == D3D_REGISTER_COMPONENT_SINT32 ) elementDesc.Format = DXGI_FORMAT_R32G32B32A32_SINT;
+			else if( paramDesc.ComponentType == D3D_REGISTER_COMPONENT_FLOAT32 ) elementDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		}
+
+		//save element desc
+		inputLayoutDesc[ i ] = elementDesc;
+	}
+
+	// Try to create Input Layout
+	hr = device->CreateInputLayout( inputLayoutDesc, numInputParameters, shaderBytecode->GetBufferPointer(),
+									shaderBytecode->GetBufferSize(), inputLayout );
+
+	//Free allocation shader reflection memory
+	delete[] inputLayoutDesc;
+	vShaderReflection->Release();
+
+	return hr;
 }
 
 }

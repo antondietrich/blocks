@@ -25,6 +25,13 @@ bool Game::Start( HWND wnd )
 		return false;
 	}
 
+	if( !overlay.Start( &renderer ) )
+	{
+		return false;
+	}
+
+	overlay.Print( "Hello, world!" );
+
 	return true;
 }
 
