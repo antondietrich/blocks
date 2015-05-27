@@ -200,7 +200,7 @@ bool Renderer::Start( HWND wnd )
 		return false;
 	}
 
-	// context_->RSSetState( defaultRasterizerState_ );
+	context_->RSSetState( defaultRasterizerState_ );
 
 	// viewport
 	screenViewport_.Width = static_cast<float>( Config.screenWidth );
@@ -216,8 +216,8 @@ bool Renderer::Start( HWND wnd )
 	const int numVertices = 3;
 	VertexPosition vertices[] = {
 		{ 0.0f, 0.5f, 0.5f },
-		{ 0.5f, -0.5f, 0.5f },
 		{ -0.5f, -0.5f, 0.5f },
+		{ 0.5f, -0.5f, 0.5f },
 	};
 
 	D3D11_BUFFER_DESC vertexBufferDesc;
@@ -238,28 +238,38 @@ bool Renderer::Start( HWND wnd )
 		return false;
 	}
 
-	unsigned int stride = sizeof( VertexPosition );
-	unsigned int offset = 0;
-
-	context_->IASetVertexBuffers( 0, 1, &triangleVB_, &stride, &offset );
+	
 
 	if( !colorShader.Load( L"assets/shaders/color.fx", device_ ) )
 	{
 		OutputDebugStringA( "Failed to load shaders! " );
 		return false;
 	}
-	SetShader( colorShader );
+	
 
 	context_->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
 
 	return true;
 }
 
-void Renderer::Present()
+void Renderer::Begin()
 {
 	float clearColor[ 4 ] = { 0.53f, 0.81f, 0.98f, 1.0f };
 	context_->ClearRenderTargetView( backBufferView_, clearColor );
+}
+
+void Renderer::Present()
+{
+	unsigned int stride = sizeof( VertexPosition );
+	unsigned int offset = 0;
+	context_->IASetVertexBuffers( 0, 1, &triangleVB_, &stride, &offset );
+
+	SetShader( colorShader );
 	context_->Draw( 3, 0 );
+}
+
+void Renderer::End()
+{
 	swapChain_->Present( vsync_, 0 );
 }
 
@@ -435,10 +445,14 @@ shader_()
 {
 	renderer_ = 0;
 	vb_ = 0;
+	textureView_ = 0;
+	sampler_ = 0;
 }
 
 Overlay::~Overlay()
 {
+	RELEASE( sampler_ );
+	RELEASE( textureView_ );
 	RELEASE( vb_ );
 }
 
@@ -461,6 +475,34 @@ bool Overlay::Start( Renderer *renderer )
 	if( FAILED( hr ) )
 	{
 		OutputDebugStringA( "Failed to create overlay vertex buffer!" );
+		return false;
+	}
+
+	hr = CreateDDSTextureFromFile( renderer_->device_,
+                                   L"assets/textures/droidMono.dds",
+                                    NULL,
+                                    &textureView_
+                                 );
+	if( FAILED( hr ) ) {
+		OutputDebugStringA( "Failed to load Droid Mono texture!" );
+		return false;
+	}
+
+	D3D11_SAMPLER_DESC samplerDesc;
+	ZeroMemory( &samplerDesc, sizeof( samplerDesc ) );
+	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+	samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+	samplerDesc.MipLODBias = 0;
+	samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+	samplerDesc.MinLOD = 0;
+	samplerDesc.MaxLOD = 0;
+
+	hr = renderer_->device_->CreateSamplerState( &samplerDesc, &sampler_ );
+	if( FAILED( hr ) ) {
+		OutputDebugStringA( "Failed to create sampler state!" );
+		return false;
 	}
 
 	return true;
@@ -473,6 +515,8 @@ void Overlay::Print( const char* text )
 
 void Overlay::DisplayText( int x, int y, const char* text, DirectX::XMFLOAT4 color )
 {
+	UNREFERENCED_PARAMETER( color );
+
 	// cut text if too long
 	int textLength = (int)strlen( text );
 	if( textLength > MAX_OVERLAY_CHARS ) {
@@ -484,15 +528,71 @@ void Overlay::DisplayText( int x, int y, const char* text, DirectX::XMFLOAT4 col
 	strncpy ( shortText, text, textLength );
 	shortText[ textLength ] = '\0';
 
-	OverlayVertex vertices[ MAX_OVERLAY_CHARS ];
+	float viewportHalfWidth = (float)renderer_->GetViewportWidth() / 2.0f;
+	float viewportHalfHeight = (float)renderer_->GetViewportHeight() / 2.0f;
+	OverlayVertex vertices[ MAX_OVERLAY_CHARS * 6 ]; // 6 vertices per sqaure/char
+	
+	float screenX = x / viewportHalfWidth - 1.0f;
+	float screenY = -y / viewportHalfHeight + 1.0f;
+
 	for( int i = 0; i < textLength; i++ )
 	{
-		char letterTemp[2];
-		letterTemp[0] = shortText[i];
-		letterTemp[1] = '\0';
-		OutputDebugStringA( letterTemp );
+		char c = shortText[i];
+		float texcoord = GetCharOffset( c );
+
+		vertices[i * 6 + 1] = { { screenX + ( CHAR_WIDTH * ( i + 0 ) ) / viewportHalfWidth, screenY - ( LINE_HEIGHT * 0 ) / viewportHalfHeight }, 
+			{ texcoord, 0.0f } }; // top left
+		vertices[i * 6 + 2] = { { screenX + ( CHAR_WIDTH * ( i + 0 ) ) / viewportHalfWidth, screenY - ( LINE_HEIGHT * 1 ) / viewportHalfHeight }, 
+			{ texcoord, 1.0f } }; // bottom left
+		vertices[i * 6 + 0] = { { screenX + ( CHAR_WIDTH * ( i + 1 ) ) / viewportHalfWidth, screenY - ( LINE_HEIGHT * 1 ) / viewportHalfHeight }, 
+			{ texcoord + FONT_CHAR_OFFSET, 1.0f } }; // bottom right
+		vertices[i * 6 + 5] = { { screenX + ( CHAR_WIDTH * ( i + 0 ) ) / viewportHalfWidth, screenY - ( LINE_HEIGHT * 0 ) / viewportHalfHeight }, 
+			{ texcoord, 0.0f } }; // top left
+		vertices[i * 6 + 4] = { { screenX + ( CHAR_WIDTH * ( i + 1 ) ) / viewportHalfWidth, screenY - ( LINE_HEIGHT * 0 ) / viewportHalfHeight }, 
+			{ texcoord + FONT_CHAR_OFFSET, 0.0f } }; // top right
+		vertices[i * 6 + 3] = { { screenX + ( CHAR_WIDTH * ( i + 1 ) ) / viewportHalfWidth, screenY - ( LINE_HEIGHT * 1 ) / viewportHalfHeight }, 
+			{ texcoord + FONT_CHAR_OFFSET, 1.0f } }; // bottom right
 	}
-	OutputDebugStringA( "\n" );
+
+	/*
+	NOTE:
+	A common use of these two flags involves filling dynamic index/vertex buffers with geometry 
+	that can be seen from the camera's current position. The first time that data is entered 
+	into the buffer on a given frame, Map is called with D3D11_MAP_WRITE_DISCARD; 
+	doing so invalidates the previous contents of the buffer. The buffer is then filled with all available data.
+	Subsequent writes to the buffer within the same frame should use D3D11_MAP_WRITE_NO_OVERWRITE. 
+	This will enable the CPU to access a resource that is potentially being used by the GPU as long 
+	as the restrictions described previously are respected.
+	*/
+	// TODO: build a single vertex buffer per overlay 
+	D3D11_MAPPED_SUBRESOURCE mapResource;
+	HRESULT hr = renderer_->context_->Map( vb_, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource );
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "Failed to map subresource!");
+		return;
+	}
+	memcpy( mapResource.pData, vertices, sizeof( OverlayVertex ) * textLength * 6 );
+	renderer_->context_->Unmap( vb_, 0 );
+
+	unsigned int stride = sizeof( OverlayVertex );
+	unsigned int offset = 0;
+
+	renderer_->context_->IASetVertexBuffers( 0, 1, &vb_, &stride, &offset );
+	renderer_->context_->PSSetShaderResources( 0, 1, &textureView_ );
+	renderer_->context_->PSSetSamplers( 0, 1, &sampler_ );
+	renderer_->SetShader( shader_ );
+	renderer_->context_->Draw( textLength * 6, 0 );
+
+}
+
+float Overlay::GetCharOffset( char c )
+{
+	std::string alpha = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890+-*/=><()_\"';:.,!?@#[] ";
+
+	int index = alpha.find_first_of( c );
+
+	return (float)index * FONT_CHAR_OFFSET;
 }
 
 //********************************

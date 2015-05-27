@@ -7,6 +7,8 @@
 #include <string>
 #include <assert.h>
 
+#include "DDSTextureLoader.h"
+
 #include "config.h"
 #include "utils.h"
 
@@ -48,12 +50,20 @@ public:
 	~Renderer();
 
 	bool Start( HWND wnd );
+	void Begin();
+	void End();
 	void Present();
 
 	/* Window management */
 	void ToggleFullscreen();
 	bool Fullscreen();
 	bool ResizeBuffers();
+	int GetViewportWidth() {
+		return (int)screenViewport_.Width;
+	};
+	int GetViewportHeight() {
+		return (int)screenViewport_.Height;
+	};
 
 	void SetShader( const Shader& shader );
 private:
@@ -75,10 +85,18 @@ private:
 };
 
 //******************************
-// Overlay
+// Debug overlay
 //******************************
 
 #define MAX_OVERLAY_CHARS 1024
+// measured in pixels
+#define LINE_HEIGHT 24
+#define LINE_SPACING 4
+#define CHAR_WIDTH 12.0f
+#define FONT_BITMAP_WIDTH 1024.0f
+#define FONT_NUM_CHARS 86.0f
+#define FONT_CHAR_OFFSET ( CHAR_WIDTH / FONT_BITMAP_WIDTH )
+// #define FONT_CHAR_OFFSET 0.01171875f
 
 struct OverlayVertex
 {
@@ -96,11 +114,14 @@ public:
 	void Print( const char* text );
 	void DisplayText( int x, int y, const char* text, DirectX::XMFLOAT4 color );
 
+	float GetCharOffset( char c );
+
 private:
 	Renderer *renderer_;
 	Shader shader_;
 	ID3D11Buffer *vb_;
-
+	ID3D11ShaderResourceView *textureView_;
+	ID3D11SamplerState *sampler_;
 };
 
 }

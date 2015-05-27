@@ -30,14 +30,17 @@ bool Game::Start( HWND wnd )
 		return false;
 	}
 
-	overlay.Print( "Hello, world!" );
 
 	return true;
 }
 
 void Game::DoFrame()
 {
+	renderer.Begin();
 	renderer.Present();
+	overlay.Print( "Hello, world!" );
+	
+	renderer.End();
 }
 
 }
