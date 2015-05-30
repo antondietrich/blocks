@@ -21,6 +21,11 @@ colorShader()
 	context_ = 0;
 	swapChain_ = 0;
 	backBufferView_ = 0;
+	defaultRasterizerState_ = 0;
+	for( int i = 0; i < NUM_BLEND_MODES; i++ ) {
+		blendStates_[i] = 0;
+	}
+
 	triangleVB_ = 0;
 }
 
@@ -34,6 +39,9 @@ Renderer::~Renderer()
 #endif
 
 	RELEASE( triangleVB_ );
+	for( int i = 0; i < NUM_BLEND_MODES; i++ ) {
+		RELEASE( blendStates_[i] );
+	}
 	RELEASE( defaultRasterizerState_ );
 	RELEASE( backBufferView_ );
 	RELEASE( swapChain_ );
@@ -176,7 +184,7 @@ bool Renderer::Start( HWND wnd )
 		ToggleFullscreen();
 	}
 
-	// rasterizer state
+	// rasterizer states
 	D3D11_RASTERIZER_DESC rasterizerStateDesc;
 	ZeroMemory( &rasterizerStateDesc, sizeof( rasterizerStateDesc ) );
 	rasterizerStateDesc.FillMode = D3D11_FILL_SOLID;
@@ -201,6 +209,40 @@ bool Renderer::Start( HWND wnd )
 	}
 
 	context_->RSSetState( defaultRasterizerState_ );
+
+	// blend modes
+	D3D11_BLEND_DESC blendDesc;
+	ZeroMemory( &blendDesc, sizeof( blendDesc ) );
+	blendDesc.AlphaToCoverageEnable = FALSE;
+	blendDesc.IndependentBlendEnable = FALSE;
+	blendDesc.RenderTarget[0].BlendEnable = FALSE;
+	blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
+	blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_ZERO;
+	blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+	blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+	blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+	blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+
+	device_->CreateBlendState( &blendDesc, &blendStates_[ BM_DEFAULT ] );
+
+	// float blendFactor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	UINT sampleMask   = 0xffffffff;
+	context_->OMSetBlendState( blendStates_[ BM_DEFAULT], NULL, sampleMask );
+
+	ZeroMemory( &blendDesc, sizeof( blendDesc ) );
+	blendDesc.AlphaToCoverageEnable = FALSE;
+	blendDesc.IndependentBlendEnable = FALSE;
+	blendDesc.RenderTarget[0].BlendEnable = TRUE;
+	blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+	blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+	blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+	blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+	blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+	blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+
+	device_->CreateBlendState( &blendDesc, &blendStates_[ BM_ALPHA ] );
 
 	// viewport
 	screenViewport_.Width = static_cast<float>( Config.screenWidth );
@@ -339,6 +381,12 @@ bool Renderer::ResizeBuffers()
 	context_->RSSetViewports( 1, &screenViewport_ );
 
 	return true;
+}
+
+void Renderer::SetBlendMode( BLEND_MODE bm )
+{
+	UINT sampleMask   = 0xffffffff;
+	context_->OMSetBlendState( blendStates_[ bm ], NULL, sampleMask );
 }
 
 void Renderer::SetShader( const Shader& shader )
@@ -578,11 +626,13 @@ void Overlay::DisplayText( int x, int y, const char* text, DirectX::XMFLOAT4 col
 	unsigned int stride = sizeof( OverlayVertex );
 	unsigned int offset = 0;
 
+	renderer_->SetBlendMode( BM_ALPHA );
 	renderer_->context_->IASetVertexBuffers( 0, 1, &vb_, &stride, &offset );
 	renderer_->context_->PSSetShaderResources( 0, 1, &textureView_ );
 	renderer_->context_->PSSetSamplers( 0, 1, &sampler_ );
 	renderer_->SetShader( shader_ );
 	renderer_->context_->Draw( textLength * 6, 0 );
+	renderer_->SetBlendMode( BM_DEFAULT );
 
 }
 
@@ -590,7 +640,7 @@ float Overlay::GetCharOffset( char c )
 {
 	std::string alpha = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890+-*/=><()_\"';:.,!?@#[] ";
 
-	int index = alpha.find_first_of( c );
+	int index = (int)alpha.find_first_of( c );
 
 	return (float)index * FONT_CHAR_OFFSET;
 }

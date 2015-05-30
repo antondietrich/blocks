@@ -28,7 +28,5 @@ PS_Input VSMain( VS_Input input )
 float4 PSMain( PS_Input input ) : SV_TARGET
 {
 	float4 color =  fontTexture_.Sample( sampler_, input.texcoord );
-	if( color.a < 0.25f )
-		discard;
-	return float4( 1.0f, 1.0f, 1.0f, 1.0f );
+	return float4( 1.0f, 1.0f, 1.0f, color.a );
 }

@@ -20,6 +20,13 @@ namespace Blocks
 
 #define BACK_BUFFER_FORMAT DXGI_FORMAT_R8G8B8A8_UNORM
 
+enum BLEND_MODE
+{
+	BM_DEFAULT,
+	BM_ALPHA,
+	NUM_BLEND_MODES
+};
+
 bool LoadShader( wchar_t *filename, const char *entry, const char *shaderModel, ID3DBlob **buffer );
 /* Based on the implementation by @BobbyAnguelov. Thank you! */
 HRESULT CreateInputLayoutFromShaderBytecode( ID3DBlob* shaderBytecode, ID3D11Device* device, ID3D11InputLayout** inputLayout );
@@ -65,6 +72,7 @@ public:
 		return (int)screenViewport_.Height;
 	};
 
+	void SetBlendMode( BLEND_MODE bm );
 	void SetShader( const Shader& shader );
 private:
 	static bool isInstantiated_;
@@ -76,6 +84,8 @@ private:
 	ID3D11RenderTargetView *backBufferView_;
 	ID3D11RasterizerState *defaultRasterizerState_;
 	D3D11_VIEWPORT screenViewport_;
+
+	ID3D11BlendState *blendStates_[ NUM_BLEND_MODES ];
 
 	ID3D11Buffer *triangleVB_;
 
