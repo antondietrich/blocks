@@ -495,10 +495,14 @@ shader_()
 	vb_ = 0;
 	textureView_ = 0;
 	sampler_ = 0;
+	constantBuffer_ = 0;
+
+	currentColor_ = XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f );
 }
 
 Overlay::~Overlay()
 {
+	RELEASE( constantBuffer_ );
 	RELEASE( sampler_ );
 	RELEASE( textureView_ );
 	RELEASE( vb_ );
@@ -512,6 +516,7 @@ bool Overlay::Start( Renderer *renderer )
 	if( !shader_.Load( L"assets/shaders/overlay.fx", renderer_->device_ ) )
 		return false;
 
+	// create vertex buffer
 	D3D11_BUFFER_DESC desc;
 	ZeroMemory( &desc, sizeof( desc ) );
 	desc.Usage = D3D11_USAGE_DYNAMIC;
@@ -526,6 +531,7 @@ bool Overlay::Start( Renderer *renderer )
 		return false;
 	}
 
+	// load texture
 	hr = CreateDDSTextureFromFile( renderer_->device_,
                                    L"assets/textures/droidMono.dds",
                                     NULL,
@@ -536,6 +542,7 @@ bool Overlay::Start( Renderer *renderer )
 		return false;
 	}
 
+	// create texture sampler
 	D3D11_SAMPLER_DESC samplerDesc;
 	ZeroMemory( &samplerDesc, sizeof( samplerDesc ) );
 	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
@@ -553,18 +560,41 @@ bool Overlay::Start( Renderer *renderer )
 		return false;
 	}
 
+	// create constant buffer
+	D3D11_BUFFER_DESC cbDesc;
+	ZeroMemory( &cbDesc, sizeof( cbDesc ) );
+	cbDesc.ByteWidth = sizeof( OverlayShaderCB );
+	cbDesc.Usage = D3D11_USAGE_DEFAULT;
+	cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	cbDesc.CPUAccessFlags = 0;
+	cbDesc.MiscFlags = 0;
+	cbDesc.StructureByteStride = 0;
+
+	OverlayShaderCB cbData;
+	cbData.color = currentColor_;
+
+	D3D11_SUBRESOURCE_DATA cbInitData;
+	cbInitData.pSysMem = &cbData;
+	cbInitData.SysMemPitch = sizeof( OverlayShaderCB );
+	cbInitData.SysMemSlicePitch = 0;
+
+	hr = renderer_->device_->CreateBuffer( &cbDesc, &cbInitData, &constantBuffer_ );
+	if( FAILED( hr ) ) {
+		OutputDebugStringA( "Failed to create overlay constant buffer!" );
+		return false;
+	}
+
+
 	return true;
 }
 
 void Overlay::Print( const char* text )
 {
-	DisplayText( 10, 10, text, XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f ) );
+	DisplayText( 10, 10, text, XMFLOAT4( 1.0f, 1.0f, 0.0f, 1.0f ) );
 }
 
-void Overlay::DisplayText( int x, int y, const char* text, DirectX::XMFLOAT4 color )
+void Overlay::DisplayText( int x, int y, const char* text, XMFLOAT4 color )
 {
-	UNREFERENCED_PARAMETER( color );
-
 	// cut text if too long
 	int textLength = (int)strlen( text );
 	if( textLength > MAX_OVERLAY_CHARS ) {
@@ -626,10 +656,24 @@ void Overlay::DisplayText( int x, int y, const char* text, DirectX::XMFLOAT4 col
 	unsigned int stride = sizeof( OverlayVertex );
 	unsigned int offset = 0;
 
+	// update constant buffer
+	if( color.x != currentColor_.x ||
+		color.y != currentColor_.y || 
+		color.z != currentColor_.z ||
+		color.w != currentColor_.w )
+	{
+		OutputDebugStringA( "Color updated!" );
+		OverlayShaderCB	cbData;
+		cbData.color = color;
+		currentColor_ = color;
+		renderer_->context_->UpdateSubresource( constantBuffer_, 0, NULL, &cbData, sizeof( OverlayShaderCB ), 0 );
+	}
+
 	renderer_->SetBlendMode( BM_ALPHA );
 	renderer_->context_->IASetVertexBuffers( 0, 1, &vb_, &stride, &offset );
 	renderer_->context_->PSSetShaderResources( 0, 1, &textureView_ );
 	renderer_->context_->PSSetSamplers( 0, 1, &sampler_ );
+	renderer_->context_->PSSetConstantBuffers( 0, 1, &constantBuffer_ );
 	renderer_->SetShader( shader_ );
 	renderer_->context_->Draw( textLength * 6, 0 );
 	renderer_->SetBlendMode( BM_DEFAULT );

@@ -114,6 +114,11 @@ struct OverlayVertex
 	float texcoord[2];
 };
 
+struct OverlayShaderCB
+{
+	DirectX::XMFLOAT4 color;
+};
+
 class Overlay
 {
 public:
@@ -132,6 +137,9 @@ private:
 	ID3D11Buffer *vb_;
 	ID3D11ShaderResourceView *textureView_;
 	ID3D11SamplerState *sampler_;
+	ID3D11Buffer *constantBuffer_;
+
+	DirectX::XMFLOAT4 currentColor_;
 };
 
 }

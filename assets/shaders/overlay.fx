@@ -1,6 +1,11 @@
 Texture2D fontTexture_ : register( t0 );
 SamplerState sampler_ : register( s0 );
 
+cbuffer OverlayCB : register(b0)
+{
+	float4 color;
+}
+
 struct VS_Input
 {
 	float2 pos : POSITION;
@@ -27,6 +32,9 @@ PS_Input VSMain( VS_Input input )
 
 float4 PSMain( PS_Input input ) : SV_TARGET
 {
-	float4 color =  fontTexture_.Sample( sampler_, input.texcoord );
-	return float4( 1.0f, 1.0f, 1.0f, color.a );
+	float4 outColor;
+	float4 texSample =  fontTexture_.Sample( sampler_, input.texcoord );
+	outColor.rgb = color.rgb;
+	outColor.a = texSample.a;
+	return outColor;
 }
