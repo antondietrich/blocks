@@ -106,9 +106,9 @@ private:
 #define MAX_OVERLAY_CHARS 1024
 // measured in pixels
 #define TEXT_PADDING 10
-#define LINE_HEIGHT 24.0f
-#define LINE_SPACING 4.0f
-#define CHAR_WIDTH 12.0f
+#define LINE_HEIGHT 24
+#define LINE_SPACING 4
+#define CHAR_WIDTH 12
 #define FONT_BITMAP_WIDTH 1024.0f
 #define FONT_NUM_CHARS 86.0f
 #define NORMALIZED_CHAR_WIDTH ( CHAR_WIDTH / FONT_BITMAP_WIDTH )

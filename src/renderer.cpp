@@ -716,12 +716,12 @@ void Overlay::DisplayText( int x, int y, const char* text, XMFLOAT4 color )
 //			charOffsetInLine = 0;
 //		}
 
-		vertices[i * 6 + 0] = { { x + CHAR_WIDTH * ( charOffsetInLine + 0 ), y + 0 			 }, { texcoord, 0.0f } };
-		vertices[i * 6 + 1] = { { x + CHAR_WIDTH * ( charOffsetInLine + 0 ), y + LINE_HEIGHT }, { texcoord, 1.0f } };
-		vertices[i * 6 + 2] = { { x + CHAR_WIDTH * ( charOffsetInLine + 1 ), y + LINE_HEIGHT }, { texcoord + NORMALIZED_CHAR_WIDTH, 1.0f } };
-		vertices[i * 6 + 3] = { { x + CHAR_WIDTH * ( charOffsetInLine + 0 ), y + 0 			 }, { texcoord, 0.0f } };
-		vertices[i * 6 + 4] = { { x + CHAR_WIDTH * ( charOffsetInLine + 1 ), y + LINE_HEIGHT }, { texcoord + NORMALIZED_CHAR_WIDTH, 1.0f } };
-		vertices[i * 6 + 5] = { { x + CHAR_WIDTH * ( charOffsetInLine + 1 ), y + 0 			 }, { texcoord + NORMALIZED_CHAR_WIDTH, 0.0f } };
+		vertices[i * 6 + 0] = { { (float)( x + CHAR_WIDTH * ( charOffsetInLine + 0 ) ), (float)( y + 0 ) 			 }, { texcoord, 0.0f } };
+		vertices[i * 6 + 1] = { { (float)( x + CHAR_WIDTH * ( charOffsetInLine + 0 ) ), (float)( y + LINE_HEIGHT ) }, { texcoord, 1.0f } };
+		vertices[i * 6 + 2] = { { (float)( x + CHAR_WIDTH * ( charOffsetInLine + 1 ) ), (float)( y + LINE_HEIGHT ) }, { texcoord + NORMALIZED_CHAR_WIDTH, 1.0f } };
+		vertices[i * 6 + 3] = { { (float)( x + CHAR_WIDTH * ( charOffsetInLine + 0 ) ), (float)( y + 0 ) 			 }, { texcoord, 0.0f } };
+		vertices[i * 6 + 4] = { { (float)( x + CHAR_WIDTH * ( charOffsetInLine + 1 ) ), (float)( y + LINE_HEIGHT ) }, { texcoord + NORMALIZED_CHAR_WIDTH, 1.0f } };
+		vertices[i * 6 + 5] = { { (float)( x + CHAR_WIDTH * ( charOffsetInLine + 1 ) ), (float)( y + 0 ) 			 }, { texcoord + NORMALIZED_CHAR_WIDTH, 0.0f } };
 	
 		charOffsetInLine++;
 	}
