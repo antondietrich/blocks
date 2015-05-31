@@ -36,6 +36,10 @@ struct VertexPosition
 	float pos[3];
 };
 
+struct GlobalCB {
+	DirectX::XMFLOAT4X4 screenToNDC;
+};
+
 class Shader
 {
 public:
@@ -84,6 +88,7 @@ private:
 	ID3D11RenderTargetView *backBufferView_;
 	ID3D11RasterizerState *defaultRasterizerState_;
 	D3D11_VIEWPORT screenViewport_;
+	ID3D11Buffer *globalConstantBuffer_;
 
 	ID3D11BlendState *blendStates_[ NUM_BLEND_MODES ];
 
@@ -100,12 +105,13 @@ private:
 
 #define MAX_OVERLAY_CHARS 1024
 // measured in pixels
-#define LINE_HEIGHT 24
-#define LINE_SPACING 4
+#define TEXT_PADDING 10
+#define LINE_HEIGHT 24.0f
+#define LINE_SPACING 4.0f
 #define CHAR_WIDTH 12.0f
 #define FONT_BITMAP_WIDTH 1024.0f
 #define FONT_NUM_CHARS 86.0f
-#define FONT_CHAR_OFFSET ( CHAR_WIDTH / FONT_BITMAP_WIDTH )
+#define NORMALIZED_CHAR_WIDTH ( CHAR_WIDTH / FONT_BITMAP_WIDTH )
 // #define FONT_CHAR_OFFSET 0.01171875f
 
 struct OverlayVertex
@@ -125,6 +131,7 @@ public:
 	Overlay();
 	~Overlay();
 	bool Start( Renderer* renderer );
+	void Reset();
 
 	void Print( const char* text );
 	void DisplayText( int x, int y, const char* text, DirectX::XMFLOAT4 color );
@@ -139,6 +146,7 @@ private:
 	ID3D11SamplerState *sampler_;
 	ID3D11Buffer *constantBuffer_;
 
+	unsigned int lineNumber_;
 	DirectX::XMFLOAT4 currentColor_;
 };
 

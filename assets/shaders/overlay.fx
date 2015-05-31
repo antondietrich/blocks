@@ -1,7 +1,12 @@
 Texture2D fontTexture_ : register( t0 );
 SamplerState sampler_ : register( s0 );
 
-cbuffer OverlayCB : register(b0)
+cbuffer GlobalCB : register( b0 )
+{
+	matrix screenToNDC;
+}
+
+cbuffer OverlayCB : register( b1 )
 {
 	float4 color;
 }
@@ -24,6 +29,8 @@ PS_Input VSMain( VS_Input input )
 	output.pos.xy = input.pos;
 	output.pos.z = 0.5f;
 	output.pos.w = 1.0f;
+
+	output.pos = mul( output.pos, screenToNDC );
 
 	output.texcoord = input.texcoord;
 	

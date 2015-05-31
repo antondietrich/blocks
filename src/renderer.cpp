@@ -25,6 +25,7 @@ colorShader()
 	for( int i = 0; i < NUM_BLEND_MODES; i++ ) {
 		blendStates_[i] = 0;
 	}
+	globalConstantBuffer_ = 0;
 
 	triangleVB_ = 0;
 }
@@ -39,6 +40,7 @@ Renderer::~Renderer()
 #endif
 
 	RELEASE( triangleVB_ );
+	RELEASE( globalConstantBuffer_ );
 	for( int i = 0; i < NUM_BLEND_MODES; i++ ) {
 		RELEASE( blendStates_[i] );
 	}
@@ -188,7 +190,7 @@ bool Renderer::Start( HWND wnd )
 	D3D11_RASTERIZER_DESC rasterizerStateDesc;
 	ZeroMemory( &rasterizerStateDesc, sizeof( rasterizerStateDesc ) );
 	rasterizerStateDesc.FillMode = D3D11_FILL_SOLID;
-	rasterizerStateDesc.CullMode = D3D11_CULL_BACK;
+	rasterizerStateDesc.CullMode = D3D11_CULL_NONE;
 	rasterizerStateDesc.FrontCounterClockwise = TRUE;
 	rasterizerStateDesc.DepthBias = 0;
 	rasterizerStateDesc.DepthBiasClamp = 0.0f;
@@ -253,6 +255,37 @@ bool Renderer::Start( HWND wnd )
 	screenViewport_.TopLeftY = 0.0f;
 
 	context_->RSSetViewports( 1, &screenViewport_ );
+
+	// global constant buffer
+	D3D11_BUFFER_DESC cbDesc;
+	ZeroMemory( &cbDesc, sizeof( cbDesc ) );
+	cbDesc.ByteWidth = sizeof( GlobalCB );
+	cbDesc.Usage = D3D11_USAGE_DEFAULT;
+	cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	cbDesc.CPUAccessFlags = 0;
+	cbDesc.MiscFlags = 0;
+	cbDesc.StructureByteStride = 0;
+
+	GlobalCB cbData;
+	cbData.screenToNDC = XMFLOAT4X4(
+		2.0f / screenViewport_.Width,	 0.0f,							0.0f,	-1.0f,
+		0.0f,							-2.0f / screenViewport_.Height,	0.0f,	 1.0f,
+		0.0f,							 0.0f,							1.0f,	 0.0f,
+		0.0f,							 0.0f,							0.0f,	 1.0f
+	);
+
+	D3D11_SUBRESOURCE_DATA cbInitData;
+	cbInitData.pSysMem = &cbData;
+	cbInitData.SysMemPitch = sizeof( GlobalCB );
+	cbInitData.SysMemSlicePitch = 0;
+
+	hr = device_->CreateBuffer( &cbDesc, &cbInitData, &globalConstantBuffer_ );
+	if( FAILED( hr ) ) {
+		OutputDebugStringA( "Failed to create overlay constant buffer!" );
+		return false;
+	}
+
+	context_->VSSetConstantBuffers( 0, 1, &globalConstantBuffer_ );
 
 	// Temp triangle
 	const int numVertices = 3;
@@ -370,8 +403,6 @@ bool Renderer::ResizeBuffers()
 
 	context_->OMSetRenderTargets( 1, &backBufferView_, NULL );
 
-//	screenViewport_.Width = (float)width;
-//	screenViewport_.Height = (float)height;
 	screenViewport_.Width = (float)desc.BufferDesc.Width;
 	screenViewport_.Height = (float)desc.BufferDesc.Height;
 	screenViewport_.MinDepth = 0.0f;
@@ -379,6 +410,19 @@ bool Renderer::ResizeBuffers()
 	screenViewport_.TopLeftX = 0;
 	screenViewport_.TopLeftY = 0;
 	context_->RSSetViewports( 1, &screenViewport_ );
+
+	// update the screen to NDC matrix, since the view dimensions have changed
+	GlobalCB cbData;
+	cbData.screenToNDC = XMFLOAT4X4(
+		2.0f / screenViewport_.Width,	 0.0f,							0.0f,	-1.0f,
+		0.0f,							-2.0f / screenViewport_.Height,	0.0f,	 1.0f,
+		0.0f,							 0.0f,							1.0f,	 0.0f,
+		0.0f,							 0.0f,							0.0f,	 1.0f
+	);
+
+	if( globalConstantBuffer_ ) {
+		context_->UpdateSubresource( globalConstantBuffer_, 0, NULL, &cbData, sizeof( GlobalCB ), 0 );
+	}
 
 	return true;
 }
@@ -497,6 +541,7 @@ shader_()
 	sampler_ = 0;
 	constantBuffer_ = 0;
 
+	lineNumber_ = 0;
 	currentColor_ = XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f );
 }
 
@@ -588,9 +633,14 @@ bool Overlay::Start( Renderer *renderer )
 	return true;
 }
 
+void Overlay::Reset()
+{
+	lineNumber_ = 0;
+}
+
 void Overlay::Print( const char* text )
 {
-	DisplayText( 10, 10, text, XMFLOAT4( 1.0f, 1.0f, 0.0f, 1.0f ) );
+	DisplayText( TEXT_PADDING, TEXT_PADDING, text, XMFLOAT4( 1.0f, 1.0f, 0.0f, 1.0f ) );
 }
 
 void Overlay::DisplayText( int x, int y, const char* text, XMFLOAT4 color )
@@ -606,30 +656,36 @@ void Overlay::DisplayText( int x, int y, const char* text, XMFLOAT4 color )
 	strncpy ( shortText, text, textLength );
 	shortText[ textLength ] = '\0';
 
-	float viewportHalfWidth = (float)renderer_->GetViewportWidth() / 2.0f;
-	float viewportHalfHeight = (float)renderer_->GetViewportHeight() / 2.0f;
 	OverlayVertex vertices[ MAX_OVERLAY_CHARS * 6 ]; // 6 vertices per sqaure/char
-	
-	float screenX = x / viewportHalfWidth - 1.0f;
-	float screenY = -y / viewportHalfHeight + 1.0f;
+	int charOffsetInLine = 0;
 
 	for( int i = 0; i < textLength; i++ )
 	{
 		char c = shortText[i];
+
+		// handle newline
+		if( c == '\n' ) {
+			lineNumber_++;
+			charOffsetInLine = 0;
+			continue;
+		}
+
 		float texcoord = GetCharOffset( c );
 
-		vertices[i * 6 + 1] = { { screenX + ( CHAR_WIDTH * ( i + 0 ) ) / viewportHalfWidth, screenY - ( LINE_HEIGHT * 0 ) / viewportHalfHeight }, 
-			{ texcoord, 0.0f } }; // top left
-		vertices[i * 6 + 2] = { { screenX + ( CHAR_WIDTH * ( i + 0 ) ) / viewportHalfWidth, screenY - ( LINE_HEIGHT * 1 ) / viewportHalfHeight }, 
-			{ texcoord, 1.0f } }; // bottom left
-		vertices[i * 6 + 0] = { { screenX + ( CHAR_WIDTH * ( i + 1 ) ) / viewportHalfWidth, screenY - ( LINE_HEIGHT * 1 ) / viewportHalfHeight }, 
-			{ texcoord + FONT_CHAR_OFFSET, 1.0f } }; // bottom right
-		vertices[i * 6 + 5] = { { screenX + ( CHAR_WIDTH * ( i + 0 ) ) / viewportHalfWidth, screenY - ( LINE_HEIGHT * 0 ) / viewportHalfHeight }, 
-			{ texcoord, 0.0f } }; // top left
-		vertices[i * 6 + 4] = { { screenX + ( CHAR_WIDTH * ( i + 1 ) ) / viewportHalfWidth, screenY - ( LINE_HEIGHT * 0 ) / viewportHalfHeight }, 
-			{ texcoord + FONT_CHAR_OFFSET, 0.0f } }; // top right
-		vertices[i * 6 + 3] = { { screenX + ( CHAR_WIDTH * ( i + 1 ) ) / viewportHalfWidth, screenY - ( LINE_HEIGHT * 1 ) / viewportHalfHeight }, 
-			{ texcoord + FONT_CHAR_OFFSET, 1.0f } }; // bottom right
+		// wrap at 64 chars
+		if( charOffsetInLine != 0 && charOffsetInLine % 64 == 0 ) {
+			lineNumber_++;
+			charOffsetInLine = 0;
+		}
+
+		vertices[i * 6 + 0] = { { x + CHAR_WIDTH * ( charOffsetInLine + 0 ), y + ( lineNumber_ * ( LINE_HEIGHT + LINE_SPACING ) ) + 0 }, { texcoord, 0.0f } };
+		vertices[i * 6 + 1] = { { x + CHAR_WIDTH * ( charOffsetInLine + 0 ), y + ( lineNumber_ * ( LINE_HEIGHT + LINE_SPACING ) ) + LINE_HEIGHT }, { texcoord, 1.0f } };
+		vertices[i * 6 + 2] = { { x + CHAR_WIDTH * ( charOffsetInLine + 1 ), y + ( lineNumber_ * ( LINE_HEIGHT + LINE_SPACING ) ) + LINE_HEIGHT }, { texcoord + NORMALIZED_CHAR_WIDTH, 1.0f } };
+		vertices[i * 6 + 3] = { { x + CHAR_WIDTH * ( charOffsetInLine + 0 ), y + ( lineNumber_ * ( LINE_HEIGHT + LINE_SPACING ) ) + 0 }, { texcoord, 0.0f } };
+		vertices[i * 6 + 4] = { { x + CHAR_WIDTH * ( charOffsetInLine + 1 ), y + ( lineNumber_ * ( LINE_HEIGHT + LINE_SPACING ) ) + LINE_HEIGHT }, { texcoord + NORMALIZED_CHAR_WIDTH, 1.0f } };
+		vertices[i * 6 + 5] = { { x + CHAR_WIDTH * ( charOffsetInLine + 1 ), y + ( lineNumber_ * ( LINE_HEIGHT + LINE_SPACING ) ) + 0 }, { texcoord + NORMALIZED_CHAR_WIDTH, 0.0f } };
+	
+		charOffsetInLine++;
 	}
 
 	/*
@@ -673,11 +729,12 @@ void Overlay::DisplayText( int x, int y, const char* text, XMFLOAT4 color )
 	renderer_->context_->IASetVertexBuffers( 0, 1, &vb_, &stride, &offset );
 	renderer_->context_->PSSetShaderResources( 0, 1, &textureView_ );
 	renderer_->context_->PSSetSamplers( 0, 1, &sampler_ );
-	renderer_->context_->PSSetConstantBuffers( 0, 1, &constantBuffer_ );
+	renderer_->context_->PSSetConstantBuffers( 1, 1, &constantBuffer_ );
 	renderer_->SetShader( shader_ );
 	renderer_->context_->Draw( textLength * 6, 0 );
 	renderer_->SetBlendMode( BM_DEFAULT );
 
+	lineNumber_++;
 }
 
 float Overlay::GetCharOffset( char c )
@@ -686,7 +743,7 @@ float Overlay::GetCharOffset( char c )
 
 	int index = (int)alpha.find_first_of( c );
 
-	return (float)index * FONT_CHAR_OFFSET;
+	return (float)index * NORMALIZED_CHAR_WIDTH;
 }
 
 //********************************

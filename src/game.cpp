@@ -37,9 +37,12 @@ bool Game::Start( HWND wnd )
 void Game::DoFrame()
 {
 	renderer.Begin();
-	renderer.Present();
+	//renderer.Present();
+	overlay.Reset();
 	overlay.Print( "Hello, world!" );
-	
+	overlay.Print( "Second line,\nwoah!" );
+	overlay.Print( "And a very, very, very, very, very, very, very, very, very, very, very, very, very, very, very, long line!!" );
+
 	renderer.End();
 }
 
