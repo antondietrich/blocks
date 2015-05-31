@@ -112,6 +112,7 @@ private:
 #define FONT_BITMAP_WIDTH 1024.0f
 #define FONT_NUM_CHARS 86.0f
 #define NORMALIZED_CHAR_WIDTH ( CHAR_WIDTH / FONT_BITMAP_WIDTH )
+#define MAX_CHARS_IN_LINE 32
 // #define FONT_CHAR_OFFSET 0.01171875f
 
 struct OverlayVertex
@@ -133,7 +134,8 @@ public:
 	bool Start( Renderer* renderer );
 	void Reset();
 
-	void Print( const char* text );
+	void Write( const char* text );
+	void WriteLine( const char* text );
 	void DisplayText( int x, int y, const char* text, DirectX::XMFLOAT4 color );
 
 	float GetCharOffset( char c );
@@ -147,6 +149,7 @@ private:
 	ID3D11Buffer *constantBuffer_;
 
 	unsigned int lineNumber_;
+	unsigned int lineOffset_;
 	DirectX::XMFLOAT4 currentColor_;
 };
 

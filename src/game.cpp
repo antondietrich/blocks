@@ -39,9 +39,10 @@ void Game::DoFrame()
 	renderer.Begin();
 	//renderer.Present();
 	overlay.Reset();
-	overlay.Print( "Hello, world!" );
-	overlay.Print( "Second line,\nwoah!" );
-	overlay.Print( "And a very, very, very, very, very, very, very, very, very, very, very, very, very, very, very, long line!!" );
+	overlay.WriteLine( "Hello, world!" );
+	overlay.Write( "Second line, woah!" );
+	overlay.Write( "And a very, very, very, very, very, very, very, very, very, very, very, very, very, very, very, long line!!" );
+	overlay.WriteLine( "Append this." );
 
 	renderer.End();
 }

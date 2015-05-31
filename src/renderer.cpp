@@ -542,6 +542,8 @@ shader_()
 	constantBuffer_ = 0;
 
 	lineNumber_ = 0;
+	lineOffset_ = 0;
+
 	currentColor_ = XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f );
 }
 
@@ -636,11 +638,47 @@ bool Overlay::Start( Renderer *renderer )
 void Overlay::Reset()
 {
 	lineNumber_ = 0;
+	lineOffset_ = 0;
 }
 
-void Overlay::Print( const char* text )
+void Overlay::WriteLine( const char* text )
 {
-	DisplayText( TEXT_PADDING, TEXT_PADDING, text, XMFLOAT4( 1.0f, 1.0f, 0.0f, 1.0f ) );
+	Write( text );
+	lineOffset_ = 0;
+	lineNumber_++;
+}
+
+void Overlay::Write( const char* text )
+{
+	int textLength = (int)strlen( text );
+
+	if( textLength > MAX_CHARS_IN_LINE )
+	{
+		lineOffset_ = 0;
+		lineNumber_++;
+
+		int numWrappedLines = textLength / MAX_CHARS_IN_LINE;
+		int lastLineLength = textLength % MAX_CHARS_IN_LINE;
+
+		char buffer[ MAX_CHARS_IN_LINE + 1 ];
+
+		for( int wrappedLineIndex = 0; wrappedLineIndex < numWrappedLines; wrappedLineIndex++ )
+		{
+			strncpy( buffer, text + wrappedLineIndex * MAX_CHARS_IN_LINE, MAX_CHARS_IN_LINE );
+			buffer[ MAX_CHARS_IN_LINE ] = '\0';
+			DisplayText( TEXT_PADDING + lineOffset_, TEXT_PADDING + lineNumber_ * ( LINE_HEIGHT + LINE_SPACING ), buffer, XMFLOAT4( 1.0f, 1.0f, 0.0f, 1.0f ) );
+			lineNumber_++;
+		}
+		strncpy( buffer, text + numWrappedLines * MAX_CHARS_IN_LINE, lastLineLength );
+		buffer[ lastLineLength ] = '\0';
+		DisplayText( TEXT_PADDING + lineOffset_, TEXT_PADDING + lineNumber_ * ( LINE_HEIGHT + LINE_SPACING ), buffer, XMFLOAT4( 1.0f, 1.0f, 0.0f, 1.0f ) );
+		lineOffset_ += ( lastLineLength ) * CHAR_WIDTH;
+	}
+	else
+	{
+		DisplayText( TEXT_PADDING + lineOffset_, TEXT_PADDING + lineNumber_ * ( LINE_HEIGHT + LINE_SPACING ), text, XMFLOAT4( 1.0f, 1.0f, 0.0f, 1.0f ) );
+		lineOffset_ += ( textLength ) * CHAR_WIDTH;
+	}
 }
 
 void Overlay::DisplayText( int x, int y, const char* text, XMFLOAT4 color )
@@ -653,7 +691,7 @@ void Overlay::DisplayText( int x, int y, const char* text, XMFLOAT4 color )
 	}
 
 	char shortText[ MAX_OVERLAY_CHARS + 1 ];
-	strncpy ( shortText, text, textLength );
+	strncpy( shortText, text, textLength );
 	shortText[ textLength ] = '\0';
 
 	OverlayVertex vertices[ MAX_OVERLAY_CHARS * 6 ]; // 6 vertices per sqaure/char
@@ -664,26 +702,26 @@ void Overlay::DisplayText( int x, int y, const char* text, XMFLOAT4 color )
 		char c = shortText[i];
 
 		// handle newline
-		if( c == '\n' ) {
-			lineNumber_++;
-			charOffsetInLine = 0;
-			continue;
-		}
+//		if( c == '\n' ) {
+//			lineNumber_++;
+//			charOffsetInLine = 0;
+//			continue;
+//		}
 
 		float texcoord = GetCharOffset( c );
 
 		// wrap at 64 chars
-		if( charOffsetInLine != 0 && charOffsetInLine % 64 == 0 ) {
-			lineNumber_++;
-			charOffsetInLine = 0;
-		}
+//		if( charOffsetInLine != 0 && charOffsetInLine % 64 == 0 ) {
+//			lineNumber_++;
+//			charOffsetInLine = 0;
+//		}
 
-		vertices[i * 6 + 0] = { { x + CHAR_WIDTH * ( charOffsetInLine + 0 ), y + ( lineNumber_ * ( LINE_HEIGHT + LINE_SPACING ) ) + 0 }, { texcoord, 0.0f } };
-		vertices[i * 6 + 1] = { { x + CHAR_WIDTH * ( charOffsetInLine + 0 ), y + ( lineNumber_ * ( LINE_HEIGHT + LINE_SPACING ) ) + LINE_HEIGHT }, { texcoord, 1.0f } };
-		vertices[i * 6 + 2] = { { x + CHAR_WIDTH * ( charOffsetInLine + 1 ), y + ( lineNumber_ * ( LINE_HEIGHT + LINE_SPACING ) ) + LINE_HEIGHT }, { texcoord + NORMALIZED_CHAR_WIDTH, 1.0f } };
-		vertices[i * 6 + 3] = { { x + CHAR_WIDTH * ( charOffsetInLine + 0 ), y + ( lineNumber_ * ( LINE_HEIGHT + LINE_SPACING ) ) + 0 }, { texcoord, 0.0f } };
-		vertices[i * 6 + 4] = { { x + CHAR_WIDTH * ( charOffsetInLine + 1 ), y + ( lineNumber_ * ( LINE_HEIGHT + LINE_SPACING ) ) + LINE_HEIGHT }, { texcoord + NORMALIZED_CHAR_WIDTH, 1.0f } };
-		vertices[i * 6 + 5] = { { x + CHAR_WIDTH * ( charOffsetInLine + 1 ), y + ( lineNumber_ * ( LINE_HEIGHT + LINE_SPACING ) ) + 0 }, { texcoord + NORMALIZED_CHAR_WIDTH, 0.0f } };
+		vertices[i * 6 + 0] = { { x + CHAR_WIDTH * ( charOffsetInLine + 0 ), y + 0 			 }, { texcoord, 0.0f } };
+		vertices[i * 6 + 1] = { { x + CHAR_WIDTH * ( charOffsetInLine + 0 ), y + LINE_HEIGHT }, { texcoord, 1.0f } };
+		vertices[i * 6 + 2] = { { x + CHAR_WIDTH * ( charOffsetInLine + 1 ), y + LINE_HEIGHT }, { texcoord + NORMALIZED_CHAR_WIDTH, 1.0f } };
+		vertices[i * 6 + 3] = { { x + CHAR_WIDTH * ( charOffsetInLine + 0 ), y + 0 			 }, { texcoord, 0.0f } };
+		vertices[i * 6 + 4] = { { x + CHAR_WIDTH * ( charOffsetInLine + 1 ), y + LINE_HEIGHT }, { texcoord + NORMALIZED_CHAR_WIDTH, 1.0f } };
+		vertices[i * 6 + 5] = { { x + CHAR_WIDTH * ( charOffsetInLine + 1 ), y + 0 			 }, { texcoord + NORMALIZED_CHAR_WIDTH, 0.0f } };
 	
 		charOffsetInLine++;
 	}
@@ -698,7 +736,7 @@ void Overlay::DisplayText( int x, int y, const char* text, XMFLOAT4 color )
 	This will enable the CPU to access a resource that is potentially being used by the GPU as long 
 	as the restrictions described previously are respected.
 	*/
-	// TODO: build a single vertex buffer per overlay 
+	// TODO: build a single vertex buffer per frame 
 	D3D11_MAPPED_SUBRESOURCE mapResource;
 	HRESULT hr = renderer_->context_->Map( vb_, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource );
 	if( FAILED( hr ) )
@@ -733,8 +771,6 @@ void Overlay::DisplayText( int x, int y, const char* text, XMFLOAT4 color )
 	renderer_->SetShader( shader_ );
 	renderer_->context_->Draw( textLength * 6, 0 );
 	renderer_->SetBlendMode( BM_DEFAULT );
-
-	lineNumber_++;
 }
 
 float Overlay::GetCharOffset( char c )
