@@ -2,8 +2,10 @@
 #define __BLOCKS_GAME__
 
 #include <assert.h>
+#include <DirectXMath.h>
 
 #include "renderer.h"
+#include "world.h"
 #include "config.h"
 
 namespace Blocks
@@ -21,6 +23,8 @@ public:
 	Overlay overlay;
 private:
 	static bool isInstantiated_;
+
+	World *world_;
 
 };
 	

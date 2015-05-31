@@ -36,8 +36,26 @@ struct VertexPosition
 	float pos[3];
 };
 
+struct VertexPosNormalTexcoord
+{
+	float pos[3];
+	float normal[3];
+	float texcoord[2];
+};
+
+//*************************
+// constant buffers
+//*************************
 struct GlobalCB {
 	DirectX::XMFLOAT4X4 screenToNDC;
+};
+
+struct FrameCB {
+	DirectX::XMFLOAT4X4 vp;
+};
+
+struct ModelCB {
+	DirectX::XMFLOAT4 translate;
 };
 
 class Shader
@@ -70,6 +88,23 @@ private:
 	friend class Renderer;
 };
 
+class Mesh
+{
+public:
+	Mesh();
+	~Mesh();
+
+	bool Load( const VertexPosNormalTexcoord *vertices, int numVertices, ID3D11Device *device );
+private:
+	ID3D11Buffer *vertexBuffer_;
+
+	friend class Renderer;
+};
+
+#define MAX_SHADERS 8
+#define MAX_TEXTURES 8
+#define MAX_MESHES 8
+
 class Renderer
 {
 public:
@@ -79,7 +114,7 @@ public:
 	bool Start( HWND wnd );
 	void Begin();
 	void End();
-	void Present();
+	void DrawCube( DirectX::XMFLOAT3 offset );
 
 	/* Window management */
 	void ToggleFullscreen();
@@ -94,6 +129,7 @@ public:
 
 	void SetBlendMode( BLEND_MODE bm );
 
+	void SetMesh( const Mesh& mesh );
 	void SetShader( const Shader& shader );
 	void SetTexture( const Texture& texture );
 private:
@@ -107,12 +143,17 @@ private:
 	ID3D11RasterizerState *defaultRasterizerState_;
 	D3D11_VIEWPORT screenViewport_;
 	ID3D11Buffer *globalConstantBuffer_;
+	ID3D11Buffer *frameConstantBuffer_;
+	ID3D11Buffer *modelConstantBuffer_;
+	ID3D11SamplerState *linearSampler_;
 
 	ID3D11BlendState *blendStates_[ NUM_BLEND_MODES ];
 
 	ID3D11Buffer *triangleVB_;
 
-	Shader colorShader;
+	Shader shaders_[ MAX_SHADERS ];
+	Texture textures_[ MAX_TEXTURES ];
+	Mesh meshes_[ MAX_MESHES ];
 
 	friend class Overlay;
 };

@@ -10,8 +10,8 @@ extern ConfigType Config;
 bool Renderer::isInstantiated_ = false;
 
 Renderer::Renderer()
-:
-colorShader()
+//:
+//colorShader()
 {
 	assert( !isInstantiated_ );
 	isInstantiated_ = true;
@@ -26,6 +26,24 @@ colorShader()
 		blendStates_[i] = 0;
 	}
 	globalConstantBuffer_ = 0;
+	frameConstantBuffer_ = 0;
+	modelConstantBuffer_ = 0;
+	linearSampler_ = 0;
+
+	for( int i = 0; i < MAX_SHADERS; i++ )
+	{
+		shaders_[i] = Shader();
+	}
+
+	for( int i = 0; i < MAX_TEXTURES; i++ )
+	{
+		textures_[i] = Texture();
+	}
+
+	for( int i = 0; i < MAX_MESHES; i++ )
+	{
+		meshes_[i] = Mesh();
+	}
 
 	triangleVB_ = 0;
 }
@@ -40,6 +58,9 @@ Renderer::~Renderer()
 #endif
 
 	RELEASE( triangleVB_ );
+	RELEASE( linearSampler_ );
+	RELEASE( modelConstantBuffer_ );
+	RELEASE( frameConstantBuffer_ );
 	RELEASE( globalConstantBuffer_ );
 	for( int i = 0; i < NUM_BLEND_MODES; i++ ) {
 		RELEASE( blendStates_[i] );
@@ -190,7 +211,8 @@ bool Renderer::Start( HWND wnd )
 	D3D11_RASTERIZER_DESC rasterizerStateDesc;
 	ZeroMemory( &rasterizerStateDesc, sizeof( rasterizerStateDesc ) );
 	rasterizerStateDesc.FillMode = D3D11_FILL_SOLID;
-	rasterizerStateDesc.CullMode = D3D11_CULL_NONE;
+	// rasterizerStateDesc.FillMode = D3D11_FILL_WIREFRAME;
+	rasterizerStateDesc.CullMode = D3D11_CULL_BACK;
 	rasterizerStateDesc.FrontCounterClockwise = TRUE;
 	rasterizerStateDesc.DepthBias = 0;
 	rasterizerStateDesc.DepthBiasClamp = 0.0f;
@@ -287,8 +309,148 @@ bool Renderer::Start( HWND wnd )
 
 	context_->VSSetConstantBuffers( 0, 1, &globalConstantBuffer_ );
 
+	// frame constant buffer
+	ZeroMemory( &cbDesc, sizeof( cbDesc ) );
+	cbDesc.ByteWidth = sizeof( FrameCB );
+	cbDesc.Usage = D3D11_USAGE_DEFAULT;
+	cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	cbDesc.CPUAccessFlags = 0;
+	cbDesc.MiscFlags = 0;
+	cbDesc.StructureByteStride = 0;
+
+	FrameCB frameCBData;
+
+	XMVECTOR eye = XMVectorSet( 0.0f, 14.0f, 0.0f, 0.0f );
+	XMVECTOR direction = XMVectorSet( 0.0f, 0.0f, 1.0f, 0.0f );
+	XMVECTOR up = XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
+	XMMATRIX view =  XMMatrixLookToLH( eye, direction, up );
+	XMMATRIX projection = XMMatrixPerspectiveFovLH( XMConvertToRadians( 60.0f ), screenViewport_.Width / screenViewport_.Height, 1.0f, 1000.0f );
+	// XMStoreFloat4x4( &frameCBData.vp, XMMatrixMultiply( view, projection ) );
+	XMStoreFloat4x4( &frameCBData.vp, XMMatrixTranspose( XMMatrixMultiply( view, projection ) ) );
+
+	D3D11_SUBRESOURCE_DATA frameCBInitData;
+	frameCBInitData.pSysMem = &frameCBData;
+	frameCBInitData.SysMemPitch = sizeof( FrameCB );
+	frameCBInitData.SysMemSlicePitch = 0;
+
+	hr = device_->CreateBuffer( &cbDesc, &frameCBInitData, &frameConstantBuffer_ );
+	if( FAILED( hr ) ) {
+		OutputDebugStringA( "Failed to create overlay constant buffer!" );
+		return false;
+	}
+
+	context_->VSSetConstantBuffers( 1, 1, &frameConstantBuffer_ );
+
+	// model constant buffer
+	ZeroMemory( &cbDesc, sizeof( cbDesc ) );
+	cbDesc.ByteWidth = sizeof( ModelCB );
+	cbDesc.Usage = D3D11_USAGE_DEFAULT;
+	cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	cbDesc.CPUAccessFlags = 0;
+	cbDesc.MiscFlags = 0;
+	cbDesc.StructureByteStride = 0;
+
+	hr = device_->CreateBuffer( &cbDesc, NULL, &modelConstantBuffer_ );
+	if( FAILED( hr ) ) {
+		OutputDebugStringA( "Failed to create overlay constant buffer!" );
+		return false;
+	}
+
+	context_->VSSetConstantBuffers( 2, 1, &modelConstantBuffer_ );
+
+	// Load textures
+	if( !textures_[0].Load( L"assets/textures/dirt.dds", device_ ) ) {
+		OutputDebugStringA( "Failed to load texture!" );
+		return false;
+	}
+	if( !textures_[1].Load( L"assets/textures/grass.dds", device_ ) ) {
+		OutputDebugStringA( "Failed to load texture!" );
+		return false;
+	}
+
+	// Load shaders
+	if( !shaders_[0].Load( L"assets/shaders/global.fx", device_ ) ) {
+		OutputDebugStringA( "Failed to load global shader!" );
+		return false;
+	}
+
+	//	if( !meshes_[0].Load( vertices, numVertices, device_ ) )
+//	{
+//		OutputDebugStringA( "Failed to load mesh!" );
+//		return false;
+//	}
+	int numVertices = 36;
+	VertexPosNormalTexcoord cubeVertices[] = 
+	{
+		// face 1 / -Z
+		{ { -0.5f,  0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 0.0f } },
+		{ { -0.5f, -0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 1.0f } },
+		{ {  0.5f, -0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 1.0f, 1.0f } },
+		{ { -0.5f,  0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 0.0f } },
+		{ {  0.5f, -0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 1.0f, 1.0f } },
+		{ {  0.5f,  0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 1.0f } },
+		// face 2 / +X
+		{ {  0.5f,  0.5f, -0.5f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
+		{ {  0.5f, -0.5f, -0.5f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 1.0f } },
+		{ {  0.5f, -0.5f,  0.5f }, {  1.0f,  0.0f,  0.0f }, { 1.0f, 1.0f } },
+		{ {  0.5f,  0.5f, -0.5f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
+		{ {  0.5f, -0.5f,  0.5f }, {  1.0f,  0.0f,  0.0f }, { 1.0f, 1.0f } },
+		{ {  0.5f,  0.5f,  0.5f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 1.0f } },
+		// face 3 / +Z
+		{ {  0.5f,  0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 0.0f } },
+		{ {  0.5f, -0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 1.0f } },
+		{ { -0.5f, -0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 1.0f, 1.0f } },
+		{ {  0.5f,  0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 0.0f } },
+		{ { -0.5f, -0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 1.0f, 1.0f } },
+		{ { -0.5f,  0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 1.0f } },
+		// face 4 / -X
+		{ { -0.5f,  0.5f,  0.5f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
+		{ { -0.5f, -0.5f,  0.5f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 1.0f } },
+		{ { -0.5f, -0.5f, -0.5f }, { -1.0f,  0.0f,  0.0f }, { 1.0f, 1.0f } },
+		{ { -0.5f,  0.5f,  0.5f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
+		{ { -0.5f, -0.5f, -0.5f }, { -1.0f,  0.0f,  0.0f }, { 1.0f, 1.0f } },
+		{ { -0.5f,  0.5f, -0.5f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 1.0f } },
+		// face 5 / +Y
+		{ { -0.5f,  0.5f,  0.5f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 0.0f } },
+		{ { -0.5f,  0.5f, -0.5f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 1.0f } },
+		{ {  0.5f,  0.5f, -0.5f }, {  0.0f,  1.0f,  0.0f }, { 1.0f, 1.0f } },
+		{ { -0.5f,  0.5f,  0.5f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 0.0f } },
+		{ {  0.5f,  0.5f, -0.5f }, {  0.0f,  1.0f,  0.0f }, { 1.0f, 1.0f } },
+		{ {  0.5f,  0.5f,  0.5f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 1.0f } },
+		// face 6 / -Y
+		{ { -0.5f, -0.5f, -0.5f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 0.0f } },
+		{ { -0.5f, -0.5f,  0.5f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 1.0f } },
+		{ {  0.5f, -0.5f,  0.5f }, {  0.0f, -1.0f,  0.0f }, { 1.0f, 1.0f } },
+		{ { -0.5f, -0.5f, -0.5f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 0.0f } },
+		{ {  0.5f, -0.5f,  0.5f }, {  0.0f, -1.0f,  0.0f }, { 1.0f, 1.0f } },
+		{ {  0.5f, -0.5f, -0.5f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 1.0f } },
+	};
+
+	if( !meshes_[0].Load( cubeVertices, numVertices, device_ ) ) {
+		OutputDebugStringA( "Failed to load cube vertices!" );
+		return false;
+	}
+
+	// create texture sampler
+	D3D11_SAMPLER_DESC samplerDesc;
+	ZeroMemory( &samplerDesc, sizeof( samplerDesc ) );
+	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+	samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+	samplerDesc.MipLODBias = 0;
+	samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+	samplerDesc.MinLOD = -FLT_MAX;
+	samplerDesc.MaxLOD = FLT_MAX;
+
+	hr = device_->CreateSamplerState( &samplerDesc, &linearSampler_ );
+	if( FAILED( hr ) ) {
+		OutputDebugStringA( "Failed to create sampler state!" );
+		return false;
+	}
+
 	// Temp triangle
-	const int numVertices = 3;
+	numVertices = 3;
 	VertexPosition vertices[] = {
 		{ 0.0f, 0.5f, 0.5f },
 		{ -0.5f, -0.5f, 0.5f },
@@ -315,11 +477,11 @@ bool Renderer::Start( HWND wnd )
 
 	
 
-	if( !colorShader.Load( L"assets/shaders/color.fx", device_ ) )
-	{
-		OutputDebugStringA( "Failed to load shaders! " );
-		return false;
-	}
+//	if( !colorShader.Load( L"assets/shaders/color.fx", device_ ) )
+//	{
+//		OutputDebugStringA( "Failed to load shaders! " );
+//		return false;
+//	}
 	
 
 	context_->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
@@ -333,14 +495,23 @@ void Renderer::Begin()
 	context_->ClearRenderTargetView( backBufferView_, clearColor );
 }
 
-void Renderer::Present()
+void Renderer::DrawCube( XMFLOAT3 offset )
 {
-	unsigned int stride = sizeof( VertexPosition );
-	unsigned int offset = 0;
-	context_->IASetVertexBuffers( 0, 1, &triangleVB_, &stride, &offset );
+	ModelCB modelCBData;
+	modelCBData.translate = XMFLOAT4( offset.x, offset.y, offset.z, 0.0f );
+	context_->UpdateSubresource( modelConstantBuffer_, 0, NULL, &modelCBData, sizeof( ModelCB ), 0 );
 
-	SetShader( colorShader );
-	context_->Draw( 3, 0 );
+	context_->VSSetConstantBuffers( 1, 1, &frameConstantBuffer_ );
+	context_->VSSetConstantBuffers( 2, 1, &modelConstantBuffer_ );
+
+
+	SetMesh( meshes_[0] );
+
+	context_->PSSetSamplers( 0, 1, &linearSampler_ );
+	SetTexture( textures_[0] );
+
+	SetShader( shaders_[0] );
+	context_->Draw( 36, 0 );
 }
 
 void Renderer::End()
@@ -431,6 +602,13 @@ void Renderer::SetBlendMode( BLEND_MODE bm )
 {
 	UINT sampleMask   = 0xffffffff;
 	context_->OMSetBlendState( blendStates_[ bm ], NULL, sampleMask );
+}
+
+void Renderer::SetMesh( const Mesh& mesh )
+{
+	unsigned int stride = sizeof( VertexPosNormalTexcoord );
+	unsigned int offset = 0;
+	context_->IASetVertexBuffers( 0, 1, &mesh.vertexBuffer_, &stride, &offset );
 }
 
 void Renderer::SetShader( const Shader& shader )
@@ -548,6 +726,41 @@ bool Texture::Load( wchar_t* filename, ID3D11Device *device )
 }
 
 //********************************
+// Mesh
+//********************************
+Mesh::Mesh()
+{
+	vertexBuffer_ = 0;
+}
+
+Mesh::~Mesh()
+{
+	RELEASE( vertexBuffer_ );
+}
+
+bool Mesh::Load( const VertexPosNormalTexcoord *vertices, int numVertices, ID3D11Device *device )
+{
+	D3D11_BUFFER_DESC desc;
+	ZeroMemory( &desc, sizeof( desc ) );
+	desc.Usage = D3D11_USAGE_DEFAULT;
+	desc.CPUAccessFlags = 0;
+	desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	desc.ByteWidth = sizeof( VertexPosNormalTexcoord ) * numVertices;
+
+	D3D11_SUBRESOURCE_DATA resourceData;
+	ZeroMemory( &resourceData, sizeof( resourceData ) );
+	resourceData.pSysMem = vertices;
+
+	HRESULT hr = device->CreateBuffer( &desc, &resourceData, &vertexBuffer_ );
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "Failed to create vertex buffer!" );
+		return false;
+	}
+	return true;
+}
+
+//********************************
 // Debug overlay
 //********************************
 Overlay::Overlay()
@@ -608,7 +821,7 @@ bool Overlay::Start( Renderer *renderer )
 	// create texture sampler
 	D3D11_SAMPLER_DESC samplerDesc;
 	ZeroMemory( &samplerDesc, sizeof( samplerDesc ) );
-	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
 	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
 	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
 	samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
