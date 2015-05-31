@@ -440,6 +440,11 @@ void Renderer::SetShader( const Shader& shader )
 	context_->PSSetShader( shader.pixelShader_, NULL, 0 );
 }
 
+void Renderer::SetTexture( const Texture& texture )
+{
+	context_->PSSetShaderResources( 0, 1, &texture.textureView_ );
+}
+
 
 //******************
 // Shader
@@ -481,20 +486,7 @@ bool Shader::Load( wchar_t* filename, ID3D11Device *device )
 		return false;
 	}
 
-	// Input layout
-//	D3D11_INPUT_ELEMENT_DESC layout[] =
-//	{
-//	    { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },  
-//	};
-//	UINT numElements = ARRAYSIZE(layout);
-//	hr = device->CreateInputLayout( layout, numElements, vShaderBytecode->GetBufferPointer(), vShaderBytecode->GetBufferSize(), &inputLayout_ );
-//	if( FAILED( hr ) )
-//	{
-//		OutputDebugStringA( "Input layout creation failed!" );
-//		RELEASE( vShaderBytecode );
-//		RELEASE( inputLayout_ );
-//		return false;
-//	}
+	// input layout	
 	hr = CreateInputLayoutFromShaderBytecode( vShaderBytecode, device, &inputLayout_ );
 	if( FAILED( hr ) )
 	{
@@ -527,17 +519,45 @@ bool Shader::Load( wchar_t* filename, ID3D11Device *device )
 	return true;
 }
 
+//********************************
+// Texture
+//********************************
+Texture::Texture()
+{
+	textureView_ = 0;
+}
+
+Texture::~Texture()
+{
+	RELEASE( textureView_ );
+}
+
+bool Texture::Load( wchar_t* filename, ID3D11Device *device )
+{
+	HRESULT hr = CreateDDSTextureFromFile( device,
+		                                   filename,
+		                                   NULL,
+		                                   &textureView_
+		                                 );
+	if( FAILED( hr ) ) {
+		OutputDebugStringA( "Failed to load texture!" );
+		return false;
+	}
+
+	return true;
+}
 
 //********************************
 // Debug overlay
 //********************************
 Overlay::Overlay()
 :
-shader_()
+shader_(),
+texture_()
 {
 	renderer_ = 0;
 	vb_ = 0;
-	textureView_ = 0;
+//	textureView_ = 0;
 	sampler_ = 0;
 	constantBuffer_ = 0;
 
@@ -551,7 +571,7 @@ Overlay::~Overlay()
 {
 	RELEASE( constantBuffer_ );
 	RELEASE( sampler_ );
-	RELEASE( textureView_ );
+//	RELEASE( textureView_ );
 	RELEASE( vb_ );
 }
 
@@ -579,12 +599,8 @@ bool Overlay::Start( Renderer *renderer )
 	}
 
 	// load texture
-	hr = CreateDDSTextureFromFile( renderer_->device_,
-                                   L"assets/textures/droidMono.dds",
-                                    NULL,
-                                    &textureView_
-                                 );
-	if( FAILED( hr ) ) {
+	if( !texture_.Load( L"assets/textures/droidMono.dds", renderer_->device_ ) )
+	{
 		OutputDebugStringA( "Failed to load Droid Mono texture!" );
 		return false;
 	}
@@ -765,7 +781,8 @@ void Overlay::DisplayText( int x, int y, const char* text, XMFLOAT4 color )
 
 	renderer_->SetBlendMode( BM_ALPHA );
 	renderer_->context_->IASetVertexBuffers( 0, 1, &vb_, &stride, &offset );
-	renderer_->context_->PSSetShaderResources( 0, 1, &textureView_ );
+	// renderer_->context_->PSSetShaderResources( 0, 1, &textureView_ );
+	renderer_->SetTexture( texture_ );
 	renderer_->context_->PSSetSamplers( 0, 1, &sampler_ );
 	renderer_->context_->PSSetConstantBuffers( 1, 1, &constantBuffer_ );
 	renderer_->SetShader( shader_ );

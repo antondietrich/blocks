@@ -48,10 +48,26 @@ public:
 
 	bool Load( wchar_t* filename, ID3D11Device *device );
 
+private:
 	ID3D11VertexShader *vertexShader_;
 	ID3D11PixelShader *pixelShader_;
 	ID3D11InputLayout *inputLayout_;
+
+	friend class Renderer;
+};
+
+class Texture
+{
+public:
+	Texture();
+	~Texture();
+
+	bool Load( wchar_t* filename, ID3D11Device *device );
+
 private:
+	ID3D11ShaderResourceView *textureView_;
+
+	friend class Renderer;
 };
 
 class Renderer
@@ -77,7 +93,9 @@ public:
 	};
 
 	void SetBlendMode( BLEND_MODE bm );
+
 	void SetShader( const Shader& shader );
+	void SetTexture( const Texture& texture );
 private:
 	static bool isInstantiated_;
 	unsigned int vsync_;
@@ -144,7 +162,8 @@ private:
 	Renderer *renderer_;
 	Shader shader_;
 	ID3D11Buffer *vb_;
-	ID3D11ShaderResourceView *textureView_;
+	//ID3D11ShaderResourceView *textureView_;
+	Texture texture_;
 	ID3D11SamplerState *sampler_;
 	ID3D11Buffer *constantBuffer_;
 
