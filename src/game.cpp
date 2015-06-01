@@ -46,9 +46,14 @@ void Game::DoFrame()
 {
 	renderer.Begin();
 
-	for( int z = 0; z < 32; z++ )
+	int batchVertexCount = 0;
+	int numBatches = 0;
+
+	const int chunksToDraw = 8;
+
+	for( int z = 0; z < chunksToDraw; z++ )
 	{
-		for( int x = 0; x < 32; x++ )
+		for( int x = 0; x < chunksToDraw; x++ )
 		{
 			for( int chunkY = 0; chunkY < CHUNK_HEIGHT; chunkY++ )
 			{
@@ -57,7 +62,16 @@ void Game::DoFrame()
 					for( int chunkX = 0; chunkX < CHUNK_WIDTH; chunkX++ )
 					{
 						if( chunkY == 12 ) {
-							renderer.DrawCube( XMFLOAT3( chunkX, chunkY, chunkZ ) );
+							renderer.SubmitBlock( XMFLOAT3( CHUNK_WIDTH * (x - chunksToDraw / 2) + chunkX, chunkY, CHUNK_WIDTH * (z - chunksToDraw / 2) + chunkZ ) );
+							// renderer.SubmitBlock( XMFLOAT3( chunkX, chunkY, chunkZ ) );
+							batchVertexCount += VERTS_PER_BLOCK;
+
+							if( batchVertexCount == MAX_VERTS_PER_BATCH ) {
+								renderer.Draw( batchVertexCount );
+								batchVertexCount = 0;
+								numBatches++;
+							}
+
 						}
 					}
 				}
@@ -65,8 +79,15 @@ void Game::DoFrame()
 		}
 	}
 
+	// draw remeining verts
+	if( batchVertexCount ) {
+		renderer.Draw( batchVertexCount );
+		numBatches++;
+	}
+
 	overlay.Reset();
-	overlay.WriteLine( "Hello, World!" );
+	overlay.Write( "Batches rendered: " );
+	overlay.WriteLine( std::to_string( numBatches ).c_str() );
 
 	renderer.End();
 }

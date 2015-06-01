@@ -105,6 +105,9 @@ private:
 #define MAX_TEXTURES 8
 #define MAX_MESHES 8
 
+#define VERTS_PER_BLOCK 36
+#define MAX_VERTS_PER_BATCH 9216 // up to 1024 blocks
+
 class Renderer
 {
 public:
@@ -114,7 +117,9 @@ public:
 	bool Start( HWND wnd );
 	void Begin();
 	void End();
+	void Draw( unsigned int numPrimitives );
 	void DrawCube( DirectX::XMFLOAT3 offset );
+	void SubmitBlock( DirectX::XMFLOAT3 offset );
 
 	/* Window management */
 	void ToggleFullscreen();
@@ -149,7 +154,10 @@ private:
 
 	ID3D11BlendState *blendStates_[ NUM_BLEND_MODES ];
 
-	ID3D11Buffer *triangleVB_;
+	ID3D11Buffer *blockVB_;
+	VertexPosNormalTexcoord block_[ VERTS_PER_BLOCK ];
+	VertexPosNormalTexcoord blockCache_[ MAX_VERTS_PER_BATCH ];
+	unsigned int numCachedBlocks_;
 
 	Shader shaders_[ MAX_SHADERS ];
 	Texture textures_[ MAX_TEXTURES ];

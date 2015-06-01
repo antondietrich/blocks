@@ -37,7 +37,7 @@ PS_Input VSMain( VS_Input input )
 	output.pos.w = 1.0f;
 
 //	output.pos = mul( output.pos, world );
-	output.pos += translate;
+//	output.pos += translate;
 	output.pos = mul( output.pos, vp );
 
 	output.normal.xyz = input.normal;

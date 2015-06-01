@@ -45,7 +45,8 @@ Renderer::Renderer()
 		meshes_[i] = Mesh();
 	}
 
-	triangleVB_ = 0;
+	blockVB_ = 0;
+	numCachedBlocks_ = 0;
 }
 
 Renderer::~Renderer()
@@ -57,7 +58,7 @@ Renderer::~Renderer()
 	device_->QueryInterface(__uuidof(ID3D11Debug), (void**)(&DebugDevice));
 #endif
 
-	RELEASE( triangleVB_ );
+	RELEASE( blockVB_ );
 	RELEASE( linearSampler_ );
 	RELEASE( modelConstantBuffer_ );
 	RELEASE( frameConstantBuffer_ );
@@ -379,52 +380,57 @@ bool Renderer::Start( HWND wnd )
 //		OutputDebugStringA( "Failed to load mesh!" );
 //		return false;
 //	}
-	int numVertices = 36;
+	int numVertices = VERTS_PER_BLOCK;
 	VertexPosNormalTexcoord cubeVertices[] = 
 	{
 		// face 1 / -Z
-		{ { -0.5f,  0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 0.0f } },
-		{ { -0.5f, -0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 1.0f } },
-		{ {  0.5f, -0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 1.0f, 1.0f } },
-		{ { -0.5f,  0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 0.0f } },
-		{ {  0.5f, -0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 1.0f, 1.0f } },
-		{ {  0.5f,  0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 1.0f } },
+		{ { -0.5f,  0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 0.0f } }, // 0
+		{ { -0.5f, -0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 1.0f } }, // 1
+		{ {  0.5f, -0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 1.0f, 1.0f } }, // 2
+		{ { -0.5f,  0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 0.0f } }, // 0
+		{ {  0.5f, -0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 1.0f, 1.0f } }, // 2
+		{ {  0.5f,  0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 1.0f } }, // 3
 		// face 2 / +X
-		{ {  0.5f,  0.5f, -0.5f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
-		{ {  0.5f, -0.5f, -0.5f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 1.0f } },
-		{ {  0.5f, -0.5f,  0.5f }, {  1.0f,  0.0f,  0.0f }, { 1.0f, 1.0f } },
-		{ {  0.5f,  0.5f, -0.5f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
-		{ {  0.5f, -0.5f,  0.5f }, {  1.0f,  0.0f,  0.0f }, { 1.0f, 1.0f } },
-		{ {  0.5f,  0.5f,  0.5f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 1.0f } },
+		{ {  0.5f,  0.5f, -0.5f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } }, // 3
+		{ {  0.5f, -0.5f, -0.5f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 1.0f } }, // 2
+		{ {  0.5f, -0.5f,  0.5f }, {  1.0f,  0.0f,  0.0f }, { 1.0f, 1.0f } }, // 4
+		{ {  0.5f,  0.5f, -0.5f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } }, // 3
+		{ {  0.5f, -0.5f,  0.5f }, {  1.0f,  0.0f,  0.0f }, { 1.0f, 1.0f } }, // 4
+		{ {  0.5f,  0.5f,  0.5f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 1.0f } }, // 5
 		// face 3 / +Z
-		{ {  0.5f,  0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 0.0f } },
-		{ {  0.5f, -0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 1.0f } },
-		{ { -0.5f, -0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 1.0f, 1.0f } },
-		{ {  0.5f,  0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 0.0f } },
-		{ { -0.5f, -0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 1.0f, 1.0f } },
-		{ { -0.5f,  0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 1.0f } },
+		{ {  0.5f,  0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 0.0f } }, // 5
+		{ {  0.5f, -0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 1.0f } }, // 4
+		{ { -0.5f, -0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 1.0f, 1.0f } }, // 6
+		{ {  0.5f,  0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 0.0f } }, // 5
+		{ { -0.5f, -0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 1.0f, 1.0f } }, // 6
+		{ { -0.5f,  0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 1.0f } }, // 7
 		// face 4 / -X
-		{ { -0.5f,  0.5f,  0.5f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
-		{ { -0.5f, -0.5f,  0.5f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 1.0f } },
-		{ { -0.5f, -0.5f, -0.5f }, { -1.0f,  0.0f,  0.0f }, { 1.0f, 1.0f } },
-		{ { -0.5f,  0.5f,  0.5f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
-		{ { -0.5f, -0.5f, -0.5f }, { -1.0f,  0.0f,  0.0f }, { 1.0f, 1.0f } },
-		{ { -0.5f,  0.5f, -0.5f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 1.0f } },
+		{ { -0.5f,  0.5f,  0.5f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } }, // 7
+		{ { -0.5f, -0.5f,  0.5f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 1.0f } }, // 6
+		{ { -0.5f, -0.5f, -0.5f }, { -1.0f,  0.0f,  0.0f }, { 1.0f, 1.0f } }, // 1
+		{ { -0.5f,  0.5f,  0.5f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } }, // 7
+		{ { -0.5f, -0.5f, -0.5f }, { -1.0f,  0.0f,  0.0f }, { 1.0f, 1.0f } }, // 1
+		{ { -0.5f,  0.5f, -0.5f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 1.0f } }, // 0
 		// face 5 / +Y
-		{ { -0.5f,  0.5f,  0.5f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 0.0f } },
-		{ { -0.5f,  0.5f, -0.5f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 1.0f } },
-		{ {  0.5f,  0.5f, -0.5f }, {  0.0f,  1.0f,  0.0f }, { 1.0f, 1.0f } },
-		{ { -0.5f,  0.5f,  0.5f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 0.0f } },
-		{ {  0.5f,  0.5f, -0.5f }, {  0.0f,  1.0f,  0.0f }, { 1.0f, 1.0f } },
-		{ {  0.5f,  0.5f,  0.5f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 1.0f } },
+		{ { -0.5f,  0.5f,  0.5f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 0.0f } }, // 7
+		{ { -0.5f,  0.5f, -0.5f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 1.0f } }, // 0
+		{ {  0.5f,  0.5f, -0.5f }, {  0.0f,  1.0f,  0.0f }, { 1.0f, 1.0f } }, // 3
+		{ { -0.5f,  0.5f,  0.5f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 0.0f } }, // 7
+		{ {  0.5f,  0.5f, -0.5f }, {  0.0f,  1.0f,  0.0f }, { 1.0f, 1.0f } }, // 3
+		{ {  0.5f,  0.5f,  0.5f }, {  0.0f,  1.0f,  0.0f }, { 1.0f, 0.0f } }, // 5
 		// face 6 / -Y
-		{ { -0.5f, -0.5f, -0.5f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 0.0f } },
-		{ { -0.5f, -0.5f,  0.5f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 1.0f } },
-		{ {  0.5f, -0.5f,  0.5f }, {  0.0f, -1.0f,  0.0f }, { 1.0f, 1.0f } },
-		{ { -0.5f, -0.5f, -0.5f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 0.0f } },
-		{ {  0.5f, -0.5f,  0.5f }, {  0.0f, -1.0f,  0.0f }, { 1.0f, 1.0f } },
-		{ {  0.5f, -0.5f, -0.5f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 1.0f } },
+		{ { -0.5f, -0.5f, -0.5f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 0.0f } }, // 1
+		{ { -0.5f, -0.5f,  0.5f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 1.0f } }, // 6
+		{ {  0.5f, -0.5f,  0.5f }, {  0.0f, -1.0f,  0.0f }, { 1.0f, 1.0f } }, // 4
+		{ { -0.5f, -0.5f, -0.5f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 0.0f } }, // 1
+		{ {  0.5f, -0.5f,  0.5f }, {  0.0f, -1.0f,  0.0f }, { 1.0f, 1.0f } }, // 4
+		{ {  0.5f, -0.5f, -0.5f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 1.0f } }, // 2
 	};
+
+	for( int i = 0; i < VERTS_PER_BLOCK; i++ )
+	{
+		block_[i] = cubeVertices[i];
+	}
 
 	if( !meshes_[0].Load( cubeVertices, numVertices, device_ ) ) {
 		OutputDebugStringA( "Failed to load cube vertices!" );
@@ -449,41 +455,20 @@ bool Renderer::Start( HWND wnd )
 		return false;
 	}
 
-	// Temp triangle
-	numVertices = 3;
-	VertexPosition vertices[] = {
-		{ 0.0f, 0.5f, 0.5f },
-		{ -0.5f, -0.5f, 0.5f },
-		{ 0.5f, -0.5f, 0.5f },
-	};
-
+	// vertex buffer to batch blocks
 	D3D11_BUFFER_DESC vertexBufferDesc;
 	ZeroMemory( &vertexBufferDesc, sizeof( vertexBufferDesc ) );
-	vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-	vertexBufferDesc.CPUAccessFlags = 0;
+	vertexBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+	vertexBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 	vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	vertexBufferDesc.ByteWidth = sizeof( VertexPosition ) * numVertices;
+	vertexBufferDesc.ByteWidth = sizeof( VertexPosNormalTexcoord ) * MAX_VERTS_PER_BATCH; // ~256MB
 
-	D3D11_SUBRESOURCE_DATA resourceData;
-	ZeroMemory( &resourceData, sizeof( resourceData ) );
-	resourceData.pSysMem = vertices;
-
-	hr = device_->CreateBuffer( &vertexBufferDesc, &resourceData, &triangleVB_ );
+	hr = device_->CreateBuffer( &vertexBufferDesc, NULL, &blockVB_ );
 	if( FAILED( hr ) )
 	{
 		OutputDebugStringA( "Failed to create vertex buffer!" );
 		return false;
 	}
-
-	
-
-//	if( !colorShader.Load( L"assets/shaders/color.fx", device_ ) )
-//	{
-//		OutputDebugStringA( "Failed to load shaders! " );
-//		return false;
-//	}
-	
-
 	context_->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
 
 	return true;
@@ -493,6 +478,34 @@ void Renderer::Begin()
 {
 	float clearColor[ 4 ] = { 0.53f, 0.81f, 0.98f, 1.0f };
 	context_->ClearRenderTargetView( backBufferView_, clearColor );
+
+	context_->VSSetConstantBuffers( 1, 1, &frameConstantBuffer_ );
+	context_->VSSetConstantBuffers( 2, 1, &modelConstantBuffer_ );
+	context_->PSSetSamplers( 0, 1, &linearSampler_ );
+	SetTexture( textures_[0] );
+	SetShader( shaders_[0] );
+}
+
+void Renderer::Draw( unsigned int numPrimitives )
+{
+	assert( numCachedBlocks_ * VERTS_PER_BLOCK == numPrimitives );
+	D3D11_MAPPED_SUBRESOURCE mapResource;
+	HRESULT hr = context_->Map( blockVB_, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource );
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "Failed to map subresource!");
+		return;
+	}
+	memcpy( mapResource.pData, blockCache_, sizeof( VertexPosNormalTexcoord ) * numCachedBlocks_ * VERTS_PER_BLOCK );
+	context_->Unmap( blockVB_, 0 );
+
+	numCachedBlocks_ = 0;
+
+	unsigned int stride = sizeof( VertexPosNormalTexcoord );
+	unsigned int offset = 0;
+	context_->IASetVertexBuffers( 0, 1, &blockVB_, &stride, &offset );
+
+	context_->Draw( numPrimitives, 0 );
 }
 
 void Renderer::DrawCube( XMFLOAT3 offset )
@@ -512,6 +525,19 @@ void Renderer::DrawCube( XMFLOAT3 offset )
 
 	SetShader( shaders_[0] );
 	context_->Draw( 36, 0 );
+}
+
+void Renderer::SubmitBlock( DirectX::XMFLOAT3 offset )
+{
+	for( int i = 0; i < VERTS_PER_BLOCK; i++ )
+	{
+		blockCache_[ numCachedBlocks_ * VERTS_PER_BLOCK + i ] = block_[ i ];
+		blockCache_[ numCachedBlocks_ * VERTS_PER_BLOCK + i ].pos[0] += offset.x;
+		blockCache_[ numCachedBlocks_ * VERTS_PER_BLOCK + i ].pos[1] += offset.y;
+		blockCache_[ numCachedBlocks_ * VERTS_PER_BLOCK + i ].pos[2] += offset.z;
+	}
+	
+	++numCachedBlocks_;
 }
 
 void Renderer::End()
