@@ -2,6 +2,7 @@
 
 #include "game.h"
 #include "config.h"
+#include "utils.h"
 
 using namespace Blocks;
 
@@ -84,6 +85,10 @@ int __stdcall wWinMain( HINSTANCE thisInstance, HINSTANCE prevInstance, LPWSTR c
 
 	/* Main loop */
 
+	LONGLONG startTime = 0;
+	LONGLONG endTime = 0;
+	float delta = 0;
+
 	MSG msg = { 0 };
 	while( msg.message != WM_QUIT )
 	{
@@ -94,7 +99,11 @@ int __stdcall wWinMain( HINSTANCE thisInstance, HINSTANCE prevInstance, LPWSTR c
 		}
 		else
 		{
-			game.DoFrame();
+			// NOTE: using previous frame delta
+			delta = (float)( Time::ToMiliseconds( endTime - startTime ) );
+			startTime = Time::Now();
+			game.DoFrame( delta );
+			endTime = Time::Now();
 		}
 	}
 

@@ -11,13 +11,15 @@
 namespace Blocks
 {
 
+#define UPDATE_DELTA_FRAMES 30
+
 class Game
 {
 public:
 	Game();
 	~Game();
 	bool Start( HWND wnd );
-	void DoFrame();
+	void DoFrame( float dt );
 
 	Renderer renderer;
 	Overlay overlay;

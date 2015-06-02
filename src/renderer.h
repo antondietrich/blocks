@@ -156,6 +156,7 @@ private:
 
 	ID3D11Buffer *blockVB_;
 	VertexPosNormalTexcoord block_[ VERTS_PER_BLOCK ];
+	// TODO: move this out of stack!!
 	VertexPosNormalTexcoord blockCache_[ MAX_VERTS_PER_BATCH ];
 	unsigned int numCachedBlocks_;
 

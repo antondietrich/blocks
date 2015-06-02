@@ -42,12 +42,25 @@ bool Game::Start( HWND wnd )
 	return true;
 }
 
-void Game::DoFrame()
+void Game::DoFrame( float dt )
 {
 	renderer.Begin();
 
+	static int deltaFramesElapsed;
+	static float capturedDelta;
+	static char deltaStr[ 8 ];
+	
+	deltaFramesElapsed++;
+	if( deltaFramesElapsed % UPDATE_DELTA_FRAMES == 0 ) {
+		capturedDelta = dt;
+	}
+
+	sprintf( deltaStr, "%5.2f", capturedDelta );
+
+
 	int batchVertexCount = 0;
-	int numBatches = 0;
+	int numDrawnBatches = 0;
+	int numDrawnVertices = 0;
 
 	const int chunksToDraw = 8;
 
@@ -65,11 +78,12 @@ void Game::DoFrame()
 							renderer.SubmitBlock( XMFLOAT3( CHUNK_WIDTH * (x - chunksToDraw / 2) + chunkX, chunkY, CHUNK_WIDTH * (z - chunksToDraw / 2) + chunkZ ) );
 							// renderer.SubmitBlock( XMFLOAT3( chunkX, chunkY, chunkZ ) );
 							batchVertexCount += VERTS_PER_BLOCK;
+							numDrawnVertices += VERTS_PER_BLOCK;
 
 							if( batchVertexCount == MAX_VERTS_PER_BATCH ) {
 								renderer.Draw( batchVertexCount );
 								batchVertexCount = 0;
-								numBatches++;
+								numDrawnBatches++;
 							}
 
 						}
@@ -82,12 +96,16 @@ void Game::DoFrame()
 	// draw remeining verts
 	if( batchVertexCount ) {
 		renderer.Draw( batchVertexCount );
-		numBatches++;
+		numDrawnBatches++;
 	}
 
 	overlay.Reset();
+	overlay.Write( "Frame time: " );
+	overlay.WriteLine( deltaStr );
 	overlay.Write( "Batches rendered: " );
-	overlay.WriteLine( std::to_string( numBatches ).c_str() );
+	overlay.WriteLine( std::to_string( numDrawnBatches ).c_str() );
+	overlay.Write( "Vertices rendered: " );
+	overlay.WriteLine( std::to_string( numDrawnVertices ).c_str() );
 
 	renderer.End();
 }
