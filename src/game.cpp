@@ -64,6 +64,7 @@ void Game::DoFrame( float dt )
 
 	const int chunksToDraw = 8;
 
+	Profile::Start( "Render chunks" );
 	for( int z = 0; z < chunksToDraw; z++ )
 	{
 		for( int x = 0; x < chunksToDraw; x++ )
@@ -75,8 +76,10 @@ void Game::DoFrame( float dt )
 					for( int chunkX = 0; chunkX < CHUNK_WIDTH; chunkX++ )
 					{
 						if( chunkY == 12 ) {
+							// Profile::Start( "Renderer.submitBlock" );
 							renderer.SubmitBlock( XMFLOAT3( CHUNK_WIDTH * (x - chunksToDraw / 2) + chunkX, chunkY, CHUNK_WIDTH * (z - chunksToDraw / 2) + chunkZ ) );
 							// renderer.SubmitBlock( XMFLOAT3( chunkX, chunkY, chunkZ ) );
+							// Profile::Stop();
 							batchVertexCount += VERTS_PER_BLOCK;
 							numDrawnVertices += VERTS_PER_BLOCK;
 
@@ -92,6 +95,7 @@ void Game::DoFrame( float dt )
 			}
 		}
 	}
+	Profile::Stop();
 
 	// draw remeining verts
 	if( batchVertexCount ) {
