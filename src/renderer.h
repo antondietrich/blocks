@@ -27,6 +27,14 @@ enum BLEND_MODE
 	NUM_BLEND_MODES
 };
 
+enum DEPTH_BUFFER_MODE
+{
+	DB_ENABLED,
+	DB_DISABLED,
+	DB_READ,
+	NUM_DEPTH_BUFFER_MODES
+};
+
 bool LoadShader( wchar_t *filename, const char *entry, const char *shaderModel, ID3DBlob **buffer );
 /* Based on the implementation by @BobbyAnguelov. Thank you! */
 HRESULT CreateInputLayoutFromShaderBytecode( ID3DBlob* shaderBytecode, ID3D11Device* device, ID3D11InputLayout** inputLayout );
@@ -133,6 +141,7 @@ public:
 	};
 
 	void SetBlendMode( BLEND_MODE bm );
+	void SetDepthBufferMode( DEPTH_BUFFER_MODE bm );
 
 	void SetMesh( const Mesh& mesh );
 	void SetShader( const Shader& shader );
@@ -145,6 +154,7 @@ private:
 	ID3D11DeviceContext *context_;
 	IDXGISwapChain *swapChain_;
 	ID3D11RenderTargetView *backBufferView_;
+	ID3D11DepthStencilView *depthStencilView_;
 	ID3D11RasterizerState *defaultRasterizerState_;
 	D3D11_VIEWPORT screenViewport_;
 	ID3D11Buffer *globalConstantBuffer_;
@@ -153,6 +163,7 @@ private:
 	ID3D11SamplerState *linearSampler_;
 
 	ID3D11BlendState *blendStates_[ NUM_BLEND_MODES ];
+	ID3D11DepthStencilState *depthStencilStates_[ NUM_DEPTH_BUFFER_MODES ];
 
 	ID3D11Buffer *blockVB_;
 	VertexPosNormalTexcoord block_[ VERTS_PER_BLOCK ];

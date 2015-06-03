@@ -21,9 +21,13 @@ Renderer::Renderer()
 	context_ = 0;
 	swapChain_ = 0;
 	backBufferView_ = 0;
+	depthStencilView_ = 0;
 	defaultRasterizerState_ = 0;
 	for( int i = 0; i < NUM_BLEND_MODES; i++ ) {
 		blendStates_[i] = 0;
+	}
+	for( int i = 0; i < NUM_DEPTH_BUFFER_MODES; i++ ) {
+		depthStencilStates_[i] = 0;
 	}
 	globalConstantBuffer_ = 0;
 	frameConstantBuffer_ = 0;
@@ -59,14 +63,18 @@ Renderer::~Renderer()
 #endif
 
 	RELEASE( blockVB_ );
+	for( int i = 0; i < NUM_DEPTH_BUFFER_MODES; i++ ) {
+		RELEASE( depthStencilStates_[i] );
+	}
+	for( int i = 0; i < NUM_BLEND_MODES; i++ ) {
+		RELEASE( blendStates_[i] );
+	}
 	RELEASE( linearSampler_ );
 	RELEASE( modelConstantBuffer_ );
 	RELEASE( frameConstantBuffer_ );
 	RELEASE( globalConstantBuffer_ );
-	for( int i = 0; i < NUM_BLEND_MODES; i++ ) {
-		RELEASE( blendStates_[i] );
-	}
 	RELEASE( defaultRasterizerState_ );
+	RELEASE( depthStencilView_ );
 	RELEASE( backBufferView_ );
 	RELEASE( swapChain_ );
 	RELEASE( context_ );
@@ -201,7 +209,9 @@ bool Renderer::Start( HWND wnd )
 	RELEASE( dxgiAdapter );
 	RELEASE( dxgiDevice );
 	
-	// NOTE: as a side-effect, sets the back buffer (consider making a separate function)
+	
+
+	// NOTE: as a side-effect, sets the back buffer and the depth buffer (consider making separate functions)
 	ResizeBuffers();
 
 	if( Config.fullscreen ) {
@@ -214,6 +224,7 @@ bool Renderer::Start( HWND wnd )
 	rasterizerStateDesc.FillMode = D3D11_FILL_SOLID;
 	// rasterizerStateDesc.FillMode = D3D11_FILL_WIREFRAME;
 	rasterizerStateDesc.CullMode = D3D11_CULL_BACK;
+	// rasterizerStateDesc.CullMode = D3D11_CULL_FRONT;
 	rasterizerStateDesc.FrontCounterClockwise = TRUE;
 	rasterizerStateDesc.DepthBias = 0;
 	rasterizerStateDesc.DepthBiasClamp = 0.0f;
@@ -269,6 +280,43 @@ bool Renderer::Start( HWND wnd )
 
 	device_->CreateBlendState( &blendDesc, &blendStates_[ BM_ALPHA ] );
 
+	// depth buffer modes
+	D3D11_DEPTH_STENCIL_DESC depthDesc;
+	ZeroMemory( &depthDesc, sizeof( depthDesc ) );
+	depthDesc.DepthEnable = TRUE;
+	depthDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+	depthDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
+	depthDesc.StencilEnable = FALSE;
+	depthDesc.StencilReadMask = D3D11_DEFAULT_STENCIL_READ_MASK;
+	depthDesc.StencilWriteMask = D3D11_DEFAULT_STENCIL_WRITE_MASK;
+	depthDesc.BackFace.StencilFunc = depthDesc.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+	depthDesc.BackFace.StencilFailOp = depthDesc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+	depthDesc.BackFace.StencilPassOp = depthDesc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+	depthDesc.BackFace.StencilDepthFailOp = depthDesc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+	hr = device_->CreateDepthStencilState( &depthDesc, &depthStencilStates_[ DB_ENABLED ] );
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "Failed to create depth-stencil state!" );
+		return false;
+	}
+
+	depthDesc.DepthEnable = FALSE;
+	hr = device_->CreateDepthStencilState( &depthDesc, &depthStencilStates_[ DB_DISABLED ] );
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "Failed to create depth-stencil state!" );
+		return false;
+	}
+
+	depthDesc.DepthEnable = TRUE;
+	depthDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+	hr = device_->CreateDepthStencilState( &depthDesc, &depthStencilStates_[ DB_READ ] );
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "Failed to create depth-stencil state!" );
+		return false;
+	}
+
 	// viewport
 	screenViewport_.Width = static_cast<float>( Config.screenWidth );
 	screenViewport_.Height = static_cast<float>( Config.screenHeight );
@@ -323,6 +371,7 @@ bool Renderer::Start( HWND wnd )
 
 	XMVECTOR eye = XMVectorSet( 0.0f, 14.0f, 0.0f, 0.0f );
 	XMVECTOR direction = XMVectorSet( 0.0f, 0.0f, 1.0f, 0.0f );
+	direction = XMVector4Normalize( direction );
 	XMVECTOR up = XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
 	XMMATRIX view =  XMMatrixLookToLH( eye, direction, up );
 	XMMATRIX projection = XMMatrixPerspectiveFovLH( XMConvertToRadians( 60.0f ), screenViewport_.Width / screenViewport_.Height, 1.0f, 1000.0f );
@@ -365,6 +414,10 @@ bool Renderer::Start( HWND wnd )
 		return false;
 	}
 	if( !textures_[1].Load( L"assets/textures/grass.dds", device_ ) ) {
+		OutputDebugStringA( "Failed to load texture!" );
+		return false;
+	}
+	if( !textures_[2].Load( L"assets/textures/test.dds", device_ ) ) {
 		OutputDebugStringA( "Failed to load texture!" );
 		return false;
 	}
@@ -478,12 +531,15 @@ void Renderer::Begin()
 {
 	float clearColor[ 4 ] = { 0.53f, 0.81f, 0.98f, 1.0f };
 	context_->ClearRenderTargetView( backBufferView_, clearColor );
+	context_->ClearDepthStencilView( depthStencilView_, D3D11_CLEAR_DEPTH, 1.0f, 0 );
+
 
 	context_->VSSetConstantBuffers( 1, 1, &frameConstantBuffer_ );
 	context_->VSSetConstantBuffers( 2, 1, &modelConstantBuffer_ );
 	context_->PSSetSamplers( 0, 1, &linearSampler_ );
 	SetTexture( textures_[0] );
 	SetShader( shaders_[0] );
+	SetDepthBufferMode( DB_ENABLED );
 }
 
 void Renderer::Draw( unsigned int numPrimitives )
@@ -572,6 +628,7 @@ bool Renderer::ResizeBuffers()
 	OutputDebugStringA( "Window size changed: resizing buffers\n" );
 
 	RELEASE( backBufferView_ );
+	RELEASE( depthStencilView_ );
 
 	// Let DXGI figure out buffer size and format
 	swapChain_->ResizeBuffers( 0, 0, 0, DXGI_FORMAT_UNKNOWN, 0 );
@@ -598,7 +655,55 @@ bool Renderer::ResizeBuffers()
 	DXGI_SWAP_CHAIN_DESC desc;
 	swapChain_->GetDesc( &desc );
 
-	context_->OMSetRenderTargets( 1, &backBufferView_, NULL );
+	// depth buffer
+	ID3D11Texture2D* depthTexture = 0;
+	D3D11_TEXTURE2D_DESC depthTexDesc;
+	ZeroMemory( &depthTexDesc, sizeof( depthTexDesc ) );
+	depthTexDesc.Width = desc.BufferDesc.Width;
+	depthTexDesc.Height = desc.BufferDesc.Height;
+	depthTexDesc.MipLevels = 1;
+	depthTexDesc.ArraySize = 1;
+	depthTexDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	depthTexDesc.SampleDesc.Count = desc.SampleDesc.Count;
+	depthTexDesc.SampleDesc.Quality = desc.SampleDesc.Quality;
+	depthTexDesc.Usage = D3D11_USAGE_DEFAULT;
+	depthTexDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+	depthTexDesc.CPUAccessFlags = 0;
+	depthTexDesc.MiscFlags = 0;
+	hr = device_->CreateTexture2D( &depthTexDesc, NULL, &depthTexture );
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "Failed to create Z-Buffer texture!" );
+		RELEASE( depthTexture );
+		return false;
+	}
+
+	D3D11_DSV_DIMENSION accessMode;
+	if( Config.multisampling == 2 || Config.multisampling == 4 || Config.multisampling == 8 || Config.multisampling == 16 )
+	{
+		accessMode = D3D11_DSV_DIMENSION_TEXTURE2DMS;
+	}
+	else
+	{
+		accessMode = D3D11_DSV_DIMENSION_TEXTURE2D;
+	}
+
+	D3D11_DEPTH_STENCIL_VIEW_DESC dsViewDesc;
+	ZeroMemory( &dsViewDesc, sizeof( dsViewDesc ) );
+	dsViewDesc.Format = depthTexDesc.Format;
+	dsViewDesc.ViewDimension = accessMode;
+	dsViewDesc.Texture2D.MipSlice = 0;
+	hr = device_->CreateDepthStencilView( depthTexture, &dsViewDesc, &depthStencilView_ );
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "Failed to create depth-stencil view!" );
+		RELEASE( depthTexture );
+		return false;
+	}
+
+	RELEASE( depthTexture );
+
+	context_->OMSetRenderTargets( 1, &backBufferView_, depthStencilView_ );
 
 	screenViewport_.Width = (float)desc.BufferDesc.Width;
 	screenViewport_.Height = (float)desc.BufferDesc.Height;
@@ -628,6 +733,12 @@ void Renderer::SetBlendMode( BLEND_MODE bm )
 {
 	UINT sampleMask   = 0xffffffff;
 	context_->OMSetBlendState( blendStates_[ bm ], NULL, sampleMask );
+}
+
+void Renderer::SetDepthBufferMode( DEPTH_BUFFER_MODE dbm )
+{
+	unsigned int stencilRef = 0;
+	context_->OMSetDepthStencilState( depthStencilStates_[ dbm ], stencilRef );
 }
 
 void Renderer::SetMesh( const Mesh& mesh )
@@ -1027,6 +1138,7 @@ void Overlay::DisplayText( int x, int y, const char* text, XMFLOAT4 color )
 	renderer_->SetShader( shader_ );
 	renderer_->context_->Draw( textLength * 6, 0 );
 	renderer_->SetBlendMode( BM_DEFAULT );
+	renderer_->SetDepthBufferMode( DB_ENABLED );
 }
 
 float Overlay::GetCharOffset( char c )
