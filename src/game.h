@@ -11,6 +11,21 @@
 namespace Blocks
 {
 
+#define VK_LMB 0xfe
+#define VK_MMB 0xfd
+#define VK_RMB 0xfc
+#define VK_NUMPAD_ENTER 0xff
+#define NUM_VKEYS 256
+
+struct UserInput
+{
+	bool key[ NUM_VKEYS ];
+	struct {
+		long x;
+		long y;
+	} mouse;
+};
+
 #define UPDATE_DELTA_FRAMES 30
 
 class Game
@@ -21,6 +36,7 @@ public:
 	bool Start( HWND wnd );
 	void DoFrame( float dt );
 
+	UserInput input;
 	Renderer renderer;
 	Overlay overlay;
 private:

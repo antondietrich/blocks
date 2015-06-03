@@ -10,6 +10,8 @@ ConfigType Blocks::Config;
 
 LRESULT CALLBACK WndProc( HWND windowHandle, UINT message, WPARAM wParam, LPARAM lParam );
 bool LoadConfig();
+bool RegisterRawInputDevices( HWND hwnd );
+void TranslateUserInput( UserInput &userInput, LPARAM lparam );
 
 int __stdcall wWinMain( HINSTANCE thisInstance, HINSTANCE prevInstance, LPWSTR cmdLine, int cmdShow )
 {
@@ -67,6 +69,11 @@ int __stdcall wWinMain( HINSTANCE thisInstance, HINSTANCE prevInstance, LPWSTR c
 	ShowWindow( window, cmdShow );
 	UpdateWindow( window );
 
+	if( !RegisterRawInputDevices( window ) ) {
+		OutputDebugStringA( "Failed to register raw input devices!" );
+		return 1;
+	}
+
 	HRESULT hr = HRESULT_FROM_WIN32( GetLastError() );
 	if( FAILED( hr ) ) {
 		OutputDebugStringA( "Failed to show main window!" );
@@ -110,6 +117,7 @@ int __stdcall wWinMain( HINSTANCE thisInstance, HINSTANCE prevInstance, LPWSTR c
 	return (int) msg.wParam;
 }
 
+// TODO: need better way to communicate with game
 LRESULT CALLBACK WndProc( HWND windowHandle, UINT message, WPARAM wParam, LPARAM lParam )
 {
 	PAINTSTRUCT paintStruct;
@@ -119,6 +127,10 @@ LRESULT CALLBACK WndProc( HWND windowHandle, UINT message, WPARAM wParam, LPARAM
 
 	switch( message )
 	{
+		case WM_INPUT:
+			game = (Game*)GetWindowLong( windowHandle, GWLP_USERDATA );
+			TranslateUserInput( game->input, lParam );
+			break;
 		case WM_KEYDOWN:
 			switch( wParam )
 			{
@@ -181,4 +193,135 @@ bool LoadConfig()
 	Config.multisampling = 0;
 
 	return true;
+}
+
+/*
+NOTE:
+To get the list of raw input devices on the system,
+an application calls GetRawInputDeviceList. 
+Using the hDevice from this call, an application calls 
+GetRawInputDeviceInfo to get the device information.
+*/
+
+bool RegisterRawInputDevices( HWND hwnd )
+{
+	RAWINPUTDEVICE inputDevices[2];
+	inputDevices[ 0 ].usUsagePage = 1; // generic desktop controls
+	inputDevices[ 0 ].usUsage = 2; // mouse
+	inputDevices[ 0 ].dwFlags = 0;
+	inputDevices[ 0 ].hwndTarget = hwnd;
+
+	inputDevices[ 1 ].usUsagePage = 1; // generic desktop controls
+	inputDevices[ 1 ].usUsage = 6; // keyboard
+	inputDevices[ 1 ].dwFlags = 0;
+	inputDevices[ 1 ].hwndTarget = hwnd;
+
+	if( !RegisterRawInputDevices( inputDevices, 2, sizeof( RAWINPUTDEVICE ) ) )
+	{
+		return false;
+	}
+	return true;
+}
+
+// Use windows VK codes for now
+void TranslateUserInput( UserInput &userInput, LPARAM lParam )
+{
+	// get the required buffer size
+	UINT size;
+	GetRawInputData( (HRAWINPUT)lParam,
+					 RID_INPUT,
+					 NULL,
+					 &size,
+					 sizeof( RAWINPUTHEADER ) );
+
+	LPBYTE buffer = new BYTE[ size ];
+
+	UINT bytesRead = GetRawInputData( (HRAWINPUT)lParam,
+									  RID_INPUT,
+									  buffer,
+									  &size,
+									  sizeof( RAWINPUTHEADER ) );
+	if( bytesRead != size )
+	{
+		OutputDebugStringA( "GetRawInputData returned incorrect size!" );
+	}
+
+	RAWINPUT* input = (RAWINPUT*)buffer;
+
+	if( input->header.dwType == RIM_TYPEMOUSE )
+	{
+		long x = input->data.mouse.lLastX;
+		long y = input->data.mouse.lLastY;
+
+		userInput.mouse.x += x;
+		userInput.mouse.y += y;
+
+		return;
+	}
+	else if( input->header.dwType == RIM_TYPEKEYBOARD )
+	{
+		unsigned short flags = input->data.keyboard.Flags;
+//		unsigned short scancode = input->data.keyboard.MakeCode;
+		unsigned short key = input->data.keyboard.VKey;
+		unsigned short keyExtra = 0; // left or right
+
+		bool pressed = true;
+
+		if( ( flags & RI_KEY_BREAK ) == RI_KEY_BREAK )
+		{
+			pressed = false;
+		}
+
+		if( key == VK_CONTROL )
+		{
+			if( ( flags & RI_KEY_E0 ) == RI_KEY_E0 ) // should be E1!
+			{
+				keyExtra = VK_RCONTROL;
+			}
+			else
+			{
+				keyExtra = VK_LCONTROL;
+			}
+		}
+		else if( key == VK_MENU )
+		{
+			if( ( flags & RI_KEY_E0 ) == RI_KEY_E0 )
+			{
+				keyExtra = VK_RMENU;
+			}
+			else
+			{
+				keyExtra = VK_LMENU;
+			}
+		}
+		else if( key == VK_RETURN )
+		{
+			if( ( flags & RI_KEY_E0 ) == RI_KEY_E0 )
+			{
+				keyExtra = VK_NUMPAD_ENTER;
+			}
+			else
+			{
+				keyExtra = VK_RETURN;
+			}
+		}
+		else if( key == VK_SHIFT )
+		{
+			if( input->data.keyboard.MakeCode == 0x36 )
+			{
+				keyExtra = VK_RSHIFT;
+			}
+			else
+			{
+				keyExtra = VK_LSHIFT;
+			}
+		}
+		userInput.key[ key ] =  pressed;
+		if( keyExtra )
+		{
+			userInput.key[ keyExtra ] = pressed;
+		}
+	}
+
+	delete[] buffer;
 }

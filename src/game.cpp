@@ -107,6 +107,10 @@ void Game::DoFrame( float dt )
 	overlay.Write( "Vertices rendered: " );
 	overlay.WriteLine( std::to_string( numDrawnVertices ).c_str() );
 
+	if( input.key[ 'W' ] ) {
+		overlay.WriteLine( "W key pressed" );
+	}
+
 	renderer.End();
 }
 
