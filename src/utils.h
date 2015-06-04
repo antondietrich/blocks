@@ -27,6 +27,7 @@ private:
 class Profile
 {
 public:
+	static void NewFrame( float frameTime );
 	static void Start( const char* name );
 	static void Stop();
 	// call this on program exit
@@ -36,8 +37,13 @@ private:
 	struct ProfileEntry {
 		const char* name;
 		long long time;
+		long long frameTime;
+		long long avgFrameTime;
+		unsigned int callsPerFrame;
+		float percentage;
 	};
 
+	static float avgFrameTime_;
 	static int activeProfileIndex_; // last active profile + 1
 	static ProfileEntry activeProfiles_[ MAX_PROFILES ]; // active profiles in LIFO order
 	static int storeProfileIndex_; // next free slot
