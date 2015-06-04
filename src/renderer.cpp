@@ -50,6 +50,7 @@ Renderer::Renderer()
 	}
 
 	blockVB_ = 0;
+	blockCache_ = new VertexPosNormalTexcoord[ MAX_VERTS_PER_BATCH ];
 	numCachedBlocks_ = 0;
 }
 
@@ -62,6 +63,7 @@ Renderer::~Renderer()
 	device_->QueryInterface(__uuidof(ID3D11Debug), (void**)(&DebugDevice));
 #endif
 
+	delete[] blockCache_;
 	RELEASE( blockVB_ );
 	for( int i = 0; i < NUM_DEPTH_BUFFER_MODES; i++ ) {
 		RELEASE( depthStencilStates_[i] );
@@ -585,9 +587,18 @@ void Renderer::DrawCube( XMFLOAT3 offset )
 
 void Renderer::SubmitBlock( DirectX::XMFLOAT3 offset )
 {
+//	for( int i = 0; i < VERTS_PER_BLOCK; i++ )
+//	{
+//		blockCache_[ numCachedBlocks_ * VERTS_PER_BLOCK + i ] = block_[ i ];
+//		blockCache_[ numCachedBlocks_ * VERTS_PER_BLOCK + i ].pos[0] += offset.x;
+//		blockCache_[ numCachedBlocks_ * VERTS_PER_BLOCK + i ].pos[1] += offset.y;
+//		blockCache_[ numCachedBlocks_ * VERTS_PER_BLOCK + i ].pos[2] += offset.z;
+//	}
+	memcpy( &blockCache_[ numCachedBlocks_ * VERTS_PER_BLOCK ],
+			&block_,
+			sizeof( VertexPosNormalTexcoord ) * VERTS_PER_BLOCK );
 	for( int i = 0; i < VERTS_PER_BLOCK; i++ )
 	{
-		blockCache_[ numCachedBlocks_ * VERTS_PER_BLOCK + i ] = block_[ i ];
 		blockCache_[ numCachedBlocks_ * VERTS_PER_BLOCK + i ].pos[0] += offset.x;
 		blockCache_[ numCachedBlocks_ * VERTS_PER_BLOCK + i ].pos[1] += offset.y;
 		blockCache_[ numCachedBlocks_ * VERTS_PER_BLOCK + i ].pos[2] += offset.z;
