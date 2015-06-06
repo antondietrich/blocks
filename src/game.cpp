@@ -48,15 +48,22 @@ void Game::DoFrame( float dt )
 	renderer.Begin();
 
 	static int deltaFramesElapsed;
-	static float capturedDelta;
+	static float capturedDelta[ UPDATE_DELTA_FRAMES ];
 	static char deltaStr[ 8 ];
-	
+
+	capturedDelta[ deltaFramesElapsed % UPDATE_DELTA_FRAMES ] = dt;	
 	deltaFramesElapsed++;
+
+	static float sum = 0;
 	if( deltaFramesElapsed % UPDATE_DELTA_FRAMES == 0 ) {
-		capturedDelta = dt;
+		sum = 0;
+		for( int i = 0; i < UPDATE_DELTA_FRAMES; i++ )
+		{
+			sum += capturedDelta[ i ];
+		}
 	}
 
-	sprintf( deltaStr, "%5.2f", capturedDelta );
+	sprintf( deltaStr, "%5.2f", sum / UPDATE_DELTA_FRAMES );
 
 
 	int batchVertexCount = 0;
