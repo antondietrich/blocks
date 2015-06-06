@@ -5,3 +5,4 @@ compile.bat
 *.ilk
 *.pdb
 *.suo
+*.sln

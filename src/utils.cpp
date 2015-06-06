@@ -35,96 +35,118 @@ LONGLONG GetTicksPerSecond()
 //********************
 // Profile
 //********************
-int Profile::activeProfileIndex_ = 0;
-int Profile::storeProfileIndex_ = 0;
+long long Profile::framesRendered_;
 float Profile::avgFrameTime_ = 0;
+int Profile::activeProfileIndex_ = 0;
 Profile::ProfileEntry Profile::activeProfiles_[];
 Profile::ProfileEntry Profile::finishedProfiles_[];
 
+float Average( float a, float b )
+{
+	float result;
+	if( a == 0 ) {
+		result = b;
+	}
+	result = ( a + b ) / 2.0f;
+	return result;
+}
+
+long long Average( long long a, long long b )
+{
+	long long result;
+	if( a == 0 ) {
+		result = b;
+	}
+	result = ( a + b ) / 2;
+	return result;
+}
+
 void Profile::NewFrame( float frameTime )
 {
-	if( avgFrameTime_ ==  0 ) {
-		avgFrameTime_ = frameTime;
-	}
-	else {
-		avgFrameTime_ = ( avgFrameTime_ + frameTime ) / 2;
+	framesRendered_++;
+	avgFrameTime_ = Average( avgFrameTime_, frameTime );
+
+	for( int i = 0; i < MAX_STORED_PROFILES; i++ )
+	{
+		if( finishedProfiles_[i].callsPerFrame != 0 )
+		{
+			finishedProfiles_[i].timePerCall = Average( finishedProfiles_[i].timePerCall, 
+						finishedProfiles_[i].timePerCallAccumulator / finishedProfiles_[i].callsPerFrame );
+			finishedProfiles_[i].timePerFrame = Average( finishedProfiles_[i].timePerFrame,
+														 finishedProfiles_[i].timePerCallAccumulator );
+			finishedProfiles_[i].timePerCallAccumulator = 0;
+			finishedProfiles_[i].callsPerFrame = 0;
+		}
 	}
 }
 
 void Profile::Start( const char* name )
 {
-	assert( activeProfileIndex_ < MAX_PROFILES );
+	assert( activeProfileIndex_ < MAX_ACTIVE_PROFILES );
 	activeProfiles_[ activeProfileIndex_ ].name = name;
-	activeProfiles_[ activeProfileIndex_ ].time = Time::Now();
+	activeProfiles_[ activeProfileIndex_ ].timePerCall = Time::Now();
+
 	activeProfileIndex_++;
 }
 
 void Profile::Stop()
 {
+	// pop the last active profile
 	activeProfileIndex_--;
 
-	// same name with the previous record, must be a loop
-	if( storeProfileIndex_ != 0 && 
-		0 == strcmp( activeProfiles_[ activeProfileIndex_ ].name, finishedProfiles_[ storeProfileIndex_ - 1 ].name ) )
-	{
-		storeProfileIndex_--;
-	}
+	long long profileTime = Time::Now() - activeProfiles_[ activeProfileIndex_ ].timePerCall;
 
-	long long profileTime = Time::Now() - activeProfiles_[ activeProfileIndex_ ].time;
-	
-	finishedProfiles_[ storeProfileIndex_ ].callsPerFrame++;
-	finishedProfiles_[ storeProfileIndex_ ].frameTime += profileTime;
+	unsigned char storageIndex = hash( (unsigned char*)activeProfiles_[ activeProfileIndex_ ].name );
+
+	// make sure we didn't hit a collision
+	assert( finishedProfiles_[ storageIndex ].name == 0 || 
+		0 == strcmp( finishedProfiles_[ storageIndex ].name, activeProfiles_[ activeProfileIndex_ ].name ) );
 
 
-	assert( storeProfileIndex_ < MAX_PROFILES );
-
-	if( finishedProfiles_[ storeProfileIndex_ ].time == 0) { // first frame
-		finishedProfiles_[ storeProfileIndex_ ].time = profileTime;
-		finishedProfiles_[ storeProfileIndex_ ].name = activeProfiles_[ activeProfileIndex_ ].name;
-	}
-	else {
-		finishedProfiles_[ storeProfileIndex_ ].time = ( finishedProfiles_[ storeProfileIndex_ ].time + profileTime ) / 2;
-	}
-
-	storeProfileIndex_++;
-
-	// FIX: can't have more than one upper level profiler!
-	if( activeProfileIndex_ == 0 ) // all profilers stopped
-	{
-		storeProfileIndex_ = 0;
-		for( int i = 0; i < MAX_PROFILES; i++ )
-		{
-			if( finishedProfiles_[i].callsPerFrame != 0 )
-			{
-				long long thisFrameTime = finishedProfiles_[i].frameTime;
-				if( finishedProfiles_[i].avgFrameTime == 0 ) { // first frame
-					finishedProfiles_[i].avgFrameTime = thisFrameTime;
-				}
-				else {
-					finishedProfiles_[i].avgFrameTime = ( finishedProfiles_[i].avgFrameTime + thisFrameTime ) / 2;
-				}
-			}
-			finishedProfiles_[i].frameTime = 0;
-		}
-	}
+	finishedProfiles_[ storageIndex ].name = activeProfiles_[ activeProfileIndex_ ].name;
+	finishedProfiles_[ storageIndex ].timePerCallAccumulator += profileTime;
+	finishedProfiles_[ storageIndex ].callsPerFrame++;
 }
 
 void Profile::Report()
 {
 	OutputDebugStringA( "\n\n*** Profiler report ***\n" );
+
+	OutputDebugStringA( "Frames rendered: " );
+	OutputDebugStringA( std::to_string( framesRendered_ ).c_str() );
+	OutputDebugStringA( "\n" );
+
+	OutputDebugStringA( "Average frame time: " );
+	OutputDebugStringA( std::to_string( avgFrameTime_ ).c_str() );
+	OutputDebugStringA( "\n" );
+
 	OutputDebugStringA( "Name                             | per call | per frame |   %  \n" );
 	OutputDebugStringA( "---------------------------------|----------|-----------|------\n" );
-	for( int i = 0; i < MAX_PROFILES; i++ )
+	for( int i = 0; i < MAX_STORED_PROFILES; i++ )
 	{
-		if( finishedProfiles_[i].time == 0 )
+		if( finishedProfiles_[i].name == 0 )
 			continue;
-		finishedProfiles_[i].percentage = ( Time::ToMiliseconds( finishedProfiles_[i].avgFrameTime ) / avgFrameTime_ ) * 100;
+
+		finishedProfiles_[i].percentage = (float)( Time::ToMiliseconds( finishedProfiles_[i].timePerFrame ) / avgFrameTime_ ) * 100.0f;
 		char report[256];
 		sprintf( report, "%-32s | %8.4f | %9.4f | %5.2f\n", finishedProfiles_[i].name,
-				 Time::ToMiliseconds( finishedProfiles_[i].time ),
-				 Time::ToMiliseconds( finishedProfiles_[i].avgFrameTime ),
+				 Time::ToMiliseconds( finishedProfiles_[i].timePerCall ),
+				 Time::ToMiliseconds( finishedProfiles_[i].timePerFrame ),
 				 finishedProfiles_[i].percentage );
 
 		OutputDebugStringA( report );
 	}
+	OutputDebugStringA( "\n\n" );
+}
+
+unsigned char hash( const unsigned char *str )
+{
+	//unsigned long hash = 5381;
+	unsigned char hash = 179;
+	unsigned char c;
+
+	while( c = *str++ )
+		hash = ( ( hash << 5 ) + hash ) + c; /* hash * 33 + c */
+
+	return hash;
 }

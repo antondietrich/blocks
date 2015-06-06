@@ -4,6 +4,7 @@
 #include <Windows.h>
 #include <assert.h>
 #include <cstdio>
+#include <string>
 
 //
 // Safely releases a COM interface
@@ -23,7 +24,15 @@ private:
 	static LONGLONG ticksPerSecond_;
 };
 
-#define MAX_PROFILES 32
+//
+// Profiler
+//
+
+// TODO: better hash function XD
+unsigned char hash( const unsigned char *str );
+
+#define MAX_ACTIVE_PROFILES 32
+#define MAX_STORED_PROFILES 255
 class Profile
 {
 public:
@@ -36,18 +45,18 @@ public:
 private:
 	struct ProfileEntry {
 		const char* name;
-		long long time;
-		long long frameTime;
-		long long avgFrameTime;
+		long long timePerCall;
+		long long timePerCallAccumulator;
+		long long timePerFrame;
 		unsigned int callsPerFrame;
 		float percentage;
 	};
 
+	static long long framesRendered_;
 	static float avgFrameTime_;
 	static int activeProfileIndex_; // last active profile + 1
-	static ProfileEntry activeProfiles_[ MAX_PROFILES ]; // active profiles in LIFO order
-	static int storeProfileIndex_; // next free slot
-	static ProfileEntry finishedProfiles_[ MAX_PROFILES ]; // finished profiles - grow only
+	static ProfileEntry activeProfiles_[ MAX_ACTIVE_PROFILES ]; // active profiles in LIFO order
+	static ProfileEntry finishedProfiles_[ MAX_STORED_PROFILES ]; // finished profiles - grow only
 };
 
 #endif //__BLOCKS_UTILS__
