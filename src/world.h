@@ -1,6 +1,8 @@
 #ifndef __BLCOKS_WORLD__
 #define __BLCOKS_WORLD__
 
+#include <cstdlib>
+
 namespace Blocks
 {
 

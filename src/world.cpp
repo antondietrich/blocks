@@ -5,24 +5,26 @@ namespace Blocks
 
 void GenerateWorld( World *world )
 {
+	srand( 12345 );
 	for( int z = 0; z < 32; z++ )
 	{
 		for( int x = 0; x < 32; x++ )
 		{
-			for( int chunkY = 0; chunkY < CHUNK_HEIGHT; chunkY++ )
+			for( int blockY = 0; blockY < CHUNK_HEIGHT; blockY++ )
 			{
-				for( int chunkZ = 0; chunkZ < CHUNK_WIDTH; chunkZ++ )
+				for( int blockZ = 0; blockZ < CHUNK_WIDTH; blockZ++ )
 				{
-					for( int chunkX = 0; chunkX < CHUNK_WIDTH; chunkX++ )
+					for( int blockX = 0; blockX < CHUNK_WIDTH; blockX++ )
 					{
-						if( chunkY < 12 ) {
-							world->chunks[x][z].blocks[chunkX][chunkY][chunkZ] = BT_DIRT;
+						int height = (rand() / (float)RAND_MAX) * 3.0f;
+						if( blockY < height ) {
+							world->chunks[x][z].blocks[blockX][blockY][blockZ] = BT_DIRT;
 						}
-						else if( chunkY == 12 ) {
-							world->chunks[x][z].blocks[chunkX][chunkY][chunkZ] = BT_GRASS;
+						else if( blockY == height ) {
+							world->chunks[x][z].blocks[blockX][blockY][blockZ] = BT_GRASS;
 						}
 						else {
-							world->chunks[x][z].blocks[chunkX][chunkY][chunkZ] = BT_AIR;
+							world->chunks[x][z].blocks[blockX][blockY][blockZ] = BT_AIR;
 						}
 					}
 				}

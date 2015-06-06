@@ -42,8 +42,8 @@ bool Game::Start( HWND wnd )
 	}
 	input.mouse = {0, 0};
 
-//	world_ = new World();
-//	GenerateWorld( world_ );
+	world_ = new World();
+	GenerateWorld( world_ );
 
 	return true;
 }
@@ -154,28 +154,51 @@ void Game::DoFrame( float dt )
 	int numDrawnBatches = 0;
 	int numDrawnVertices = 0;
 
-	const int chunksToDraw = 4;
+	const int chunksToDraw = 3;
 
-	for( int chunkY = 0; chunkY < CHUNK_HEIGHT; chunkY++ )
+	// draw 7*7 chunks around player
+	for( int z = playerChunkZ - chunksToDraw; z <= playerChunkZ + chunksToDraw; z++ )
 	{
-		for( int chunkZ = 0; chunkZ < CHUNK_WIDTH; chunkZ++ )
+		for( int x = playerChunkX - chunksToDraw; x <= playerChunkX + chunksToDraw; x++ )
 		{
-			for( int chunkX = 0; chunkX < CHUNK_WIDTH; chunkX++ )
+			for( int blockZ = 0; blockZ < CHUNK_WIDTH; blockZ++ )
 			{
-				if( chunkY == 12 ) {
-					renderer.SubmitBlock( XMFLOAT3( playerChunkX * CHUNK_WIDTH + chunkX, chunkY, playerChunkZ * CHUNK_WIDTH + chunkZ ) );
-					// renderer.SubmitBlock( XMFLOAT3( chunkX, chunkY, chunkZ ) );
-					batchVertexCount += VERTS_PER_BLOCK;
-					numDrawnVertices += VERTS_PER_BLOCK;
+				for( int blockX = 0; blockX < CHUNK_WIDTH; blockX++ )
+				{
+					int height = 0;
+					while( world_->chunks[x+16][z+16].blocks[blockX][height][blockZ] != BT_AIR )
+					{
+						renderer.SubmitBlock( XMFLOAT3( x * CHUNK_WIDTH + blockX, height, z * CHUNK_WIDTH + blockZ ) );
+						batchVertexCount += VERTS_PER_BLOCK;
+						numDrawnVertices += VERTS_PER_BLOCK;
 
-					if( batchVertexCount == MAX_VERTS_PER_BATCH ) {
-						ProfileStart( "Renderer.Draw" );
-						renderer.Draw( batchVertexCount );
-						ProfileStop();
-						batchVertexCount = 0;
-						numDrawnBatches++;
+						if( batchVertexCount == MAX_VERTS_PER_BATCH ) {
+							ProfileStart( "Renderer.Draw" );
+							renderer.Draw( batchVertexCount );
+							ProfileStop();
+							batchVertexCount = 0;
+							numDrawnBatches++;
+						}
+						height++;
 					}
+					
 
+					#if 0
+					if( chunkY == 12 ) {
+						renderer.SubmitBlock( XMFLOAT3( x * CHUNK_WIDTH + blockX, chunkY, z * CHUNK_WIDTH + blocZ ) );
+						batchVertexCount += VERTS_PER_BLOCK;
+						numDrawnVertices += VERTS_PER_BLOCK;
+
+						if( batchVertexCount == MAX_VERTS_PER_BATCH ) {
+							ProfileStart( "Renderer.Draw" );
+							renderer.Draw( batchVertexCount );
+							ProfileStop();
+							batchVertexCount = 0;
+							numDrawnBatches++;
+						}
+
+					}
+					#endif
 				}
 			}
 		}
