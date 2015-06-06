@@ -44,7 +44,7 @@ bool Game::Start( HWND wnd )
 
 void Game::DoFrame( float dt )
 {
-	Profile::NewFrame( dt );
+	ProfileNewFrame( dt );
 	renderer.Begin();
 
 	static int deltaFramesElapsed;
@@ -72,7 +72,7 @@ void Game::DoFrame( float dt )
 
 	const int chunksToDraw = 8;
 
-	Profile::Start( "Render chunks" );
+	ProfileStart( "Render chunks" );
 	for( int z = 0; z < chunksToDraw; z++ )
 	{
 		for( int x = 0; x < chunksToDraw; x++ )
@@ -84,17 +84,17 @@ void Game::DoFrame( float dt )
 					for( int chunkX = 0; chunkX < CHUNK_WIDTH; chunkX++ )
 					{
 						if( chunkY == 12 ) {
-							Profile::Start( "Renderer.SubmitBlock" );
+							ProfileStart( "Renderer.SubmitBlock" );
 							renderer.SubmitBlock( XMFLOAT3( CHUNK_WIDTH * (x - chunksToDraw / 2) + chunkX, chunkY, CHUNK_WIDTH * (z - chunksToDraw / 2) + chunkZ ) );
-							Profile::Stop();
+							ProfileStop();
 							// renderer.SubmitBlock( XMFLOAT3( chunkX, chunkY, chunkZ ) );
 							batchVertexCount += VERTS_PER_BLOCK;
 							numDrawnVertices += VERTS_PER_BLOCK;
 
 							if( batchVertexCount == MAX_VERTS_PER_BATCH ) {
-								Profile::Start( "Renderer.Draw" );
+								ProfileStart( "Renderer.Draw" );
 								renderer.Draw( batchVertexCount );
-								Profile::Stop();
+								ProfileStop();
 								batchVertexCount = 0;
 								numDrawnBatches++;
 							}
@@ -105,7 +105,7 @@ void Game::DoFrame( float dt )
 			}
 		}
 	}
-	Profile::Stop();
+	ProfileStop();
 
 	// draw remeining verts
 	if( batchVertexCount ) {
@@ -113,7 +113,7 @@ void Game::DoFrame( float dt )
 		numDrawnBatches++;
 	}
 
-	Profile::Start( "Overlay" );
+	ProfileStart( "Overlay" );
 	overlay.Reset();
 	overlay.Write( "Frame time: " );
 	overlay.WriteLine( deltaStr );
@@ -125,7 +125,7 @@ void Game::DoFrame( float dt )
 	if( input.key[ 'W' ] ) {
 		overlay.WriteLine( "W key pressed" );
 	}
-	Profile::Stop();
+	ProfileStop();
 
 	renderer.End();
 }

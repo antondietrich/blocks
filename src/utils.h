@@ -28,6 +28,22 @@ private:
 // Profiler
 //
 
+#ifdef _PROFILE_
+
+#define ProfileStart( name ) Profile::Start( (name) );
+#define ProfileStop() Profile::Stop();
+#define ProfileNewFrame( dt ) Profile::NewFrame( (dt) );
+#define ProfileReport()  Profile::Report();
+
+#else
+
+#define ProfileStart( name )
+#define ProfileStop()
+#define ProfileNewFrame( dt )
+#define ProfileReport()
+
+#endif
+
 // TODO: better hash function XD
 unsigned char hash( const unsigned char *str );
 

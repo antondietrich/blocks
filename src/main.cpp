@@ -114,7 +114,7 @@ int __stdcall wWinMain( HINSTANCE thisInstance, HINSTANCE prevInstance, LPWSTR c
 		}
 	}
 
-	Profile::Report();
+	ProfileReport();
 
 	return (int) msg.wParam;
 }
