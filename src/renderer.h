@@ -20,21 +20,6 @@ namespace Blocks
 
 #define BACK_BUFFER_FORMAT DXGI_FORMAT_R8G8B8A8_UNORM
 
-enum BLEND_MODE
-{
-	BM_DEFAULT,
-	BM_ALPHA,
-	NUM_BLEND_MODES
-};
-
-enum DEPTH_BUFFER_MODE
-{
-	DB_ENABLED,
-	DB_DISABLED,
-	DB_READ,
-	NUM_DEPTH_BUFFER_MODES
-};
-
 bool LoadShader( wchar_t *filename, const char *entry, const char *shaderModel, ID3DBlob **buffer );
 /* Based on the implementation by @BobbyAnguelov. Thank you! */
 HRESULT CreateInputLayoutFromShaderBytecode( ID3DBlob* shaderBytecode, ID3D11Device* device, ID3D11InputLayout** inputLayout );
@@ -109,12 +94,39 @@ private:
 	friend class Renderer;
 };
 
+//********************
+// Renderer
+//********************
+
 #define MAX_SHADERS 8
 #define MAX_TEXTURES 8
 #define MAX_MESHES 8
 
 #define VERTS_PER_BLOCK 36
-#define MAX_VERTS_PER_BATCH 9216 // up to 1024 blocks
+#define MAX_VERTS_PER_BATCH 9216 * 8 // up to 1024 blocks
+
+enum SAMPLER_TYPE
+{
+	SAMPLER_POINT,
+	SAMPLER_LINEAR,
+	SAMPLER_ANISOTROPIC,
+	NUM_SAMPLER_TYPES
+};
+
+enum BLEND_MODE
+{
+	BM_DEFAULT,
+	BM_ALPHA,
+	NUM_BLEND_MODES
+};
+
+enum DEPTH_BUFFER_MODE
+{
+	DB_ENABLED,
+	DB_DISABLED,
+	DB_READ,
+	NUM_DEPTH_BUFFER_MODES
+};
 
 class Renderer
 {
@@ -140,6 +152,7 @@ public:
 		return (int)screenViewport_.Height;
 	};
 
+	void SetSampler( SAMPLER_TYPE st );
 	void SetBlendMode( BLEND_MODE bm );
 	void SetDepthBufferMode( DEPTH_BUFFER_MODE bm );
 
@@ -160,8 +173,9 @@ private:
 	ID3D11Buffer *globalConstantBuffer_;
 	ID3D11Buffer *frameConstantBuffer_;
 	ID3D11Buffer *modelConstantBuffer_;
-	ID3D11SamplerState *linearSampler_;
+	//ID3D11SamplerState *linearSampler_;
 
+	ID3D11SamplerState *samplers_[ NUM_SAMPLER_TYPES ];
 	ID3D11BlendState *blendStates_[ NUM_BLEND_MODES ];
 	ID3D11DepthStencilState *depthStencilStates_[ NUM_DEPTH_BUFFER_MODES ];
 
@@ -225,7 +239,7 @@ private:
 	ID3D11Buffer *vb_;
 	//ID3D11ShaderResourceView *textureView_;
 	Texture texture_;
-	ID3D11SamplerState *sampler_;
+//	ID3D11SamplerState *sampler_;
 	ID3D11Buffer *constantBuffer_;
 
 	unsigned int lineNumber_;

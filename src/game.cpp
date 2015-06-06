@@ -70,7 +70,7 @@ void Game::DoFrame( float dt )
 	int numDrawnBatches = 0;
 	int numDrawnVertices = 0;
 
-	const int chunksToDraw = 8;
+	const int chunksToDraw = 4;
 
 	ProfileStart( "Render chunks" );
 	for( int z = 0; z < chunksToDraw; z++ )

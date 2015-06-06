@@ -23,16 +23,20 @@ Renderer::Renderer()
 	backBufferView_ = 0;
 	depthStencilView_ = 0;
 	defaultRasterizerState_ = 0;
+	globalConstantBuffer_ = 0;
+	frameConstantBuffer_ = 0;
+	modelConstantBuffer_ = 0;
+//	linearSampler_ = 0;
+
+	for( int i = 0; i < NUM_SAMPLER_TYPES; i++ ) {
+		samplers_[i] = 0;
+	}
 	for( int i = 0; i < NUM_BLEND_MODES; i++ ) {
 		blendStates_[i] = 0;
 	}
 	for( int i = 0; i < NUM_DEPTH_BUFFER_MODES; i++ ) {
 		depthStencilStates_[i] = 0;
 	}
-	globalConstantBuffer_ = 0;
-	frameConstantBuffer_ = 0;
-	modelConstantBuffer_ = 0;
-	linearSampler_ = 0;
 
 	for( int i = 0; i < MAX_SHADERS; i++ )
 	{
@@ -71,7 +75,10 @@ Renderer::~Renderer()
 	for( int i = 0; i < NUM_BLEND_MODES; i++ ) {
 		RELEASE( blendStates_[i] );
 	}
-	RELEASE( linearSampler_ );
+	for( int i = 0; i < NUM_SAMPLER_TYPES; i++ ) {
+		RELEASE( samplers_[i] );
+	}
+//	RELEASE( linearSampler_ );
 	RELEASE( modelConstantBuffer_ );
 	RELEASE( frameConstantBuffer_ );
 	RELEASE( globalConstantBuffer_ );
@@ -247,6 +254,39 @@ bool Renderer::Start( HWND wnd )
 	}
 
 	context_->RSSetState( defaultRasterizerState_ );
+
+	// texture samplers
+	D3D11_SAMPLER_DESC samplerDesc;
+	ZeroMemory( &samplerDesc, sizeof( samplerDesc ) );
+	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+	samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+	samplerDesc.MipLODBias = 0;
+	samplerDesc.MaxAnisotropy = 0;
+	samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+	samplerDesc.MinLOD = -FLT_MAX;
+	samplerDesc.MaxLOD = FLT_MAX;
+	hr = device_->CreateSamplerState( &samplerDesc, &samplers_[ SAMPLER_POINT ] );
+	if( FAILED( hr ) ) {
+		OutputDebugStringA( "Failed to create point sampler state!" );
+		return false;
+	}
+
+	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	hr = device_->CreateSamplerState( &samplerDesc, &samplers_[ SAMPLER_LINEAR ] );
+	if( FAILED( hr ) ) {
+		OutputDebugStringA( "Failed to create linear sampler state!" );
+		return false;
+	}
+
+	samplerDesc.Filter = D3D11_FILTER_ANISOTROPIC;
+	samplerDesc.MaxAnisotropy = Config.filtering;
+	hr = device_->CreateSamplerState( &samplerDesc, &samplers_[ SAMPLER_ANISOTROPIC ] );
+	if( FAILED( hr ) ) {
+		OutputDebugStringA( "Failed to create anisotropic sampler state!" );
+		return false;
+	}
 
 	// blend modes
 	D3D11_BLEND_DESC blendDesc;
@@ -492,25 +532,7 @@ bool Renderer::Start( HWND wnd )
 		return false;
 	}
 
-	// create texture sampler
-	D3D11_SAMPLER_DESC samplerDesc;
-	ZeroMemory( &samplerDesc, sizeof( samplerDesc ) );
-	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-	samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-	samplerDesc.MipLODBias = 0;
-	samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-	samplerDesc.MinLOD = -FLT_MAX;
-	samplerDesc.MaxLOD = FLT_MAX;
-
-	hr = device_->CreateSamplerState( &samplerDesc, &linearSampler_ );
-	if( FAILED( hr ) ) {
-		OutputDebugStringA( "Failed to create sampler state!" );
-		return false;
-	}
-
-	// vertex buffer to batch blocks
+		// vertex buffer to batch blocks
 	D3D11_BUFFER_DESC vertexBufferDesc;
 	ZeroMemory( &vertexBufferDesc, sizeof( vertexBufferDesc ) );
 	vertexBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
@@ -538,7 +560,7 @@ void Renderer::Begin()
 
 	context_->VSSetConstantBuffers( 1, 1, &frameConstantBuffer_ );
 	context_->VSSetConstantBuffers( 2, 1, &modelConstantBuffer_ );
-	context_->PSSetSamplers( 0, 1, &linearSampler_ );
+	SetSampler( SAMPLER_POINT );
 	SetTexture( textures_[0] );
 	SetShader( shaders_[0] );
 	SetDepthBufferMode( DB_ENABLED );
@@ -577,23 +599,13 @@ void Renderer::DrawCube( XMFLOAT3 offset )
 
 
 	SetMesh( meshes_[0] );
-
-	context_->PSSetSamplers( 0, 1, &linearSampler_ );
 	SetTexture( textures_[0] );
-
 	SetShader( shaders_[0] );
 	context_->Draw( 36, 0 );
 }
 
 void Renderer::SubmitBlock( DirectX::XMFLOAT3 offset )
 {
-//	for( int i = 0; i < VERTS_PER_BLOCK; i++ )
-//	{
-//		blockCache_[ numCachedBlocks_ * VERTS_PER_BLOCK + i ] = block_[ i ];
-//		blockCache_[ numCachedBlocks_ * VERTS_PER_BLOCK + i ].pos[0] += offset.x;
-//		blockCache_[ numCachedBlocks_ * VERTS_PER_BLOCK + i ].pos[1] += offset.y;
-//		blockCache_[ numCachedBlocks_ * VERTS_PER_BLOCK + i ].pos[2] += offset.z;
-//	}
 	memcpy( &blockCache_[ numCachedBlocks_ * VERTS_PER_BLOCK ],
 			&block_,
 			sizeof( VertexPosNormalTexcoord ) * VERTS_PER_BLOCK );
@@ -738,6 +750,13 @@ bool Renderer::ResizeBuffers()
 	}
 
 	return true;
+}
+
+void Renderer::SetSampler( SAMPLER_TYPE st )
+{
+	unsigned int slot = 0;
+	unsigned int numSamplers = 1;
+	context_->PSSetSamplers( slot, numSamplers, &samplers_[ st ] );
 }
 
 void Renderer::SetBlendMode( BLEND_MODE bm )
@@ -919,7 +938,7 @@ texture_()
 	renderer_ = 0;
 	vb_ = 0;
 //	textureView_ = 0;
-	sampler_ = 0;
+//	sampler_ = 0;
 	constantBuffer_ = 0;
 
 	lineNumber_ = 0;
@@ -931,7 +950,7 @@ texture_()
 Overlay::~Overlay()
 {
 	RELEASE( constantBuffer_ );
-	RELEASE( sampler_ );
+//	RELEASE( sampler_ );
 //	RELEASE( textureView_ );
 	RELEASE( vb_ );
 }
@@ -967,22 +986,22 @@ bool Overlay::Start( Renderer *renderer )
 	}
 
 	// create texture sampler
-	D3D11_SAMPLER_DESC samplerDesc;
-	ZeroMemory( &samplerDesc, sizeof( samplerDesc ) );
-	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
-	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-	samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-	samplerDesc.MipLODBias = 0;
-	samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-	samplerDesc.MinLOD = 0;
-	samplerDesc.MaxLOD = 0;
-
-	hr = renderer_->device_->CreateSamplerState( &samplerDesc, &sampler_ );
-	if( FAILED( hr ) ) {
-		OutputDebugStringA( "Failed to create sampler state!" );
-		return false;
-	}
+//	D3D11_SAMPLER_DESC samplerDesc;
+//	ZeroMemory( &samplerDesc, sizeof( samplerDesc ) );
+//	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+//	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+//	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+//	samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+//	samplerDesc.MipLODBias = 0;
+//	samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+//	samplerDesc.MinLOD = 0;
+//	samplerDesc.MaxLOD = 0;
+//
+//	hr = renderer_->device_->CreateSamplerState( &samplerDesc, &sampler_ );
+//	if( FAILED( hr ) ) {
+//		OutputDebugStringA( "Failed to create sampler state!" );
+//		return false;
+//	}
 
 	// create constant buffer
 	D3D11_BUFFER_DESC cbDesc;
@@ -1144,7 +1163,7 @@ void Overlay::DisplayText( int x, int y, const char* text, XMFLOAT4 color )
 	renderer_->context_->IASetVertexBuffers( 0, 1, &vb_, &stride, &offset );
 	// renderer_->context_->PSSetShaderResources( 0, 1, &textureView_ );
 	renderer_->SetTexture( texture_ );
-	renderer_->context_->PSSetSamplers( 0, 1, &sampler_ );
+	renderer_->SetSampler( SAMPLER_POINT );
 	renderer_->context_->PSSetConstantBuffers( 1, 1, &constantBuffer_ );
 	renderer_->SetShader( shader_ );
 	renderer_->context_->Draw( textLength * 6, 0 );

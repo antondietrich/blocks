@@ -193,6 +193,7 @@ bool LoadConfig()
 //	Config.screenWidth = 1920;
 //	Config.screenHeight = 1080;
 	Config.multisampling = 0;
+	Config.filtering = 8;
 
 	return true;
 }
