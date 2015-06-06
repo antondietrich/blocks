@@ -465,6 +465,10 @@ bool Renderer::Start( HWND wnd )
 		OutputDebugStringA( "Failed to load texture!" );
 		return false;
 	}
+	if( !textures_[3].Load( L"assets/textures/grass2.dds", device_ ) ) {
+		OutputDebugStringA( "Failed to load texture!" );
+		return false;
+	}
 
 	// Load shaders
 	if( !shaders_[0].Load( L"assets/shaders/global.fx", device_ ) ) {
@@ -562,8 +566,8 @@ void Renderer::Begin()
 
 	context_->VSSetConstantBuffers( 1, 1, &frameConstantBuffer_ );
 	context_->VSSetConstantBuffers( 2, 1, &modelConstantBuffer_ );
-	SetSampler( SAMPLER_POINT );
-	SetTexture( textures_[0] );
+	SetSampler( SAMPLER_ANISOTROPIC );
+	SetTexture( textures_[3] );
 	SetShader( shaders_[0] );
 	SetDepthBufferMode( DB_ENABLED );
 }
@@ -769,11 +773,6 @@ void Renderer::SetView( XMFLOAT3 pos, XMFLOAT3 dir, XMFLOAT3 up )
 
 	FrameCB frameCBData;
 	XMStoreFloat4x4( &frameCBData.vp, vp );
-
-//	D3D11_SUBRESOURCE_DATA d3dFrameCBData;
-//	d3dFrameCBData.pSysMem = &frameCBData;
-//	d3dFrameCBData.SysMemPitch = sizeof( FrameCB );
-//	d3dFrameCBData.SysMemSlicePitch = 0;
 
 	context_->UpdateSubresource( frameConstantBuffer_, 0, NULL, &frameCBData, sizeof( FrameCB ), 0 );
 }
@@ -1063,14 +1062,34 @@ void Overlay::Reset()
 	lineOffset_ = 0;
 }
 
-void Overlay::WriteLine( const char* text )
+void Overlay::Write( const char* fmt, ... )
+{
+	char buffer[ MAX_OVERLAY_CHARS ];
+	va_list va;
+	va_start(va, fmt);
+	vsprintf(buffer, fmt, va);
+	va_end(va);
+	WriteUnformatted( buffer );
+}
+
+void Overlay::WriteLine( const char* fmt, ... )
+{
+	char buffer[ MAX_OVERLAY_CHARS ];
+	va_list va;
+	va_start(va, fmt);
+	vsprintf(buffer, fmt, va);
+	va_end(va);
+	WriteLineUnformatted( buffer );
+}
+
+void Overlay::WriteLineUnformatted( const char* text )
 {
 	Write( text );
 	lineOffset_ = 0;
 	lineNumber_++;
 }
 
-void Overlay::Write( const char* text )
+void Overlay::WriteUnformatted( const char* text )
 {
 	int textLength = (int)strlen( text );
 

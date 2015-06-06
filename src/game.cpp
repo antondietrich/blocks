@@ -54,6 +54,9 @@ XMFLOAT3 playerLook = 	{ 0.0f,  0.0f, 1.0f };
 XMFLOAT3 playerRight = 	{ 1.0f,  0.0f, 0.0f };
 XMFLOAT3 playerUp = 	{ 0.0f,  1.0f, 0.0f };
 
+int playerChunkX = 0;
+int playerChunkZ = 0;
+
 void Game::DoFrame( float dt )
 {
 	ProfileNewFrame( dt );
@@ -124,7 +127,6 @@ void Game::DoFrame( float dt )
 		}
 	}
 
-
 	XMStoreFloat3( &playerPos, vPos );
 	XMStoreFloat3( &playerDir, vDir );
 	XMStoreFloat3( &playerLook, vLook );
@@ -133,6 +135,20 @@ void Game::DoFrame( float dt )
 
 	renderer.SetView( playerPos, playerLook, playerUp );
 
+	if( playerPos.x >= 0 ) {
+		playerChunkX = (int)playerPos.x / CHUNK_WIDTH;
+	}
+	else {
+		playerChunkX = (int)playerPos.x / CHUNK_WIDTH - 1;
+	}
+
+	if( playerPos.z >= 0 ) {
+		playerChunkZ = (int)playerPos.z / CHUNK_WIDTH;
+	}
+	else {
+		playerChunkZ = (int)playerPos.z / CHUNK_WIDTH - 1;
+	}
+
 	// world rendering
 	int batchVertexCount = 0;
 	int numDrawnBatches = 0;
@@ -140,7 +156,33 @@ void Game::DoFrame( float dt )
 
 	const int chunksToDraw = 4;
 
+	for( int chunkY = 0; chunkY < CHUNK_HEIGHT; chunkY++ )
+	{
+		for( int chunkZ = 0; chunkZ < CHUNK_WIDTH; chunkZ++ )
+		{
+			for( int chunkX = 0; chunkX < CHUNK_WIDTH; chunkX++ )
+			{
+				if( chunkY == 12 ) {
+					renderer.SubmitBlock( XMFLOAT3( playerChunkX * CHUNK_WIDTH + chunkX, chunkY, playerChunkZ * CHUNK_WIDTH + chunkZ ) );
+					// renderer.SubmitBlock( XMFLOAT3( chunkX, chunkY, chunkZ ) );
+					batchVertexCount += VERTS_PER_BLOCK;
+					numDrawnVertices += VERTS_PER_BLOCK;
+
+					if( batchVertexCount == MAX_VERTS_PER_BATCH ) {
+						ProfileStart( "Renderer.Draw" );
+						renderer.Draw( batchVertexCount );
+						ProfileStop();
+						batchVertexCount = 0;
+						numDrawnBatches++;
+					}
+
+				}
+			}
+		}
+	}
+
 	ProfileStart( "Render chunks" );
+#if 0
 	for( int z = 0; z < chunksToDraw; z++ )
 	{
 		for( int x = 0; x < chunksToDraw; x++ )
@@ -173,6 +215,7 @@ void Game::DoFrame( float dt )
 			}
 		}
 	}
+#endif
 	ProfileStop();
 
 	// draw remeining verts
@@ -182,18 +225,16 @@ void Game::DoFrame( float dt )
 	}
 
 	ProfileStart( "Overlay" );
-	overlay.Reset();
-	overlay.Write( "Frame time: " );
-	overlay.WriteLine( deltaStr );
-	overlay.Write( "Batches rendered: " );
-	overlay.WriteLine( std::to_string( numDrawnBatches ).c_str() );
-	overlay.Write( "Vertices rendered: " );
-	overlay.WriteLine( std::to_string( numDrawnVertices ).c_str() );
 
-	overlay.Write( "Mouse offset: " );
-	overlay.Write( std::to_string( input.mouse.x ).c_str() );
-	overlay.Write( ":" );
-	overlay.WriteLine( std::to_string( input.mouse.y ).c_str() );
+	overlay.Reset();
+	overlay.WriteLine( "Frame time: %5.2f", sum / UPDATE_DELTA_FRAMES );
+	overlay.WriteLine( "Batches rendered: %i", numDrawnBatches );
+	overlay.WriteLine( "Vertices rendered: %i", numDrawnVertices );
+	overlay.WriteLine( "Mouse offset: %+03i - %+03i", input.mouse.x, input.mouse.y );
+	overlay.WriteLine( "" );
+	overlay.WriteLine( "Player pos: %5.2f %5.2f %5.2f", playerPos.x, playerPos.y, playerPos.z );
+	overlay.WriteLine( "Chunk pos:  %5i ----- %5i", playerChunkX, playerChunkZ );
+
 	ProfileStop();
 
 	renderer.End();

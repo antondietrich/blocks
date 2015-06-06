@@ -231,8 +231,10 @@ public:
 	bool Start( Renderer* renderer );
 	void Reset();
 
-	void Write( const char* text );
-	void WriteLine( const char* text );
+	void Write( const char* fmt, ... );
+	void WriteLine( const char* fmt, ... );
+	void WriteUnformatted( const char* text );
+	void WriteLineUnformatted( const char* text );
 	void DisplayText( int x, int y, const char* text, DirectX::XMFLOAT4 color );
 
 	float GetCharOffset( char c );
