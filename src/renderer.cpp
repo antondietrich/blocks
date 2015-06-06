@@ -419,6 +419,8 @@ bool Renderer::Start( HWND wnd )
 	XMMATRIX projection = XMMatrixPerspectiveFovLH( XMConvertToRadians( 60.0f ), screenViewport_.Width / screenViewport_.Height, 1.0f, 1000.0f );
 	// XMStoreFloat4x4( &frameCBData.vp, XMMatrixMultiply( view, projection ) );
 	XMStoreFloat4x4( &frameCBData.vp, XMMatrixTranspose( XMMatrixMultiply( view, projection ) ) );
+	XMStoreFloat4x4( &view_, view );
+	XMStoreFloat4x4( &projection_, projection );
 
 	D3D11_SUBRESOURCE_DATA frameCBInitData;
 	frameCBInitData.pSysMem = &frameCBData;
@@ -750,6 +752,30 @@ bool Renderer::ResizeBuffers()
 	}
 
 	return true;
+}
+
+void Renderer::SetView( XMFLOAT3 pos, XMFLOAT3 dir, XMFLOAT3 up )
+{
+	XMVECTOR vPos, vDir, vUp;
+	vPos = XMLoadFloat3( &pos );
+	vDir = XMLoadFloat3( &dir );
+	vUp = XMLoadFloat3( &up );
+	XMMATRIX view =  XMMatrixLookToLH( vPos, vDir, vUp );
+
+	// XMStoreFloat4x4( &view_, view );
+
+	XMMATRIX proj = XMLoadFloat4x4( &projection_ );
+	XMMATRIX vp = XMMatrixTranspose( XMMatrixMultiply( view, proj ) );
+
+	FrameCB frameCBData;
+	XMStoreFloat4x4( &frameCBData.vp, vp );
+
+//	D3D11_SUBRESOURCE_DATA d3dFrameCBData;
+//	d3dFrameCBData.pSysMem = &frameCBData;
+//	d3dFrameCBData.SysMemPitch = sizeof( FrameCB );
+//	d3dFrameCBData.SysMemSlicePitch = 0;
+
+	context_->UpdateSubresource( frameConstantBuffer_, 0, NULL, &frameCBData, sizeof( FrameCB ), 0 );
 }
 
 void Renderer::SetSampler( SAMPLER_TYPE st )

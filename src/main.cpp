@@ -253,6 +253,7 @@ void TranslateUserInput( UserInput &userInput, LPARAM lParam )
 
 	if( input->header.dwType == RIM_TYPEMOUSE )
 	{
+		// TODO: capture mouse buttons state
 		long x = input->data.mouse.lLastX;
 		long y = input->data.mouse.lLastY;
 

@@ -156,6 +156,7 @@ public:
 	void SetBlendMode( BLEND_MODE bm );
 	void SetDepthBufferMode( DEPTH_BUFFER_MODE bm );
 
+	void SetView( DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 dir, DirectX::XMFLOAT3 up );
 	void SetMesh( const Mesh& mesh );
 	void SetShader( const Shader& shader );
 	void SetTexture( const Texture& texture );
@@ -188,6 +189,9 @@ private:
 	Shader shaders_[ MAX_SHADERS ];
 	Texture textures_[ MAX_TEXTURES ];
 	Mesh meshes_[ MAX_MESHES ];
+
+	DirectX::XMFLOAT4X4 view_;
+	DirectX::XMFLOAT4X4 projection_;
 
 	friend class Overlay;
 };
