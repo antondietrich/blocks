@@ -56,10 +56,9 @@ float4 PSMain( PS_Input input ) : SV_TARGET
 	float4 texSample =  fontTexture_.Sample( sampler_, input.texcoord );
 
 	float4 sun = float4( 1.0f, 1.0f, 0.9f, 1.0f );
-	float4 sky = float4( 0.5f, 0.75f, 0.9f, 1.0f );
 
 	float4 lambert = texSample * nDotL * sun;
-	float4 ambient = texSample * sky;
+	float4 ambient = texSample;
 
 	return saturate( 0.8*ambient + 0.4*lambert );
 	//return saturate( texSample*nDotL + texSample*float4( 0.1f, 0.1f, 0.23f, 1.0f )*2 );

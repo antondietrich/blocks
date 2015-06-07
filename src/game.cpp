@@ -154,7 +154,7 @@ void Game::DoFrame( float dt )
 	int numDrawnBatches = 0;
 	int numDrawnVertices = 0;
 
-	const int chunksToDraw = 3;
+	const int chunksToDraw = 2;
 
 	// draw 7*7 chunks around player
 	for( int z = playerChunkZ - chunksToDraw; z <= playerChunkZ + chunksToDraw; z++ )
@@ -168,6 +168,8 @@ void Game::DoFrame( float dt )
 					int height = 0;
 					while( world_->chunks[x+16][z+16].blocks[blockX][height][blockZ] != BT_AIR )
 					{
+						
+						
 						renderer.SubmitBlock( XMFLOAT3( x * CHUNK_WIDTH + blockX, height, z * CHUNK_WIDTH + blockZ ) );
 						batchVertexCount += VERTS_PER_BLOCK;
 						numDrawnVertices += VERTS_PER_BLOCK;
