@@ -128,6 +128,13 @@ enum DEPTH_BUFFER_MODE
 	NUM_DEPTH_BUFFER_MODES
 };
 
+enum SHADER_TYPE
+{
+	ST_VERTEX = 1,
+	ST_GEOMETRY = 2,
+	ST_FRAGMENT = 4,
+};
+
 class Renderer
 {
 public:
@@ -159,7 +166,7 @@ public:
 	void SetView( DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 dir, DirectX::XMFLOAT3 up );
 	void SetMesh( const Mesh& mesh );
 	void SetShader( const Shader& shader );
-	void SetTexture( const Texture& texture );
+	void SetTexture( const Texture& texture, SHADER_TYPE shader, unsigned int slot = 0 );
 private:
 	static bool isInstantiated_;
 	unsigned int vsync_;

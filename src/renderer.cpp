@@ -469,6 +469,10 @@ bool Renderer::Start( HWND wnd )
 		OutputDebugStringA( "Failed to load texture!" );
 		return false;
 	}
+	if( !textures_[4].Load( L"assets/textures/rock.dds", device_ ) ) {
+		OutputDebugStringA( "Failed to load texture!" );
+		return false;
+	}
 
 	// Load shaders
 	if( !shaders_[0].Load( L"assets/shaders/global.fx", device_ ) ) {
@@ -567,7 +571,7 @@ void Renderer::Begin()
 	context_->VSSetConstantBuffers( 1, 1, &frameConstantBuffer_ );
 	context_->VSSetConstantBuffers( 2, 1, &modelConstantBuffer_ );
 	SetSampler( SAMPLER_ANISOTROPIC );
-	SetTexture( textures_[3] );
+	SetTexture( textures_[3], ST_FRAGMENT );
 	SetShader( shaders_[0] );
 	SetDepthBufferMode( DB_ENABLED );
 }
@@ -605,7 +609,7 @@ void Renderer::DrawCube( XMFLOAT3 offset )
 
 
 	SetMesh( meshes_[0] );
-	SetTexture( textures_[0] );
+	SetTexture( textures_[0], ST_FRAGMENT );
 	SetShader( shaders_[0] );
 	context_->Draw( 36, 0 );
 }
@@ -810,9 +814,17 @@ void Renderer::SetShader( const Shader& shader )
 	context_->PSSetShader( shader.pixelShader_, NULL, 0 );
 }
 
-void Renderer::SetTexture( const Texture& texture )
+void Renderer::SetTexture( const Texture& texture, SHADER_TYPE shader, unsigned int slot )
 {
-	context_->PSSetShaderResources( 0, 1, &texture.textureView_ );
+	if( ( shader & ST_VERTEX ) == ST_VERTEX ) {
+		context_->VSSetShaderResources( slot, 1, &texture.textureView_ );	
+	}
+	if( ( shader & ST_GEOMETRY ) == ST_GEOMETRY ) {
+		context_->GSSetShaderResources( slot, 1, &texture.textureView_ );
+	}
+	if( ( shader & ST_FRAGMENT ) == ST_FRAGMENT ) {
+		context_->PSSetShaderResources( slot, 1, &texture.textureView_ );
+	}
 }
 
 
@@ -1207,7 +1219,7 @@ void Overlay::DisplayText( int x, int y, const char* text, XMFLOAT4 color )
 	renderer_->SetBlendMode( BM_ALPHA );
 	renderer_->context_->IASetVertexBuffers( 0, 1, &vb_, &stride, &offset );
 	// renderer_->context_->PSSetShaderResources( 0, 1, &textureView_ );
-	renderer_->SetTexture( texture_ );
+	renderer_->SetTexture( texture_, ST_FRAGMENT );
 	renderer_->SetSampler( SAMPLER_POINT );
 	renderer_->context_->PSSetConstantBuffers( 1, 1, &constantBuffer_ );
 	renderer_->SetShader( shader_ );

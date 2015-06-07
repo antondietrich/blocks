@@ -166,21 +166,33 @@ void Game::DoFrame( float dt )
 				for( int blockX = 0; blockX < CHUNK_WIDTH; blockX++ )
 				{
 					int height = 0;
-					while( world_->chunks[x+16][z+16].blocks[blockX][height][blockZ] != BT_AIR )
+					Chunk* chunk = &world_->chunks[x+16][z+16];
+					while( chunk->blocks[blockX][height][blockZ] != BT_AIR )
 					{
-						
-						
-						renderer.SubmitBlock( XMFLOAT3( x * CHUNK_WIDTH + blockX, height, z * CHUNK_WIDTH + blockZ ) );
-						batchVertexCount += VERTS_PER_BLOCK;
-						numDrawnVertices += VERTS_PER_BLOCK;
+						if( ( ( blockX == 0 || blockX == CHUNK_WIDTH - 1 ) || 
+							  (blockZ == 0 || blockZ == CHUNK_WIDTH - 1 ) ) ||
+							( chunk->blocks[blockX][height+1][blockZ] == BT_AIR ) )
+						{
+							//if( chunk->blocks[blockX + 1][height][blockZ] != BT_AIR && 
+							//	chunk->blocks[blockX - 1][height][blockZ] != BT_AIR &&
+							//	chunk->blocks[blockX][height][blockZ + 1] != BT_AIR &&
+							//	chunk->blocks[blockX][height][blockZ - 1] != BT_AIR )
+							//{
+							//	continue;
+							//}
+							renderer.SubmitBlock( XMFLOAT3( x * CHUNK_WIDTH + blockX, height, z * CHUNK_WIDTH + blockZ ) );
+							batchVertexCount += VERTS_PER_BLOCK;
+							numDrawnVertices += VERTS_PER_BLOCK;
 
-						if( batchVertexCount == MAX_VERTS_PER_BATCH ) {
-							ProfileStart( "Renderer.Draw" );
-							renderer.Draw( batchVertexCount );
-							ProfileStop();
-							batchVertexCount = 0;
-							numDrawnBatches++;
+							if( batchVertexCount == MAX_VERTS_PER_BATCH ) {
+								ProfileStart( "Renderer.Draw" );
+								renderer.Draw( batchVertexCount );
+								ProfileStop();
+								batchVertexCount = 0;
+								numDrawnBatches++;
+							}
 						}
+						
 						height++;
 					}
 					
@@ -251,8 +263,11 @@ void Game::DoFrame( float dt )
 
 	ProfileStart( "Overlay" );
 
+	float delta = sum / UPDATE_DELTA_FRAMES;
+	int fps = 1000 / delta;
+
 	overlay.Reset();
-	overlay.WriteLine( "Frame time: %5.2f", sum / UPDATE_DELTA_FRAMES );
+	overlay.WriteLine( "Frame time: %5.2f (%i fps)", sum / UPDATE_DELTA_FRAMES, fps);
 	overlay.WriteLine( "Batches rendered: %i", numDrawnBatches );
 	overlay.WriteLine( "Vertices rendered: %i", numDrawnVertices );
 	overlay.WriteLine( "Mouse offset: %+03i - %+03i", input.mouse.x, input.mouse.y );
