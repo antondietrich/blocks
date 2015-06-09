@@ -103,6 +103,7 @@ private:
 #define MAX_MESHES 8
 
 #define VERTS_PER_BLOCK 36
+#define VERTS_PER_FACE 6
 #define MAX_VERTS_PER_BATCH 9216 * 8 // up to 1024 blocks
 
 enum SAMPLER_TYPE
@@ -135,6 +136,16 @@ enum SHADER_TYPE
 	ST_FRAGMENT = 4,
 };
 
+enum FACE_INDEX
+{
+	FACE_NEG_Z = 0,
+	FACE_POS_X = 6,
+	FACE_POS_Z = 12,
+	FACE_NEG_X = 18,
+	FACE_POS_Y = 24,
+	FACE_NEG_Y = 30
+};
+
 class Renderer
 {
 public:
@@ -147,6 +158,9 @@ public:
 	void Draw( unsigned int numPrimitives );
 	void DrawCube( DirectX::XMFLOAT3 offset );
 	void SubmitBlock( DirectX::XMFLOAT3 offset );
+
+	void SubmitFace( DirectX::XMFLOAT3 offset, unsigned char faceIndex );
+	void Flush();
 
 	/* Window management */
 	void ToggleFullscreen();
@@ -192,6 +206,7 @@ private:
 	// TODO: move this out of stack!!
 	VertexPosNormalTexcoord *blockCache_;
 	unsigned int numCachedBlocks_;
+	unsigned int numCachedVerts_;
 
 	Shader shaders_[ MAX_SHADERS ];
 	Texture textures_[ MAX_TEXTURES ];

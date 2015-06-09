@@ -56,6 +56,7 @@ Renderer::Renderer()
 	blockVB_ = 0;
 	blockCache_ = new VertexPosNormalTexcoord[ MAX_VERTS_PER_BATCH ];
 	numCachedBlocks_ = 0;
+	numCachedVerts_ = 0;
 }
 
 Renderer::~Renderer()
@@ -576,9 +577,17 @@ void Renderer::Begin()
 	SetDepthBufferMode( DB_ENABLED );
 }
 
+void Renderer::Flush()
+{
+	if( numCachedVerts_ ) {
+		Draw( numCachedVerts_ );
+		numCachedVerts_ = 0;
+	}
+}
+
 void Renderer::Draw( unsigned int numPrimitives )
 {
-	assert( numCachedBlocks_ * VERTS_PER_BLOCK == numPrimitives );
+//	assert( numCachedBlocks_ * VERTS_PER_BLOCK == numPrimitives );
 	D3D11_MAPPED_SUBRESOURCE mapResource;
 	HRESULT hr = context_->Map( blockVB_, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource );
 	if( FAILED( hr ) )
@@ -586,7 +595,7 @@ void Renderer::Draw( unsigned int numPrimitives )
 		OutputDebugStringA( "Failed to map subresource!");
 		return;
 	}
-	memcpy( mapResource.pData, blockCache_, sizeof( VertexPosNormalTexcoord ) * numCachedBlocks_ * VERTS_PER_BLOCK );
+	memcpy( mapResource.pData, blockCache_, sizeof( VertexPosNormalTexcoord ) * numCachedVerts_ );
 	context_->Unmap( blockVB_, 0 );
 
 	numCachedBlocks_ = 0;
@@ -627,6 +636,29 @@ void Renderer::SubmitBlock( DirectX::XMFLOAT3 offset )
 	}
 	
 	++numCachedBlocks_;
+}
+
+
+
+void Renderer::SubmitFace( DirectX::XMFLOAT3 offset, unsigned char faceIndex )
+{
+	memcpy( &blockCache_[ numCachedVerts_ ],
+			&block_[ faceIndex ],
+			sizeof( VertexPosNormalTexcoord ) * VERTS_PER_FACE );
+
+	for( int i = 0; i < VERTS_PER_FACE; i++ )
+	{
+		blockCache_[ numCachedVerts_ + i ].pos[0] += offset.x;
+		blockCache_[ numCachedVerts_ + i ].pos[1] += offset.y;
+		blockCache_[ numCachedVerts_ + i ].pos[2] += offset.z;
+	}
+
+	numCachedVerts_ += VERTS_PER_FACE;
+
+	if( numCachedVerts_ == MAX_VERTS_PER_BATCH ) {
+		Draw( numCachedVerts_ );
+		numCachedVerts_ = 0;
+	}
 }
 
 void Renderer::End()
