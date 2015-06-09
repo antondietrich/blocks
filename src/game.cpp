@@ -154,81 +154,57 @@ void Game::DoFrame( float dt )
 //	int numDrawnBatches = 0;
 	int numDrawnVertices = 0;
 
-	const int chunksToDraw = 2;
+	const int chunksToDraw = 4;
 
 	// draw 7*7 chunks around player
 	for( int z = playerChunkZ - chunksToDraw; z <= playerChunkZ + chunksToDraw; z++ )
 	{
 		for( int x = playerChunkX - chunksToDraw; x <= playerChunkX + chunksToDraw; x++ )
 		{
-			for( int blockZ = 0; blockZ < CHUNK_WIDTH; blockZ++ )
+			//if( !ChunkInCache( x, z ) )
 			{
-				for( int blockX = 0; blockX < CHUNK_WIDTH; blockX++ )
+				for( int blockZ = 0; blockZ < CHUNK_WIDTH; blockZ++ )
 				{
-					int height = 0;
-					Chunk* chunk = &world_->chunks[x+16][z+16];
-
-					Chunk* chunkPosX = &world_->chunks[x+16+1][z+16];
-					Chunk* chunkNegX = &world_->chunks[x+16-1][z+16];
-					Chunk* chunkPosZ = &world_->chunks[x+16][z+16+1];
-					Chunk* chunkNegZ = &world_->chunks[x+16][z+16-1];
-
-					while( chunk->blocks[blockX][height][blockZ] != BT_AIR )
+					for( int blockX = 0; blockX < CHUNK_WIDTH; blockX++ )
 					{
-						if( blockX == CHUNK_WIDTH - 1 || chunk->blocks[blockX + 1][height][blockZ] == BT_AIR )
-						{
-							renderer.SubmitFace( XMFLOAT3( x * CHUNK_WIDTH + blockX, height, z * CHUNK_WIDTH + blockZ ), FACE_POS_X );
-							numDrawnVertices += VERTS_PER_BLOCK;
-						}
-						if( blockX == 0 || chunk->blocks[blockX - 1][height][blockZ] == BT_AIR )
-						{
-							renderer.SubmitFace( XMFLOAT3( x * CHUNK_WIDTH + blockX, height, z * CHUNK_WIDTH + blockZ ), FACE_NEG_X );
-							numDrawnVertices += VERTS_PER_BLOCK;
-						}
-						if( blockZ == CHUNK_WIDTH - 1 || chunk->blocks[blockX][height][blockZ + 1] == BT_AIR )
-						{
-							renderer.SubmitFace( XMFLOAT3( x * CHUNK_WIDTH + blockX, height, z * CHUNK_WIDTH + blockZ ), FACE_POS_Z );
-							numDrawnVertices += VERTS_PER_BLOCK;
-						}
-						if( blockZ == 0 || chunk->blocks[blockX][height][blockZ - 1] == BT_AIR )
-						{
-							renderer.SubmitFace( XMFLOAT3( x * CHUNK_WIDTH + blockX, height, z * CHUNK_WIDTH + blockZ ), FACE_NEG_Z );
-							numDrawnVertices += VERTS_PER_BLOCK;
-						}
-						if( height == CHUNK_HEIGHT || chunk->blocks[blockX][height + 1][blockZ] == BT_AIR )
-						{
-							renderer.SubmitFace( XMFLOAT3( x * CHUNK_WIDTH + blockX, height, z * CHUNK_WIDTH + blockZ ), FACE_POS_Y );
-							numDrawnVertices += VERTS_PER_BLOCK;
-						}
+						int height = 0;
+						Chunk* chunk = &world_->chunks[x+16][z+16];
 
-						height++;
+						Chunk* chunkPosX = &world_->chunks[x+16+1][z+16];
+						Chunk* chunkNegX = &world_->chunks[x+16-1][z+16];
+						Chunk* chunkPosZ = &world_->chunks[x+16][z+16+1];
+						Chunk* chunkNegZ = &world_->chunks[x+16][z+16-1];
 
-						#if 0
-						if( ( ( blockX == 0 || blockX == CHUNK_WIDTH - 1 ) || 
-							  (blockZ == 0 || blockZ == CHUNK_WIDTH - 1 ) ) ||
-							( chunk->blocks[blockX][height+1][blockZ] == BT_AIR ) )
+						while( chunk->blocks[blockX][height][blockZ] != BT_AIR )
 						{
-							//if( chunk->blocks[blockX + 1][height][blockZ] != BT_AIR && 
-							//	chunk->blocks[blockX - 1][height][blockZ] != BT_AIR &&
-							//	chunk->blocks[blockX][height][blockZ + 1] != BT_AIR &&
-							//	chunk->blocks[blockX][height][blockZ - 1] != BT_AIR )
-							//{
-							//	continue;
-							//}
-							renderer.SubmitBlock( XMFLOAT3( x * CHUNK_WIDTH + blockX, height, z * CHUNK_WIDTH + blockZ ) );
-							batchVertexCount += VERTS_PER_BLOCK;
-							numDrawnVertices += VERTS_PER_BLOCK;
-
-							if( batchVertexCount == MAX_VERTS_PER_BATCH ) {
-								ProfileStart( "Renderer.Draw" );
-								renderer.Draw( batchVertexCount );
-								ProfileStop();
-								batchVertexCount = 0;
-								numDrawnBatches++;
+							if( blockX == CHUNK_WIDTH - 1 || chunk->blocks[blockX + 1][height][blockZ] == BT_AIR )
+							{
+								renderer.SubmitFace( XMFLOAT3( x * CHUNK_WIDTH + blockX, height, z * CHUNK_WIDTH + blockZ ), FACE_POS_X );
+								numDrawnVertices += VERTS_PER_BLOCK;
 							}
+							if( blockX == 0 || chunk->blocks[blockX - 1][height][blockZ] == BT_AIR )
+							{
+								renderer.SubmitFace( XMFLOAT3( x * CHUNK_WIDTH + blockX, height, z * CHUNK_WIDTH + blockZ ), FACE_NEG_X );
+								numDrawnVertices += VERTS_PER_BLOCK;
+							}
+							if( blockZ == CHUNK_WIDTH - 1 || chunk->blocks[blockX][height][blockZ + 1] == BT_AIR )
+							{
+								renderer.SubmitFace( XMFLOAT3( x * CHUNK_WIDTH + blockX, height, z * CHUNK_WIDTH + blockZ ), FACE_POS_Z );
+								numDrawnVertices += VERTS_PER_BLOCK;
+							}
+							if( blockZ == 0 || chunk->blocks[blockX][height][blockZ - 1] == BT_AIR )
+							{
+								renderer.SubmitFace( XMFLOAT3( x * CHUNK_WIDTH + blockX, height, z * CHUNK_WIDTH + blockZ ), FACE_NEG_Z );
+								numDrawnVertices += VERTS_PER_BLOCK;
+							}
+							if( height == CHUNK_HEIGHT || chunk->blocks[blockX][height + 1][blockZ] == BT_AIR )
+							{
+								renderer.SubmitFace( XMFLOAT3( x * CHUNK_WIDTH + blockX, height, z * CHUNK_WIDTH + blockZ ), FACE_POS_Y );
+								numDrawnVertices += VERTS_PER_BLOCK;
+							}
+
+							height++;
 						}
-						#endif
-						
 					}
 				}
 			}
@@ -249,7 +225,8 @@ void Game::DoFrame( float dt )
 
 	overlay.Reset();
 	overlay.WriteLine( "Frame time: %5.2f (%i fps)", sum / UPDATE_DELTA_FRAMES, fps);
-//	overlay.WriteLine( "Batches rendered: %i", numDrawnBatches );
+	overlay.WriteLine( "Chunk buffer size: %i KB", sizeof( VertexPosNormalTexcoord ) * MAX_VERTS_PER_BATCH / 1024 );
+	overlay.WriteLine( "Batches rendered: %i", renderer.numBatches_ );
 	overlay.WriteLine( "Vertices rendered: %i", numDrawnVertices );
 	overlay.WriteLine( "Mouse offset: %+03i - %+03i", input.mouse.x, input.mouse.y );
 	overlay.WriteLine( "" );

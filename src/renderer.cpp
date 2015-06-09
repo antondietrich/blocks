@@ -575,6 +575,8 @@ void Renderer::Begin()
 	SetTexture( textures_[3], ST_FRAGMENT );
 	SetShader( shaders_[0] );
 	SetDepthBufferMode( DB_ENABLED );
+
+	numBatches_ = 0;
 }
 
 void Renderer::Flush()
@@ -605,6 +607,8 @@ void Renderer::Draw( unsigned int numPrimitives )
 	context_->IASetVertexBuffers( 0, 1, &blockVB_, &stride, &offset );
 
 	context_->Draw( numPrimitives, 0 );
+
+	numBatches_++;
 }
 
 void Renderer::DrawCube( XMFLOAT3 offset )

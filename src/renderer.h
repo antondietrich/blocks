@@ -104,7 +104,8 @@ private:
 
 #define VERTS_PER_BLOCK 36
 #define VERTS_PER_FACE 6
-#define MAX_VERTS_PER_BATCH 9216 * 8 // up to 1024 blocks
+// #define MAX_VERTS_PER_BATCH 9216 * 8 // up to 1024 blocks
+#define MAX_VERTS_PER_BATCH 50000 * 24
 
 enum SAMPLER_TYPE
 {
@@ -181,6 +182,8 @@ public:
 	void SetMesh( const Mesh& mesh );
 	void SetShader( const Shader& shader );
 	void SetTexture( const Texture& texture, SHADER_TYPE shader, unsigned int slot = 0 );
+
+	unsigned int numBatches_;
 private:
 	static bool isInstantiated_;
 	unsigned int vsync_;
@@ -207,6 +210,7 @@ private:
 	VertexPosNormalTexcoord *blockCache_;
 	unsigned int numCachedBlocks_;
 	unsigned int numCachedVerts_;
+	
 
 	Shader shaders_[ MAX_SHADERS ];
 	Texture textures_[ MAX_TEXTURES ];

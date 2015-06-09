@@ -60,6 +60,7 @@ void GenerateWorld( World *world )
 					for( int blockX = 0; blockX < CHUNK_WIDTH; blockX++ )
 					{
 						float scale = 0.125f;
+						scale = 0.0625f;
 						int height = (int)( InterpolatedNoise( ( x * CHUNK_WIDTH + blockX ) * scale, ( z * CHUNK_WIDTH + blockZ ) * scale ) * 10 );
 
 						if( blockY < height ) {
