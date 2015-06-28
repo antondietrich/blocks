@@ -577,6 +577,7 @@ void Renderer::Begin()
 	SetDepthBufferMode( DB_ENABLED );
 
 	numBatches_ = 0;
+	numCachedVerts_ = 0;
 }
 
 void Renderer::Flush()
@@ -587,26 +588,26 @@ void Renderer::Flush()
 	}
 }
 
-void Renderer::Draw( unsigned int numPrimitives )
+void Renderer::Draw( unsigned int vertexCount, unsigned int startVertexOffset )
 {
 //	assert( numCachedBlocks_ * VERTS_PER_BLOCK == numPrimitives );
-	D3D11_MAPPED_SUBRESOURCE mapResource;
-	HRESULT hr = context_->Map( blockVB_, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource );
-	if( FAILED( hr ) )
-	{
-		OutputDebugStringA( "Failed to map subresource!");
-		return;
-	}
-	memcpy( mapResource.pData, blockCache_, sizeof( VertexPosNormalTexcoord ) * numCachedVerts_ );
-	context_->Unmap( blockVB_, 0 );
+//	D3D11_MAPPED_SUBRESOURCE mapResource;
+//	HRESULT hr = context_->Map( blockVB_, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource );
+//	if( FAILED( hr ) )
+//	{
+//		OutputDebugStringA( "Failed to map subresource!");
+//		return;
+//	}
+//	memcpy( mapResource.pData, blockCache_, sizeof( BlockVertex ) * numPrimitives );
+//	context_->Unmap( blockVB_, 0 );
 
 	numCachedBlocks_ = 0;
 
-	unsigned int stride = sizeof( VertexPosNormalTexcoord );
+	unsigned int stride = sizeof( BlockVertex );
 	unsigned int offset = 0;
 	context_->IASetVertexBuffers( 0, 1, &blockVB_, &stride, &offset );
 
-	context_->Draw( numPrimitives, 0 );
+	context_->Draw( vertexCount, startVertexOffset );
 
 	numBatches_++;
 }
@@ -642,8 +643,49 @@ void Renderer::SubmitBlock( DirectX::XMFLOAT3 offset )
 	++numCachedBlocks_;
 }
 
+void Renderer::DrawChunk( int x, int z, BlockVertex *vertices, int numVertices )
+{
+	assert( numCachedVerts_ + numVertices < MAX_VERTS_PER_BATCH );
+
+	D3D11_MAP mappingType = D3D11_MAP_WRITE_DISCARD;
+	if( numCachedVerts_ == 0 )
+	{
+		mappingType = D3D11_MAP_WRITE_DISCARD;
+	}
+	else
+	{
+		mappingType = D3D11_MAP_WRITE_NO_OVERWRITE;
+	}
+
+	ProfileStart( "MAP" );
+	D3D11_MAPPED_SUBRESOURCE mapResource;
+	HRESULT hr = context_->Map( blockVB_, 0, mappingType, 0, &mapResource );
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "Failed to map subresource!");
+		return;
+	}
+
+	ProfileStart( "MEMCPY" );
+	memcpy( (BlockVertex*)mapResource.pData + numCachedVerts_, vertices, sizeof( BlockVertex ) * numVertices );
+	ProfileStop();
+
+	context_->Unmap( blockVB_, 0 );
+	ProfileStop();
+
+	ModelCB modelCBData;
+	modelCBData.translate = XMFLOAT4( x, 0, z, 0 );
+	context_->UpdateSubresource( modelConstantBuffer_, 0, NULL, &modelCBData, sizeof( ModelCB ), 0 );
+
+	ProfileStart( "Draw" );
+	Draw( numVertices, numCachedVerts_ );
+	ProfileStop();
+
+	numCachedVerts_ += numVertices;
+}
 
 
+#if 0
 void Renderer::SubmitFace( DirectX::XMFLOAT3 offset, unsigned char faceIndex )
 {
 	memcpy( &blockCache_[ numCachedVerts_ ],
@@ -664,6 +706,7 @@ void Renderer::SubmitFace( DirectX::XMFLOAT3 offset, unsigned char faceIndex )
 		numCachedVerts_ = 0;
 	}
 }
+#endif
 
 void Renderer::End()
 {

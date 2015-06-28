@@ -2,13 +2,22 @@
 #define __BLCOKS_WORLD__
 
 #include <cstdlib>
+#include <string>
 
 namespace Blocks
 {
 
-#define CHUNK_WIDTH 16
+#define CHUNK_WIDTH 32
 #define CHUNK_HEIGHT 256
 #define BLOCK_SIZE 1.0f
+
+#define VERTS_PER_FACE 6
+
+#define CHUNKS_TO_DRAW 4
+// TODO: it's not a radius, rename
+#define VISIBLE_CHUNKS_RADIUS (CHUNKS_TO_DRAW * 2 + 1)
+
+#define MAX_VERTS_PER_CHUNK_MESH (CHUNK_WIDTH * CHUNK_WIDTH * CHUNK_HEIGHT * VERTS_PER_FACE * 6)
 
 enum BLOCK_TYPE
 {
@@ -17,9 +26,23 @@ enum BLOCK_TYPE
 	BT_GRASS
 };
 
+struct BlockVertex
+{
+	float pos[3];
+	float normal[3];
+	float texcoord[2];
+};
+
 struct Chunk
 {
 	BLOCK_TYPE blocks[CHUNK_WIDTH][CHUNK_HEIGHT][CHUNK_WIDTH];
+};
+
+struct ChunkMesh
+{
+	int chunkPos[2];
+	int size;
+	BlockVertex* vertices;
 };
 
 struct World
@@ -28,6 +51,20 @@ struct World
 };
 	
 void GenerateWorld( World *world );
+int MeshCacheIndexFromChunkPos( unsigned int x, unsigned int z );
+
+enum FACE_INDEX
+{
+	FACE_NEG_Z = 0,
+	FACE_POS_X = 6,
+	FACE_POS_Z = 12,
+	FACE_NEG_X = 18,
+	FACE_POS_Y = 24,
+	FACE_NEG_Y = 30
+};
+
+void AddFace( BlockVertex *vertexBuffer, int vertexIndex, int blockX, int blockY, int blockZ, FACE_INDEX faceIndex );
+
 }
 
 #endif // __BLCOKS_WORLD__

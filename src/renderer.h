@@ -8,7 +8,7 @@
 #include <assert.h>
 
 #include "DDSTextureLoader.h"
-
+#include "world.h"
 #include "config.h"
 #include "utils.h"
 
@@ -106,6 +106,7 @@ private:
 #define VERTS_PER_FACE 6
 // #define MAX_VERTS_PER_BATCH 9216 * 8 // up to 1024 blocks
 #define MAX_VERTS_PER_BATCH 50000 * 24
+// #define MAX_VERTS_PER_BATCH MAX_VERTS_PER_CHUNK_MESH
 
 enum SAMPLER_TYPE
 {
@@ -137,16 +138,6 @@ enum SHADER_TYPE
 	ST_FRAGMENT = 4,
 };
 
-enum FACE_INDEX
-{
-	FACE_NEG_Z = 0,
-	FACE_POS_X = 6,
-	FACE_POS_Z = 12,
-	FACE_NEG_X = 18,
-	FACE_POS_Y = 24,
-	FACE_NEG_Y = 30
-};
-
 class Renderer
 {
 public:
@@ -156,11 +147,12 @@ public:
 	bool Start( HWND wnd );
 	void Begin();
 	void End();
-	void Draw( unsigned int numPrimitives );
+	void Draw( unsigned int vertexCount, unsigned int startVertexOffset = 0 );
 	void DrawCube( DirectX::XMFLOAT3 offset );
 	void SubmitBlock( DirectX::XMFLOAT3 offset );
+	void DrawChunk( int x, int z, BlockVertex *vertices, int numVertices );
 
-	void SubmitFace( DirectX::XMFLOAT3 offset, unsigned char faceIndex );
+//	void SubmitFace( DirectX::XMFLOAT3 offset, unsigned char faceIndex );
 	void Flush();
 
 	/* Window management */
@@ -211,7 +203,6 @@ private:
 	unsigned int numCachedBlocks_;
 	unsigned int numCachedVerts_;
 	
-
 	Shader shaders_[ MAX_SHADERS ];
 	Texture textures_[ MAX_TEXTURES ];
 	Mesh meshes_[ MAX_MESHES ];

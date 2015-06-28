@@ -3,6 +3,7 @@
 
 #include <assert.h>
 #include <DirectXMath.h>
+#include <limits.h>
 
 #include "renderer.h"
 #include "world.h"
