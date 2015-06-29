@@ -304,7 +304,7 @@ void Game::DoFrame( float dt )
 
 	overlay.Reset();
 	overlay.WriteLine( "Frame time: %5.2f (%i fps)", sum / UPDATE_DELTA_FRAMES, fps);
-	overlay.WriteLine( "Chunk buffer size: %i KB", sizeof( VertexPosNormalTexcoord ) * MAX_VERTS_PER_BATCH / 1024 );
+	overlay.WriteLine( "Chunk buffer size: %i KB", sizeof( BlockVertex ) * MAX_VERTS_PER_BATCH / 1024 );
 	overlay.WriteLine( "Batches rendered: %i", renderer.numBatches_ );
 	overlay.WriteLine( "Vertices rendered: %i", numDrawnVertices );
 	overlay.WriteLine( "Chunk meshes rebuild: %i", chunkMeshesRebuilt );

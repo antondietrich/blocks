@@ -187,7 +187,7 @@ bool LoadConfig()
 {
 	// TODO: load config from file
 	Config.fullscreen = FALSE;
-	Config.vsync = TRUE;
+	Config.vsync = FALSE;
 	Config.screenWidth = 960;
 	Config.screenHeight = 540;
 //	Config.screenWidth = 1920;

@@ -105,7 +105,7 @@ private:
 #define VERTS_PER_BLOCK 36
 #define VERTS_PER_FACE 6
 // #define MAX_VERTS_PER_BATCH 9216 * 8 // up to 1024 blocks
-#define MAX_VERTS_PER_BATCH 50000 * 24
+#define MAX_VERTS_PER_BATCH 50000 * 150
 // #define MAX_VERTS_PER_BATCH MAX_VERTS_PER_CHUNK_MESH
 
 enum SAMPLER_TYPE
@@ -149,7 +149,7 @@ public:
 	void End();
 	void Draw( unsigned int vertexCount, unsigned int startVertexOffset = 0 );
 	void DrawCube( DirectX::XMFLOAT3 offset );
-	void SubmitBlock( DirectX::XMFLOAT3 offset );
+//	void SubmitBlock( DirectX::XMFLOAT3 offset );
 	void DrawChunk( int x, int z, BlockVertex *vertices, int numVertices );
 
 //	void SubmitFace( DirectX::XMFLOAT3 offset, unsigned char faceIndex );
@@ -197,9 +197,9 @@ private:
 	ID3D11DepthStencilState *depthStencilStates_[ NUM_DEPTH_BUFFER_MODES ];
 
 	ID3D11Buffer *blockVB_;
-	VertexPosNormalTexcoord block_[ VERTS_PER_BLOCK ];
+//	BlockVertex block_[ VERTS_PER_BLOCK ];
 	// TODO: move this out of stack!!
-	VertexPosNormalTexcoord *blockCache_;
+	BlockVertex *blockCache_;
 	unsigned int numCachedBlocks_;
 	unsigned int numCachedVerts_;
 	

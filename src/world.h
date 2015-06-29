@@ -3,6 +3,7 @@
 
 #include <cstdlib>
 #include <string>
+#include <stdint.h>
 
 namespace Blocks
 {
@@ -13,7 +14,7 @@ namespace Blocks
 
 #define VERTS_PER_FACE 6
 
-#define CHUNKS_TO_DRAW 4
+#define CHUNKS_TO_DRAW 7
 // TODO: it's not a radius, rename
 #define VISIBLE_CHUNKS_RADIUS (CHUNKS_TO_DRAW * 2 + 1)
 
@@ -28,9 +29,9 @@ enum BLOCK_TYPE
 
 struct BlockVertex
 {
-	float pos[3];
-	float normal[3];
-	float texcoord[2];
+	uint8_t pos[4];
+	uint8_t normal[4];
+	uint8_t texcoord[4];
 };
 
 struct Chunk

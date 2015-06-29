@@ -54,7 +54,7 @@ Renderer::Renderer()
 	}
 
 	blockVB_ = 0;
-	blockCache_ = new VertexPosNormalTexcoord[ MAX_VERTS_PER_BATCH ];
+	blockCache_ = new BlockVertex[ MAX_VERTS_PER_BATCH ];
 	numCachedBlocks_ = 0;
 	numCachedVerts_ = 0;
 }
@@ -486,6 +486,8 @@ bool Renderer::Start( HWND wnd )
 //		OutputDebugStringA( "Failed to load mesh!" );
 //		return false;
 //	}
+
+#if 0
 	int numVertices = VERTS_PER_BLOCK;
 	VertexPosNormalTexcoord cubeVertices[] = 
 	{
@@ -542,6 +544,7 @@ bool Renderer::Start( HWND wnd )
 		OutputDebugStringA( "Failed to load cube vertices!" );
 		return false;
 	}
+#endif
 
 		// vertex buffer to batch blocks
 	D3D11_BUFFER_DESC vertexBufferDesc;
@@ -549,7 +552,7 @@ bool Renderer::Start( HWND wnd )
 	vertexBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
 	vertexBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 	vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	vertexBufferDesc.ByteWidth = sizeof( VertexPosNormalTexcoord ) * MAX_VERTS_PER_BATCH; // ~256MB
+	vertexBufferDesc.ByteWidth = sizeof( BlockVertex ) * MAX_VERTS_PER_BATCH; // ~256MB
 
 	hr = device_->CreateBuffer( &vertexBufferDesc, NULL, &blockVB_ );
 	if( FAILED( hr ) )
@@ -575,6 +578,10 @@ void Renderer::Begin()
 	SetTexture( textures_[3], ST_FRAGMENT );
 	SetShader( shaders_[0] );
 	SetDepthBufferMode( DB_ENABLED );
+
+	unsigned int stride = sizeof( BlockVertex );
+	unsigned int offset = 0;
+	context_->IASetVertexBuffers( 0, 1, &blockVB_, &stride, &offset );
 
 	numBatches_ = 0;
 	numCachedVerts_ = 0;
@@ -603,9 +610,9 @@ void Renderer::Draw( unsigned int vertexCount, unsigned int startVertexOffset )
 
 	numCachedBlocks_ = 0;
 
-	unsigned int stride = sizeof( BlockVertex );
-	unsigned int offset = 0;
-	context_->IASetVertexBuffers( 0, 1, &blockVB_, &stride, &offset );
+//	unsigned int stride = sizeof( BlockVertex );
+//	unsigned int offset = 0;
+//	context_->IASetVertexBuffers( 0, 1, &blockVB_, &stride, &offset );
 
 	context_->Draw( vertexCount, startVertexOffset );
 
@@ -628,6 +635,7 @@ void Renderer::DrawCube( XMFLOAT3 offset )
 	context_->Draw( 36, 0 );
 }
 
+#if 0
 void Renderer::SubmitBlock( DirectX::XMFLOAT3 offset )
 {
 	memcpy( &blockCache_[ numCachedBlocks_ * VERTS_PER_BLOCK ],
@@ -642,6 +650,7 @@ void Renderer::SubmitBlock( DirectX::XMFLOAT3 offset )
 	
 	++numCachedBlocks_;
 }
+#endif
 
 void Renderer::DrawChunk( int x, int z, BlockVertex *vertices, int numVertices )
 {
