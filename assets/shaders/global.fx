@@ -4,6 +4,8 @@ SamplerState sampler_ : register( s0 );
 cbuffer GlobalCB : register( b0 )
 {
 	matrix screenToNDC;
+	float4 normals[6];
+	float4 texcoords[4];
 }
 
 cbuffer FrameCB : register( b1 )
@@ -38,18 +40,9 @@ PS_Input VSMain( VS_Input input )
 	unpackedPos.y = ( input.pos & 0x0000ff00 ) >> 8;
 	unpackedPos.z = ( input.pos & 0x00ff0000 ) >> 16;
 
-	float3 unpackedNormal;
-	unpackedNormal.x = ( input.normal & 0x000000ff );
-	unpackedNormal.y = ( input.normal & 0x0000ff00 ) >> 8;
-	unpackedNormal.z = ( input.normal & 0x00ff0000 ) >> 16;
-
-//	unpackedNormal.x = ( input.normal & 0xff000000 ) >> 24;
-//	unpackedNormal.y = ( input.normal & 0x0000ff00 >> 8);
-//	unpackedNormal.z = ( input.normal & 0x00ff0000 >> 16);
-
-	float2 unpackedTexcoord;
-	unpackedTexcoord.x = ( input.texcoord & 0x000000ff );
-	unpackedTexcoord.y = ( input.texcoord & 0x0000ff00 ) >> 8;
+	int temp = ( input.pos & 0xff000000 ) >> 24;
+	int normalIndex = ( temp & 0xf0 ) >> 4;
+	int texcoordIndex = ( temp & 0x0f );
 
 	PS_Input output;
 
@@ -60,13 +53,9 @@ PS_Input VSMain( VS_Input input )
 	output.pos += translate;
 	output.pos = mul( output.pos, vp );
 
-	// NOTE: normals offset by +1 to avoid issues caused by 2's compliment notation
-	//  (can't just shift right to get a negative number)
-	output.normal.xyz = unpackedNormal - 1;
-	output.normal.w = 1.0f;
-//	output.normal = normalize( output.normal );
+	output.normal = normals[ normalIndex ];
 
-	output.texcoord = unpackedTexcoord;
+	output.texcoord = texcoords[ texcoordIndex ];
 
 	return output;
 }

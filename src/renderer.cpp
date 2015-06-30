@@ -388,6 +388,18 @@ bool Renderer::Start( HWND wnd )
 		0.0f,							 0.0f,							0.0f,	 1.0f
 	);
 
+	cbData.normals[0] = {  0.0f,  0.0f, -1.0f, 0.0f }; // -Z
+	cbData.normals[1] = {  1.0f,  0.0f,  0.0f, 0.0f }; // +X
+	cbData.normals[2] = {  0.0f,  0.0f,  1.0f, 0.0f }; // +Z
+	cbData.normals[3] = { -1.0f,  0.0f,  0.0f, 0.0f }; // -X
+	cbData.normals[4] = {  0.0f,  1.0f,  0.0f, 0.0f }; // +Y
+	cbData.normals[5] = {  0.0f, -1.0f,  0.0f, 0.0f }; // -Y
+
+	cbData.texcoords[0] = { 0.0f, 0.0f, 0.0f, 0.0f }; // top left
+	cbData.texcoords[1] = { 0.0f, 1.0f, 0.0f, 0.0f }; // bottom left
+	cbData.texcoords[2] = { 1.0f, 0.0f, 0.0f, 0.0f }; // top right
+	cbData.texcoords[3] = { 1.0f, 1.0f, 0.0f, 0.0f }; // bottom right
+
 	D3D11_SUBRESOURCE_DATA cbInitData;
 	cbInitData.pSysMem = &cbData;
 	cbInitData.SysMemPitch = sizeof( GlobalCB );

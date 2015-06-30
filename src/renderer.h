@@ -41,6 +41,8 @@ struct VertexPosNormalTexcoord
 //*************************
 struct GlobalCB {
 	DirectX::XMFLOAT4X4 screenToNDC;
+	DirectX::XMFLOAT4 normals[6];
+	DirectX::XMFLOAT4 texcoords[4];
 };
 
 struct FrameCB {
@@ -105,7 +107,7 @@ private:
 #define VERTS_PER_BLOCK 36
 #define VERTS_PER_FACE 6
 // #define MAX_VERTS_PER_BATCH 9216 * 8 // up to 1024 blocks
-#define MAX_VERTS_PER_BATCH 50000 * 150
+#define MAX_VERTS_PER_BATCH 50000 * 256
 // #define MAX_VERTS_PER_BATCH MAX_VERTS_PER_CHUNK_MESH
 
 enum SAMPLER_TYPE

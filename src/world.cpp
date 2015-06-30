@@ -87,101 +87,65 @@ int MeshCacheIndexFromChunkPos( unsigned int x, unsigned int z )
 	return cacheIndex;
 }
 
-#if 0
+//cbData.normals[0] = {  0.0f,  0.0f, -1.0f, 0.0f }; // -Z
+//cbData.normals[1] = {  1.0f,  0.0f,  0.0f, 0.0f }; // +X
+//cbData.normals[2] = {  0.0f,  0.0f,  1.0f, 0.0f }; // +Z
+//cbData.normals[3] = { -1.0f,  0.0f,  0.0f, 0.0f }; // -X
+//cbData.normals[4] = {  0.0f,  1.0f,  0.0f, 0.0f }; // +Y
+//cbData.normals[5] = {  0.0f, -1.0f,  0.0f, 0.0f }; // -Y
+//
+//cbData.texcoords[0] = { 0.0f, 0.0f, 0.0f, 0.0f }; // top left
+//cbData.texcoords[1] = { 0.0f, 1.0f, 0.0f, 0.0f }; // bottom left
+//cbData.texcoords[2] = { 1.0f, 0.0f, 0.0f, 0.0f }; // top right
+//cbData.texcoords[3] = { 1.0f, 1.0f, 0.0f, 0.0f }; // bottom right
+
+#define PACK_NORMAL_AND_TEXCOORD( normalIndex, texcoordIndex ) ((normalIndex) << 4) | (texcoordIndex)
+
 BlockVertex block[] = 
 {
 	// face 1 / -Z
-	{ { -0.5f,  0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 0.0f } }, // 0
-	{ { -0.5f, -0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 1.0f } }, // 1
-	{ {  0.5f, -0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 1.0f, 1.0f } }, // 2
-	{ { -0.5f,  0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 0.0f } }, // 0
-	{ {  0.5f, -0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 1.0f, 1.0f } }, // 2
-	{ {  0.5f,  0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 1.0f } }, // 3
+	{ 0, 1, 0, PACK_NORMAL_AND_TEXCOORD( 0, 0 ) }, // 0
+	{ 0, 0, 0, PACK_NORMAL_AND_TEXCOORD( 0, 1 ) }, // 1
+	{ 1, 0, 0, PACK_NORMAL_AND_TEXCOORD( 0, 3 ) }, // 2
+	{ 0, 1, 0, PACK_NORMAL_AND_TEXCOORD( 0, 0 ) }, // 0
+	{ 1, 0, 0, PACK_NORMAL_AND_TEXCOORD( 0, 3 ) }, // 2
+	{ 1, 1, 0, PACK_NORMAL_AND_TEXCOORD( 0, 2 ) }, // 3
 	// face 2 / +X
-	{ {  0.5f,  0.5f, -0.5f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } }, // 3
-	{ {  0.5f, -0.5f, -0.5f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 1.0f } }, // 2
-	{ {  0.5f, -0.5f,  0.5f }, {  1.0f,  0.0f,  0.0f }, { 1.0f, 1.0f } }, // 4
-	{ {  0.5f,  0.5f, -0.5f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } }, // 3
-	{ {  0.5f, -0.5f,  0.5f }, {  1.0f,  0.0f,  0.0f }, { 1.0f, 1.0f } }, // 4
-	{ {  0.5f,  0.5f,  0.5f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 1.0f } }, // 5
+	{ 1, 1, 0, PACK_NORMAL_AND_TEXCOORD( 1, 0 ) }, // 3
+	{ 1, 0, 0, PACK_NORMAL_AND_TEXCOORD( 1, 1 ) }, // 2
+	{ 1, 0, 1, PACK_NORMAL_AND_TEXCOORD( 1, 3 ) }, // 4
+	{ 1, 1, 0, PACK_NORMAL_AND_TEXCOORD( 1, 0 ) }, // 3
+	{ 1, 0, 1, PACK_NORMAL_AND_TEXCOORD( 1, 3 ) }, // 4
+	{ 1, 1, 1, PACK_NORMAL_AND_TEXCOORD( 1, 2 ) }, // 5
 	// face 3 / +Z
-	{ {  0.5f,  0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 0.0f } }, // 5
-	{ {  0.5f, -0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 1.0f } }, // 4
-	{ { -0.5f, -0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 1.0f, 1.0f } }, // 6
-	{ {  0.5f,  0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 0.0f } }, // 5
-	{ { -0.5f, -0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 1.0f, 1.0f } }, // 6
-	{ { -0.5f,  0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 1.0f } }, // 7
+	{ 1, 1, 1, PACK_NORMAL_AND_TEXCOORD( 2, 0 ) }, // 5
+	{ 1, 0, 1, PACK_NORMAL_AND_TEXCOORD( 2, 1 ) }, // 4
+	{ 0, 0, 1, PACK_NORMAL_AND_TEXCOORD( 2, 3 ) }, // 6
+	{ 1, 1, 1, PACK_NORMAL_AND_TEXCOORD( 2, 0 ) }, // 5
+	{ 0, 0, 1, PACK_NORMAL_AND_TEXCOORD( 2, 3 ) }, // 6
+	{ 0, 1, 1, PACK_NORMAL_AND_TEXCOORD( 2, 2 ) }, // 7
 	// face 4 / -X
-	{ { -0.5f,  0.5f,  0.5f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } }, // 7
-	{ { -0.5f, -0.5f,  0.5f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 1.0f } }, // 6
-	{ { -0.5f, -0.5f, -0.5f }, { -1.0f,  0.0f,  0.0f }, { 1.0f, 1.0f } }, // 1
-	{ { -0.5f,  0.5f,  0.5f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } }, // 7
-	{ { -0.5f, -0.5f, -0.5f }, { -1.0f,  0.0f,  0.0f }, { 1.0f, 1.0f } }, // 1
-	{ { -0.5f,  0.5f, -0.5f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 1.0f } }, // 0
+	{ 0, 1, 1, PACK_NORMAL_AND_TEXCOORD( 3, 0 ) }, // 7
+	{ 0, 0, 1, PACK_NORMAL_AND_TEXCOORD( 3, 1 ) }, // 6
+	{ 0, 0, 0, PACK_NORMAL_AND_TEXCOORD( 3, 3 ) }, // 1
+	{ 0, 1, 1, PACK_NORMAL_AND_TEXCOORD( 3, 0 ) }, // 7
+	{ 0, 0, 0, PACK_NORMAL_AND_TEXCOORD( 3, 3 ) }, // 1
+	{ 0, 1, 0, PACK_NORMAL_AND_TEXCOORD( 3, 2 ) }, // 0
 	// face 5 / +Y
-	{ { -0.5f,  0.5f,  0.5f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 0.0f } }, // 7
-	{ { -0.5f,  0.5f, -0.5f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 1.0f } }, // 0
-	{ {  0.5f,  0.5f, -0.5f }, {  0.0f,  1.0f,  0.0f }, { 1.0f, 1.0f } }, // 3
-	{ { -0.5f,  0.5f,  0.5f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 0.0f } }, // 7
-	{ {  0.5f,  0.5f, -0.5f }, {  0.0f,  1.0f,  0.0f }, { 1.0f, 1.0f } }, // 3
-	{ {  0.5f,  0.5f,  0.5f }, {  0.0f,  1.0f,  0.0f }, { 1.0f, 0.0f } }, // 5
+	{ 0, 1, 1, PACK_NORMAL_AND_TEXCOORD( 4, 0 ) }, // 7
+	{ 0, 1, 0, PACK_NORMAL_AND_TEXCOORD( 4, 1 ) }, // 0
+	{ 1, 1, 0, PACK_NORMAL_AND_TEXCOORD( 4, 3 ) }, // 3
+	{ 0, 1, 1, PACK_NORMAL_AND_TEXCOORD( 4, 0 ) }, // 7
+	{ 1, 1, 0, PACK_NORMAL_AND_TEXCOORD( 4, 3 ) }, // 3
+	{ 1, 1, 1, PACK_NORMAL_AND_TEXCOORD( 4, 2 ) }, // 5
 	// face 6 / -Y
-	{ { -0.5f, -0.5f, -0.5f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 0.0f } }, // 1
-	{ { -0.5f, -0.5f,  0.5f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 1.0f } }, // 6
-	{ {  0.5f, -0.5f,  0.5f }, {  0.0f, -1.0f,  0.0f }, { 1.0f, 1.0f } }, // 4
-	{ { -0.5f, -0.5f, -0.5f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 0.0f } }, // 1
-	{ {  0.5f, -0.5f,  0.5f }, {  0.0f, -1.0f,  0.0f }, { 1.0f, 1.0f } }, // 4
-	{ {  0.5f, -0.5f, -0.5f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 1.0f } }, // 2
+	{ 0, 0, 0, PACK_NORMAL_AND_TEXCOORD( 5, 0 ) }, // 1
+	{ 0, 0, 1, PACK_NORMAL_AND_TEXCOORD( 5, 1 ) }, // 6
+	{ 1, 0, 1, PACK_NORMAL_AND_TEXCOORD( 5, 3 ) }, // 4
+	{ 0, 0, 0, PACK_NORMAL_AND_TEXCOORD( 5, 0 ) }, // 1
+	{ 1, 0, 1, PACK_NORMAL_AND_TEXCOORD( 5, 3 ) }, // 4
+	{ 1, 0, 0, PACK_NORMAL_AND_TEXCOORD( 5, 2 ) }, // 2
 };
-#endif
-
-// NOTE: normals offset by +1 to avoid unpacking issues caused by 2's compliment notation
-BlockVertex block[] = 
-{
-	// face 1 / -Z
-	{ { 0, 1, 0, 0 }, { 1, 1, 0, 0 }, { 0, 0, 0, 0 } }, // 0
-	{ { 0, 0, 0, 0 }, { 1, 1, 0, 0 }, { 0, 1, 0, 0 } }, // 1
-	{ { 1, 0, 0, 0 }, { 1, 1, 0, 0 }, { 1, 1, 0, 0 } }, // 2
-	{ { 0, 1, 0, 0 }, { 1, 1, 0, 0 }, { 0, 0, 0, 0 } }, // 0
-	{ { 1, 0, 0, 0 }, { 1, 1, 0, 0 }, { 1, 1, 0, 0 } }, // 2
-	{ { 1, 1, 0, 0 }, { 1, 1, 0, 0 }, { 0, 1, 0, 0 } }, // 3
-	// face 2 / +X
-	{ { 1, 1, 0, 0 }, { 2, 1, 1, 0 }, { 0, 0, 0, 0 } }, // 3
-	{ { 1, 0, 0, 0 }, { 2, 1, 1, 0 }, { 0, 1, 0, 0 } }, // 2
-	{ { 1, 0, 1, 0 }, { 2, 1, 1, 0 }, { 1, 1, 0, 0 } }, // 4
-	{ { 1, 1, 0, 0 }, { 2, 1, 1, 0 }, { 0, 0, 0, 0 } }, // 3
-	{ { 1, 0, 1, 0 }, { 2, 1, 1, 0 }, { 1, 1, 0, 0 } }, // 4
-	{ { 1, 1, 1, 0 }, { 2, 1, 1, 0 }, { 0, 1, 0, 0 } }, // 5
-	// face 3 / +Z
-	{ { 1, 1, 1, 0 }, { 1, 1, 2, 0 }, { 0, 0, 0, 0 } }, // 5
-	{ { 1, 0, 1, 0 }, { 1, 1, 2, 0 }, { 0, 1, 0, 0 } }, // 4
-	{ { 0, 0, 1, 0 }, { 1, 1, 2, 0 }, { 1, 1, 0, 0 } }, // 6
-	{ { 1, 1, 1, 0 }, { 1, 1, 2, 0 }, { 0, 0, 0, 0 } }, // 5
-	{ { 0, 0, 1, 0 }, { 1, 1, 2, 0 }, { 1, 1, 0, 0 } }, // 6
-	{ { 0, 1, 1, 0 }, { 1, 1, 2, 0 }, { 0, 1, 0, 0 } }, // 7
-	// face 4 / -X
-	{ { 0, 1, 1, 0 }, { 0, 1, 1, 0 }, { 0, 0, 0, 0 } }, // 7
-	{ { 0, 0, 1, 0 }, { 0, 1, 1, 0 }, { 0, 1, 0, 0 } }, // 6
-	{ { 0, 0, 0, 0 }, { 0, 1, 1, 0 }, { 1, 1, 0, 0 } }, // 1
-	{ { 0, 1, 1, 0 }, { 0, 1, 1, 0 }, { 0, 0, 0, 0 } }, // 7
-	{ { 0, 0, 0, 0 }, { 0, 1, 1, 0 }, { 1, 1, 0, 0 } }, // 1
-	{ { 0, 1, 0, 0 }, { 0, 1, 1, 0 }, { 0, 1, 0, 0 } }, // 0
-	// face 5 / +Y
-	{ { 0, 1, 1, 0 }, { 1, 2, 1, 0 }, { 0, 0, 0, 0 } }, // 7
-	{ { 0, 1, 0, 0 }, { 1, 2, 1, 0 }, { 0, 1, 0, 0 } }, // 0
-	{ { 1, 1, 0, 0 }, { 1, 2, 1, 0 }, { 1, 1, 0, 0 } }, // 3
-	{ { 0, 1, 1, 0 }, { 1, 2, 1, 0 }, { 0, 0, 0, 0 } }, // 7
-	{ { 1, 1, 0, 0 }, { 1, 2, 1, 0 }, { 1, 1, 0, 0 } }, // 3
-	{ { 1, 1, 1, 0 }, { 1, 2, 1, 0 }, { 1, 0, 0, 0 } }, // 5
-	// face 6 / -Y
-	{ { 0, 0, 0, 0 }, { 1, 0, 1, 0 }, { 0, 0, 0, 0 } }, // 1
-	{ { 0, 0, 1, 0 }, { 1, 0, 1, 0 }, { 0, 1, 0, 0 } }, // 6
-	{ { 1, 0, 1, 0 }, { 1, 0, 1, 0 }, { 1, 1, 0, 0 } }, // 4
-	{ { 0, 0, 0, 0 }, { 1, 0, 1, 0 }, { 0, 0, 0, 0 } }, // 1
-	{ { 1, 0, 1, 0 }, { 1, 0, 1, 0 }, { 1, 1, 0, 0 } }, // 4
-	{ { 1, 0, 0, 0 }, { 1, 0, 1, 0 }, { 0, 1, 0, 0 } }, // 2
-};
-
 
 void AddFace( BlockVertex *vertexBuffer, int vertexIndex, int blockX, int blockY, int blockZ, FACE_INDEX faceIndex )
 {
@@ -191,9 +155,9 @@ void AddFace( BlockVertex *vertexBuffer, int vertexIndex, int blockX, int blockY
 
 	for( int i = 0; i < VERTS_PER_FACE; i++ )
 	{
-		vertexBuffer[ vertexIndex + i ].pos[0] += blockX;
-		vertexBuffer[ vertexIndex + i ].pos[1] += blockY;
-		vertexBuffer[ vertexIndex + i ].pos[2] += blockZ;
+		vertexBuffer[ vertexIndex + i ].data[0] += blockX;
+		vertexBuffer[ vertexIndex + i ].data[1] += blockY;
+		vertexBuffer[ vertexIndex + i ].data[2] += blockZ;
 	}
 }
 

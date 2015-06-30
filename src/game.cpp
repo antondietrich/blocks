@@ -63,7 +63,7 @@ bool Game::Start( HWND wnd )
 	return true;
 }
 
-XMFLOAT3 playerPos = 	{ 0.0f, 14.0f, 0.0f };
+XMFLOAT3 playerPos = 	{ 0.0f, 50.0f, 0.0f };
 XMFLOAT3 playerDir = 	{ 0.0f,  0.0f, 1.0f };
 XMFLOAT3 playerLook = 	{ 0.0f,  0.0f, 1.0f };
 XMFLOAT3 playerRight = 	{ 1.0f,  0.0f, 0.0f };
