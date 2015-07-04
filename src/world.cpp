@@ -120,7 +120,7 @@ int MeshCacheIndexFromChunkPos( unsigned int x, unsigned int z )
 //cbData.texcoords[2] = { 1.0f, 0.0f, 0.0f, 0.0f }; // top right
 //cbData.texcoords[3] = { 1.0f, 1.0f, 0.0f, 0.0f }; // bottom right
 
-#define PACK_NORMAL_AND_TEXCOORD( normalIndex, texcoordIndex ) ((normalIndex) << 4) | (texcoordIndex)
+#define PACK_NORMAL_AND_TEXCOORD( normalIndex, texcoordIndex ) ((normalIndex) << 5) | (texcoordIndex << 2) | 0
 
 BlockVertex block[] = 
 {
@@ -168,17 +168,17 @@ BlockVertex block[] =
 	{ 1, 0, 0, PACK_NORMAL_AND_TEXCOORD( 5, 2 ) }, // 2
 };
 
-void AddFace( BlockVertex *vertexBuffer, int vertexIndex, uint8_t blockX, uint8_t blockY, uint8_t blockZ, FACE_INDEX faceIndex )
+void AddFace( BlockVertex *vertexBuffer, int startVertexIndex, uint8_t blockX, uint8_t blockY, uint8_t blockZ, FACE_INDEX faceIndex )
 {
-	memcpy( &vertexBuffer[ vertexIndex ],
+	memcpy( &vertexBuffer[ startVertexIndex ],
 			&block[ faceIndex ],
 			sizeof( BlockVertex ) * VERTS_PER_FACE );
 
 	for( int i = 0; i < VERTS_PER_FACE; i++ )
 	{
-		vertexBuffer[ vertexIndex + i ].data[0] += blockX;
-		vertexBuffer[ vertexIndex + i ].data[1] += blockY;
-		vertexBuffer[ vertexIndex + i ].data[2] += blockZ;
+		vertexBuffer[ startVertexIndex + i ].data[0] += blockX;
+		vertexBuffer[ startVertexIndex + i ].data[1] += blockY;
+		vertexBuffer[ startVertexIndex + i ].data[2] += blockZ;
 	}
 }
 
@@ -187,40 +187,124 @@ int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkP
 											 Chunk* chunkNegXNegZ, Chunk* chunkNegZ, Chunk* chunkPosXNegZ )
 {
 	int vertexIndex = 0;
-	for( int blockY = 0; blockY < CHUNK_HEIGHT - 1; blockY++ )
+	for( uint8_t blockY = 0; blockY < CHUNK_HEIGHT; blockY++ )
 	{
-		for( int blockX = 0; blockX < CHUNK_WIDTH; blockX++ )
+		for( uint8_t blockX = 0; blockX < CHUNK_WIDTH; blockX++ )
 		{
-			for( int blockZ = 0; blockZ < CHUNK_WIDTH; blockZ++ )
+			for( uint8_t blockZ = 0; blockZ < CHUNK_WIDTH; blockZ++ )
 			{
 				if( chunk->blocks[blockX][blockY][blockZ] == BT_AIR ) {
 					continue;
 				}
 
-				if( blockX == CHUNK_WIDTH - 1 || chunk->blocks[blockX + 1][blockY][blockZ] == BT_AIR )
+				// get neighbouring blocks
+				BLOCK_TYPE blockPosY = blockY == CHUNK_HEIGHT-1	? BT_AIR											: chunk->blocks[blockX][blockY+1][blockZ];
+				BLOCK_TYPE blockNegY = blockY == 0				? BT_DIRT											: chunk->blocks[blockX][blockY-1][blockZ];
+				BLOCK_TYPE blockPosX = blockX == CHUNK_WIDTH-1	? chunkPosX->blocks[0][blockY][blockZ]				: chunk->blocks[blockX+1][blockY][blockZ];
+				BLOCK_TYPE blockNegX = blockX == 0				? chunkNegX->blocks[CHUNK_WIDTH-1][blockY][blockZ]	: chunk->blocks[blockX-1][blockY][blockZ];
+				BLOCK_TYPE blockPosZ = blockZ == CHUNK_WIDTH-1	? chunkPosZ->blocks[blockX][blockY][0]				: chunk->blocks[blockX][blockY][blockZ+1];
+				BLOCK_TYPE blockNegZ = blockZ == 0				? chunkNegZ->blocks[blockX][blockY][CHUNK_WIDTH-1]	: chunk->blocks[blockX][blockY][blockZ-1];
+
+				BLOCK_TYPE blockPosXPosZ;
+				if( blockX == CHUNK_WIDTH-1 && blockZ == CHUNK_WIDTH-1 )
+				{
+					blockPosXPosZ = chunkPosXPosZ->blocks[0][blockY][0];
+				}
+				else
+				{
+					if( blockX == CHUNK_WIDTH-1 ) {
+						blockPosXPosZ = chunkPosX->blocks[0][blockY][blockZ+1];
+					}
+					else if( blockZ == CHUNK_WIDTH-1 ) {
+						blockPosXPosZ = chunkPosZ->blocks[blockX+1][blockY][0];
+					}
+					else {
+						blockPosXPosZ = chunkPosZ->blocks[blockX+1][blockY][blockZ+1];
+					}
+				}
+
+				BLOCK_TYPE blockNegXPosZ;
+				if( blockX == 0 && blockZ == CHUNK_WIDTH-1 )
+				{
+					blockNegXPosZ = chunkNegXPosZ->blocks[CHUNK_WIDTH-1][blockY][0];
+				}
+				else
+				{
+					if( blockX == 0 ) {
+						blockNegXPosZ = chunkNegX->blocks[CHUNK_WIDTH-1][blockY][blockZ+1];
+					}
+					else if( blockZ == CHUNK_WIDTH-1 ) {
+						blockNegXPosZ = chunkPosZ->blocks[blockX-1][blockY][0];
+					}
+					else {
+						blockNegXPosZ = chunkPosZ->blocks[blockX-1][blockY][blockZ+1];
+					}
+				}
+
+				BLOCK_TYPE blockPosXNegZ;
+				if( blockX == CHUNK_WIDTH-1 && blockZ == 0 )
+				{
+					blockPosXNegZ = chunkPosXNegZ->blocks[0][blockY][CHUNK_WIDTH-1];
+				}
+				else
+				{
+					if( blockX == CHUNK_WIDTH-1 ) {
+						blockPosXNegZ = chunkPosX->blocks[0][blockY][blockZ+1];
+					}
+					else if( blockZ == 0 ) {
+						blockPosXNegZ = chunkNegZ->blocks[blockX+1][blockY][CHUNK_WIDTH-1];
+					}
+					else {
+						blockPosXNegZ = chunkPosZ->blocks[blockX+1][blockY][blockZ-1];
+					}
+				}
+
+				BLOCK_TYPE blockNegXNegZ;
+				if( blockX == 0 && blockZ == 0 )
+				{
+					blockNegXNegZ = chunkNegXNegZ->blocks[CHUNK_WIDTH-1][blockY][CHUNK_WIDTH-1];
+				}
+				else
+				{
+					if( blockX == 0 ) {
+						blockNegXNegZ = chunkNegX->blocks[CHUNK_WIDTH-1][blockY][blockZ-1];
+					}
+					else if( blockZ == 0 ) {
+						blockNegXNegZ = chunkNegZ->blocks[blockX-1][blockY][CHUNK_WIDTH-1];
+					}
+					else {
+						blockNegXNegZ = chunkPosZ->blocks[blockX-1][blockY][blockZ-1];
+					}
+				}
+
+				if( blockPosX == BT_AIR )
 				{
 					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_X );
 					vertexIndex += VERTS_PER_FACE;
 				}
-				if( blockX == 0 || chunk->blocks[blockX - 1][blockY][blockZ] == BT_AIR )
+				if( blockNegX == BT_AIR )
 				{
 					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_NEG_X );
 					vertexIndex += VERTS_PER_FACE;
 				}
-				if( blockZ == CHUNK_WIDTH - 1 || chunk->blocks[blockX][blockY][blockZ + 1] == BT_AIR )
+				if( blockPosZ == BT_AIR )
 				{
 					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_Z );
 					vertexIndex += VERTS_PER_FACE;
 				}
-				if( blockZ == 0 || chunk->blocks[blockX][blockY][blockZ - 1] == BT_AIR )
+				if( blockNegZ == BT_AIR )
 				{
 					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_NEG_Z );
 					vertexIndex += VERTS_PER_FACE;
 				}
-				if( chunk->blocks[blockX][blockY + 1][blockZ] == BT_AIR )
+				if( blockPosY == BT_AIR )
 				{
 					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_Y );
 					vertexIndex += VERTS_PER_FACE;
+				}
+				if( blockNegY == BT_AIR )
+				{
+					// TODO: add downward face
 				}
 			}
 		}

@@ -1,3 +1,19 @@
+/**************************************
+*
+* Block vertex format:
+* 	property		bits
+* 	position.x		8
+* 	position.y		8
+* 	position.z		8
+* 	normalID		3
+* 	texcoordID		3
+* 	occluded		1
+* 	unused			1
+* 					--
+* 					32
+/**************************************/
+
+
 #ifndef __BLCOKS_WORLD__
 #define __BLCOKS_WORLD__
 
@@ -9,16 +25,18 @@ namespace Blocks
 {
 
 #define CHUNK_WIDTH 32
-#define CHUNK_HEIGHT 256
+#define CHUNK_HEIGHT 255
 #define BLOCK_SIZE 1.0f
 
+#define FACES_PER_BLOCK 6
 #define VERTS_PER_FACE 6
 
-#define CHUNKS_TO_DRAW 10
+#define CHUNKS_TO_DRAW 2
 // TODO: it's not a radius, rename
 #define VISIBLE_CHUNKS_RADIUS (CHUNKS_TO_DRAW * 2 + 1)
 
-#define MAX_VERTS_PER_CHUNK_MESH (CHUNK_WIDTH * CHUNK_WIDTH * CHUNK_HEIGHT * VERTS_PER_FACE * 6)
+#define MAX_VERTS_PER_CHUNK_MESH (CHUNK_WIDTH * CHUNK_WIDTH * CHUNK_HEIGHT * FACES_PER_BLOCK * VERTS_PER_FACE)
+	//9437184
 
 enum BLOCK_TYPE
 {

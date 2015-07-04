@@ -41,8 +41,9 @@ PS_Input VSMain( VS_Input input )
 	unpackedPos.z = ( input.pos & 0x00ff0000 ) >> 16;
 
 	int temp = ( input.pos & 0xff000000 ) >> 24;
-	int normalIndex = ( temp & 0xf0 ) >> 4;
-	int texcoordIndex = ( temp & 0x0f );
+	int normalIndex = ( temp & 0xe0 ) >> 5; 	// 11100000
+	int texcoordIndex = ( temp & 0x1c ) >> 2; 	// 00011100
+	int occluded = ( temp & 0x02 ) >> 1;		// 00000010
 
 	PS_Input output;
 

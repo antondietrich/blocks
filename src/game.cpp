@@ -202,13 +202,8 @@ void Game::DoFrame( float dt )
 				if( chunkMeshesRebuilt > 1 ) {
 					break;
 				}
-
-				
-//				int vertexIndex = 0;
 				
 				Chunk* chunk = &world_->chunks[x+16][z+16];
-
-				// NOTE: say, Z+ is North and X+ is East (right-hand coords)
 
 				Chunk* chunkPosX = &world_->chunks[x+16+1][z+16];
 				Chunk* chunkNegX = &world_->chunks[x+16-1][z+16];
@@ -220,61 +215,9 @@ void Game::DoFrame( float dt )
 				Chunk* chunkPosXNegZ = &world_->chunks[x+16+1][z+16-1];
 				Chunk* chunkNegXNegZ = &world_->chunks[x+16-1][z+16-1];
 
-				GenerateChunkMesh( chunkMesh, chunkNegXPosZ, chunkPosZ, chunkPosXPosZ,
-											  chunkNegX, chunk, chunkPosX,
-											  chunkNegXNegZ, chunkNegZ, chunkPosXNegZ );
-#if 0
-				{
-					for( int blockZ = 0; blockZ < CHUNK_WIDTH; blockZ++ )
-					{
-						for( int blockX = 0; blockX < CHUNK_WIDTH; blockX++ )
-						{
-							int height = 0;
-
-
-							while( chunk->blocks[blockX][height][blockZ] != BT_AIR )
-							{
-								if( blockX == CHUNK_WIDTH - 1 || chunk->blocks[blockX + 1][height][blockZ] == BT_AIR )
-								{
-									//renderer.SubmitFace( XMFLOAT3( x * CHUNK_WIDTH + blockX, height, z * CHUNK_WIDTH + blockZ ), FACE_POS_X );
-									AddFace( chunkVertexBuffer_, vertexIndex, blockX, height, blockZ, FACE_POS_X );
-									vertexIndex += VERTS_PER_FACE;
-								}
-								if( blockX == 0 || chunk->blocks[blockX - 1][height][blockZ] == BT_AIR )
-								{
-									//renderer.SubmitFace( XMFLOAT3( x * CHUNK_WIDTH + blockX, height, z * CHUNK_WIDTH + blockZ ), FACE_NEG_X );
-									AddFace( chunkVertexBuffer_, vertexIndex, blockX, height, blockZ, FACE_NEG_X );
-									vertexIndex += VERTS_PER_FACE;
-								}
-								if( blockZ == CHUNK_WIDTH - 1 || chunk->blocks[blockX][height][blockZ + 1] == BT_AIR )
-								{
-									//renderer.SubmitFace( XMFLOAT3( x * CHUNK_WIDTH + blockX, height, z * CHUNK_WIDTH + blockZ ), FACE_POS_Z );
-									AddFace( chunkVertexBuffer_, vertexIndex, blockX, height, blockZ, FACE_POS_Z );
-									vertexIndex += VERTS_PER_FACE;
-								}
-								if( blockZ == 0 || chunk->blocks[blockX][height][blockZ - 1] == BT_AIR )
-								{
-									//renderer.SubmitFace( XMFLOAT3( x * CHUNK_WIDTH + blockX, height, z * CHUNK_WIDTH + blockZ ), FACE_NEG_Z );
-									AddFace( chunkVertexBuffer_, vertexIndex, blockX, height, blockZ, FACE_NEG_Z );
-									vertexIndex += VERTS_PER_FACE;
-								}
-								if( height == CHUNK_HEIGHT || chunk->blocks[blockX][height + 1][blockZ] == BT_AIR )
-								{
-									//renderer.SubmitFace( XMFLOAT3( x * CHUNK_WIDTH + blockX, height, z * CHUNK_WIDTH + blockZ ), FACE_POS_Y );
-									AddFace( chunkVertexBuffer_, vertexIndex, blockX, height, blockZ, FACE_POS_Y );
-									vertexIndex += VERTS_PER_FACE;
-								}
-
-								height++;
-							}
-						}
-					}
-				}
-
-				chunkMesh->vertices = new BlockVertex[ vertexIndex ];
-				memcpy( chunkMesh->vertices, chunkVertexBuffer_, sizeof( BlockVertex ) * vertexIndex );
-				chunkMesh->size = vertexIndex;
-#endif
+				GenerateChunkMesh( chunkMesh, chunkNegXPosZ,	chunkPosZ,	chunkPosXPosZ,
+											  chunkNegX,		chunk,		chunkPosX,
+											  chunkNegXNegZ,	chunkNegZ,	chunkPosXNegZ );
 				
 			} // else
 
