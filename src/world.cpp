@@ -46,9 +46,30 @@ float InterpolatedNoise( float x, float y )
 	return i;
 }
 
+/*************************************************/
+
+enum FACE_INDEX
+{
+	FACE_NEG_Z = 0,
+	FACE_POS_X = 6,
+	FACE_POS_Z = 12,
+	FACE_NEG_X = 18,
+	FACE_POS_Y = 24,
+	FACE_NEG_Y = 30
+};
+
+// void AddFace( BlockVertex *vertexBuffer, int vertexIndex, int blockX, int blockY, int blockZ, FACE_INDEX faceIndex );
+
+BlockVertex *chunkVertexBuffer;
+
+void InitWorldGen()
+{
+	chunkVertexBuffer = new BlockVertex[ MAX_VERTS_PER_CHUNK_MESH ];
+}
+
 void GenerateWorld( World *world )
 {
-	srand( 12345 );
+	// srand( 12345 );
 	for( int z = 0; z < 32; z++ )
 	{
 		for( int x = 0; x < 32; x++ )
@@ -147,7 +168,7 @@ BlockVertex block[] =
 	{ 1, 0, 0, PACK_NORMAL_AND_TEXCOORD( 5, 2 ) }, // 2
 };
 
-void AddFace( BlockVertex *vertexBuffer, int vertexIndex, int blockX, int blockY, int blockZ, FACE_INDEX faceIndex )
+void AddFace( BlockVertex *vertexBuffer, int vertexIndex, uint8_t blockX, uint8_t blockY, uint8_t blockZ, FACE_INDEX faceIndex )
 {
 	memcpy( &vertexBuffer[ vertexIndex ],
 			&block[ faceIndex ],
@@ -159,6 +180,63 @@ void AddFace( BlockVertex *vertexBuffer, int vertexIndex, int blockX, int blockY
 		vertexBuffer[ vertexIndex + i ].data[1] += blockY;
 		vertexBuffer[ vertexIndex + i ].data[2] += blockZ;
 	}
+}
+
+int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkPosZ, Chunk* chunkPosXPosZ,
+											 Chunk* chunkNegX, Chunk* chunk, Chunk* chunkPosX,
+											 Chunk* chunkNegXNegZ, Chunk* chunkNegZ, Chunk* chunkPosXNegZ )
+{
+	int vertexIndex = 0;
+	for( int blockZ = 0; blockZ < CHUNK_WIDTH; blockZ++ )
+	{
+		for( int blockX = 0; blockX < CHUNK_WIDTH; blockX++ )
+		{
+			int height = 0;
+
+
+			while( chunk->blocks[blockX][height][blockZ] != BT_AIR )
+			{
+				if( blockX == CHUNK_WIDTH - 1 || chunk->blocks[blockX + 1][height][blockZ] == BT_AIR )
+				{
+					//renderer.SubmitFace( XMFLOAT3( x * CHUNK_WIDTH + blockX, height, z * CHUNK_WIDTH + blockZ ), FACE_POS_X );
+					AddFace( chunkVertexBuffer, vertexIndex, blockX, height, blockZ, FACE_POS_X );
+					vertexIndex += VERTS_PER_FACE;
+				}
+				if( blockX == 0 || chunk->blocks[blockX - 1][height][blockZ] == BT_AIR )
+				{
+					//renderer.SubmitFace( XMFLOAT3( x * CHUNK_WIDTH + blockX, height, z * CHUNK_WIDTH + blockZ ), FACE_NEG_X );
+					AddFace( chunkVertexBuffer, vertexIndex, blockX, height, blockZ, FACE_NEG_X );
+					vertexIndex += VERTS_PER_FACE;
+				}
+				if( blockZ == CHUNK_WIDTH - 1 || chunk->blocks[blockX][height][blockZ + 1] == BT_AIR )
+				{
+					//renderer.SubmitFace( XMFLOAT3( x * CHUNK_WIDTH + blockX, height, z * CHUNK_WIDTH + blockZ ), FACE_POS_Z );
+					AddFace( chunkVertexBuffer, vertexIndex, blockX, height, blockZ, FACE_POS_Z );
+					vertexIndex += VERTS_PER_FACE;
+				}
+				if( blockZ == 0 || chunk->blocks[blockX][height][blockZ - 1] == BT_AIR )
+				{
+					//renderer.SubmitFace( XMFLOAT3( x * CHUNK_WIDTH + blockX, height, z * CHUNK_WIDTH + blockZ ), FACE_NEG_Z );
+					AddFace( chunkVertexBuffer, vertexIndex, blockX, height, blockZ, FACE_NEG_Z );
+					vertexIndex += VERTS_PER_FACE;
+				}
+				if( height == CHUNK_HEIGHT || chunk->blocks[blockX][height + 1][blockZ] == BT_AIR )
+				{
+					//renderer.SubmitFace( XMFLOAT3( x * CHUNK_WIDTH + blockX, height, z * CHUNK_WIDTH + blockZ ), FACE_POS_Y );
+					AddFace( chunkVertexBuffer, vertexIndex, blockX, height, blockZ, FACE_POS_Y );
+					vertexIndex += VERTS_PER_FACE;
+				}
+
+				height++;
+			}
+		}
+	}
+
+	chunkMesh->vertices = new BlockVertex[ vertexIndex ];
+	memcpy( chunkMesh->vertices, chunkVertexBuffer, sizeof( BlockVertex ) * vertexIndex );
+	chunkMesh->size = vertexIndex;
+
+	return vertexIndex;
 }
 
 }

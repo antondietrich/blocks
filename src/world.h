@@ -49,20 +49,13 @@ struct World
 	Chunk chunks[32][32];
 };
 	
+void InitWorldGen();
 void GenerateWorld( World *world );
+int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkPosZ, Chunk* chunkPosXPosZ,
+											 Chunk* chunkNegX, Chunk* chunk, Chunk* chunkPosX,
+											 Chunk* chunkNegXNegZ, Chunk* chunkNegZ, Chunk* chunkPosXNegZ );
+
 int MeshCacheIndexFromChunkPos( unsigned int x, unsigned int z );
-
-enum FACE_INDEX
-{
-	FACE_NEG_Z = 0,
-	FACE_POS_X = 6,
-	FACE_POS_Z = 12,
-	FACE_NEG_X = 18,
-	FACE_POS_Y = 24,
-	FACE_NEG_Y = 30
-};
-
-void AddFace( BlockVertex *vertexBuffer, int vertexIndex, int blockX, int blockY, int blockZ, FACE_INDEX faceIndex );
 
 }
 

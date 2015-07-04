@@ -15,7 +15,7 @@ renderer()
 	isInstantiated_ = true;
 
 	world_ = 0;
-	chunkVertexBuffer_ = 0;
+	//chunkVertexBuffer_ = 0;
 }
 
 Game::~Game()
@@ -23,9 +23,9 @@ Game::~Game()
 	if( world_ ) {
 		delete world_;
 	}
-	if( chunkVertexBuffer_ ) {
-		delete[] chunkVertexBuffer_;
-	}
+//	if( chunkVertexBuffer_ ) {
+//		delete[] chunkVertexBuffer_;
+//	}
 }
 
 ChunkMesh chunkMeshCache[ VISIBLE_CHUNKS_RADIUS * VISIBLE_CHUNKS_RADIUS ];
@@ -48,6 +48,7 @@ bool Game::Start( HWND wnd )
 	}
 	input.mouse = {0, 0};
 
+	InitWorldGen();
 	world_ = new World();
 	GenerateWorld( world_ );
 
@@ -58,7 +59,7 @@ bool Game::Start( HWND wnd )
 		chunkMeshCache[i].chunkPos[1] = 0;
 	}
 
-	chunkVertexBuffer_ = new BlockVertex[ MAX_VERTS_PER_CHUNK_MESH ];
+	
 
 	return true;
 }
@@ -203,10 +204,26 @@ void Game::DoFrame( float dt )
 				}
 
 				
-				int vertexIndex = 0;
+//				int vertexIndex = 0;
 				
 				Chunk* chunk = &world_->chunks[x+16][z+16];
 
+				// NOTE: say, Z+ is North and X+ is East (right-hand coords)
+
+				Chunk* chunkPosX = &world_->chunks[x+16+1][z+16];
+				Chunk* chunkNegX = &world_->chunks[x+16-1][z+16];
+				Chunk* chunkPosZ = &world_->chunks[x+16][z+16+1];
+				Chunk* chunkNegZ = &world_->chunks[x+16][z+16-1];
+
+				Chunk* chunkPosXPosZ = &world_->chunks[x+16+1][z+16+1];
+				Chunk* chunkNegXPosZ = &world_->chunks[x+16-1][z+16+1];
+				Chunk* chunkPosXNegZ = &world_->chunks[x+16+1][z+16-1];
+				Chunk* chunkNegXNegZ = &world_->chunks[x+16-1][z+16-1];
+
+				GenerateChunkMesh( chunkMesh, chunkNegXPosZ, chunkPosZ, chunkPosXPosZ,
+											  chunkNegX, chunk, chunkPosX,
+											  chunkNegXNegZ, chunkNegZ, chunkPosXNegZ );
+#if 0
 				{
 					for( int blockZ = 0; blockZ < CHUNK_WIDTH; blockZ++ )
 					{
@@ -214,10 +231,6 @@ void Game::DoFrame( float dt )
 						{
 							int height = 0;
 
-//							Chunk* chunkPosX = &world_->chunks[x+16+1][z+16];
-//							Chunk* chunkNegX = &world_->chunks[x+16-1][z+16];
-//							Chunk* chunkPosZ = &world_->chunks[x+16][z+16+1];
-//							Chunk* chunkNegZ = &world_->chunks[x+16][z+16-1];
 
 							while( chunk->blocks[blockX][height][blockZ] != BT_AIR )
 							{
@@ -261,14 +274,15 @@ void Game::DoFrame( float dt )
 				chunkMesh->vertices = new BlockVertex[ vertexIndex ];
 				memcpy( chunkMesh->vertices, chunkVertexBuffer_, sizeof( BlockVertex ) * vertexIndex );
 				chunkMesh->size = vertexIndex;
+#endif
 				
-			}
+			} // else
 
-		}
+		} // for chunkX
 		if( chunkMeshesRebuilt > 1 ) {
 			break;
 		}
-	}
+	} // for chunkZ
 
 	//delete[] vertexBuffer;
 

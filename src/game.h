@@ -42,7 +42,6 @@ public:
 	Overlay overlay;
 private:
 	static bool isInstantiated_;
-	BlockVertex *chunkVertexBuffer_;
 
 	World *world_;
 
