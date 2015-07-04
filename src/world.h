@@ -24,6 +24,9 @@
 namespace Blocks
 {
 
+#define CHUNKS_TO_GENERATE 12
+#define HALF_CHUNKS_TO_GENERATE (CHUNKS_TO_GENERATE / 2)
+
 #define CHUNK_WIDTH 32
 #define CHUNK_HEIGHT 255
 #define BLOCK_SIZE 1.0f
@@ -64,7 +67,7 @@ struct ChunkMesh
 
 struct World
 {
-	Chunk chunks[32][32];
+	Chunk chunks[CHUNKS_TO_GENERATE][CHUNKS_TO_GENERATE];
 };
 	
 void InitWorldGen();

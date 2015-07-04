@@ -70,9 +70,9 @@ void InitWorldGen()
 void GenerateWorld( World *world )
 {
 	// srand( 12345 );
-	for( int z = 0; z < 32; z++ )
+	for( int z = 0; z < CHUNKS_TO_GENERATE; z++ )
 	{
-		for( int x = 0; x < 32; x++ )
+		for( int x = 0; x < CHUNKS_TO_GENERATE; x++ )
 		{
 			for( int blockY = 0; blockY < CHUNK_HEIGHT; blockY++ )
 			{
@@ -106,6 +106,142 @@ int MeshCacheIndexFromChunkPos( unsigned int x, unsigned int z )
 	int cacheZ = z % VISIBLE_CHUNKS_RADIUS;
 	int cacheIndex = cacheZ * VISIBLE_CHUNKS_RADIUS + cacheX;
 	return cacheIndex;
+}
+
+enum BLOCK_OFFSET_DIRECTION
+{
+	BOD_SAM,
+	BOD_POS,
+	BOD_NEG,
+
+	BOD_COUNT
+};
+
+void GetNeighbouringBlocks( BLOCK_TYPE neighbours[][BOD_COUNT][BOD_COUNT],
+							int x, int y, int z,
+							Chunk* chunkNegXPosZ, Chunk* chunkPosZ, Chunk* chunkPosXPosZ,
+							Chunk* chunkNegX, Chunk* chunk, Chunk* chunkPosX,
+							Chunk* chunkNegXNegZ, Chunk* chunkNegZ, Chunk* chunkPosXNegZ )
+{
+	BLOCK_OFFSET_DIRECTION yBOD = BOD_SAM;
+
+	for( int yOffset = y - 1; yOffset <= y + 1; yOffset++ )
+	{
+		if( yOffset == y-1 ) {
+			yBOD = BOD_NEG;
+		}
+		else if( yOffset == y+1 ) {
+			yBOD = BOD_POS;
+		}
+		else {
+			yBOD = BOD_SAM;
+		}
+
+		if( yOffset == -1 ) // bottom layer
+		{
+			neighbours[BOD_SAM][BOD_NEG][BOD_SAM] = BT_DIRT;
+			neighbours[BOD_SAM][BOD_NEG][BOD_NEG] = BT_DIRT;
+			neighbours[BOD_SAM][BOD_NEG][BOD_POS] = BT_DIRT;
+			neighbours[BOD_NEG][BOD_NEG][BOD_SAM] = BT_DIRT;
+			neighbours[BOD_NEG][BOD_NEG][BOD_NEG] = BT_DIRT;
+			neighbours[BOD_NEG][BOD_NEG][BOD_POS] = BT_DIRT;
+			neighbours[BOD_POS][BOD_NEG][BOD_SAM] = BT_DIRT;
+			neighbours[BOD_POS][BOD_NEG][BOD_NEG] = BT_DIRT;
+			neighbours[BOD_POS][BOD_NEG][BOD_POS] = BT_DIRT;
+		}
+		else if( yOffset == CHUNK_HEIGHT ) // top layer
+		{
+			neighbours[BOD_SAM][BOD_POS][BOD_SAM] = BT_AIR;
+			neighbours[BOD_SAM][BOD_POS][BOD_NEG] = BT_AIR;
+			neighbours[BOD_SAM][BOD_POS][BOD_POS] = BT_AIR;
+			neighbours[BOD_NEG][BOD_POS][BOD_SAM] = BT_AIR;
+			neighbours[BOD_NEG][BOD_POS][BOD_NEG] = BT_AIR;
+			neighbours[BOD_NEG][BOD_POS][BOD_POS] = BT_AIR;
+			neighbours[BOD_POS][BOD_POS][BOD_SAM] = BT_AIR;
+			neighbours[BOD_POS][BOD_POS][BOD_NEG] = BT_AIR;
+			neighbours[BOD_POS][BOD_POS][BOD_POS] = BT_AIR;
+		}
+		else
+		{
+			// center
+			neighbours[BOD_SAM][yBOD][BOD_SAM] = chunk->blocks[x][yOffset][z];
+
+			// sides
+			neighbours[BOD_POS][yBOD][BOD_SAM] = x == CHUNK_WIDTH-1	? chunkPosX->blocks[0][yOffset][z]				: chunk->blocks[x+1][yOffset][z];
+			neighbours[BOD_NEG][yBOD][BOD_SAM] = x == 0				? chunkNegX->blocks[CHUNK_WIDTH-1][yOffset][z]	: chunk->blocks[x-1][yOffset][z];
+			neighbours[BOD_SAM][yBOD][BOD_POS] = z == CHUNK_WIDTH-1	? chunkPosZ->blocks[x][yOffset][0]				: chunk->blocks[x][yOffset][z+1];
+			neighbours[BOD_SAM][yBOD][BOD_NEG] = z == 0				? chunkNegZ->blocks[x][yOffset][CHUNK_WIDTH-1]	: chunk->blocks[x][yOffset][z-1];
+
+			// corners
+			if( x == CHUNK_WIDTH-1 && z == CHUNK_WIDTH-1 )
+			{
+				neighbours[BOD_POS][yBOD][BOD_POS] = chunkPosXPosZ->blocks[0][yOffset][0];
+			}
+			else
+			{
+				if( x == CHUNK_WIDTH-1 ) {
+					neighbours[BOD_POS][yBOD][BOD_POS] = chunkPosX->blocks[0][yOffset][z+1];
+				}
+				else if( z == CHUNK_WIDTH-1 ) {
+					neighbours[BOD_POS][yBOD][BOD_POS] = chunkPosZ->blocks[x+1][yOffset][0];
+				}
+				else {
+					neighbours[BOD_POS][yBOD][BOD_POS] = chunkPosZ->blocks[x+1][yOffset][z+1];
+				}
+			}
+
+			if( x == 0 && z == CHUNK_WIDTH-1 )
+			{
+				neighbours[BOD_NEG][yBOD][BOD_POS] = chunkNegXPosZ->blocks[CHUNK_WIDTH-1][yOffset][0];
+			}
+			else
+			{
+				if( x == 0 ) {
+					neighbours[BOD_NEG][yBOD][BOD_POS] = chunkNegX->blocks[CHUNK_WIDTH-1][yOffset][z+1];
+				}
+				else if( z == CHUNK_WIDTH-1 ) {
+					neighbours[BOD_NEG][yBOD][BOD_POS] = chunkPosZ->blocks[x-1][yOffset][0];
+				}
+				else {
+					neighbours[BOD_NEG][yBOD][BOD_POS] = chunkPosZ->blocks[x-1][yOffset][z+1];
+				}
+			}
+
+			if( x == CHUNK_WIDTH-1 && z == 0 )
+			{
+				neighbours[BOD_POS][yBOD][BOD_NEG] = chunkPosXNegZ->blocks[0][yOffset][CHUNK_WIDTH-1];
+			}
+			else
+			{
+				if( x == CHUNK_WIDTH-1 ) {
+					neighbours[BOD_POS][yBOD][BOD_NEG] = chunkPosX->blocks[0][yOffset][z+1];
+				}
+				else if( z == 0 ) {
+					neighbours[BOD_POS][yBOD][BOD_NEG] = chunkNegZ->blocks[x+1][yOffset][CHUNK_WIDTH-1];
+				}
+				else {
+					neighbours[BOD_POS][yBOD][BOD_NEG] = chunkPosZ->blocks[x+1][yOffset][z-1];
+				}
+			}
+
+			if( x == 0 && z == 0 )
+			{
+				neighbours[BOD_NEG][yBOD][BOD_NEG] = chunkNegXNegZ->blocks[CHUNK_WIDTH-1][yOffset][CHUNK_WIDTH-1];
+			}
+			else
+			{
+				if( x == 0 ) {
+					neighbours[BOD_NEG][yBOD][BOD_NEG] = chunkNegX->blocks[CHUNK_WIDTH-1][yOffset][z-1];
+				}
+				else if( z == 0 ) {
+					neighbours[BOD_NEG][yBOD][BOD_NEG] = chunkNegZ->blocks[x-1][yOffset][CHUNK_WIDTH-1];
+				}
+				else {
+					neighbours[BOD_NEG][yBOD][BOD_NEG] = chunkPosZ->blocks[x-1][yOffset][z-1];
+				}
+			}
+		} // else
+	} // for yOffset 
 }
 
 //cbData.normals[0] = {  0.0f,  0.0f, -1.0f, 0.0f }; // -Z
@@ -198,111 +334,39 @@ int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkP
 				}
 
 				// get neighbouring blocks
-				BLOCK_TYPE blockPosY = blockY == CHUNK_HEIGHT-1	? BT_AIR											: chunk->blocks[blockX][blockY+1][blockZ];
-				BLOCK_TYPE blockNegY = blockY == 0				? BT_DIRT											: chunk->blocks[blockX][blockY-1][blockZ];
-				BLOCK_TYPE blockPosX = blockX == CHUNK_WIDTH-1	? chunkPosX->blocks[0][blockY][blockZ]				: chunk->blocks[blockX+1][blockY][blockZ];
-				BLOCK_TYPE blockNegX = blockX == 0				? chunkNegX->blocks[CHUNK_WIDTH-1][blockY][blockZ]	: chunk->blocks[blockX-1][blockY][blockZ];
-				BLOCK_TYPE blockPosZ = blockZ == CHUNK_WIDTH-1	? chunkPosZ->blocks[blockX][blockY][0]				: chunk->blocks[blockX][blockY][blockZ+1];
-				BLOCK_TYPE blockNegZ = blockZ == 0				? chunkNegZ->blocks[blockX][blockY][CHUNK_WIDTH-1]	: chunk->blocks[blockX][blockY][blockZ-1];
+				BLOCK_TYPE neighbours[BOD_COUNT][BOD_COUNT][BOD_COUNT];
+				GetNeighbouringBlocks( neighbours, 
+									   blockX, blockY, blockZ,
+									   chunkNegXPosZ,	chunkPosZ,	chunkPosXPosZ,
+									   chunkNegX,		chunk,		chunkPosX,
+									   chunkNegXNegZ,	chunkNegZ,	chunkPosXNegZ );
 
-				BLOCK_TYPE blockPosXPosZ;
-				if( blockX == CHUNK_WIDTH-1 && blockZ == CHUNK_WIDTH-1 )
-				{
-					blockPosXPosZ = chunkPosXPosZ->blocks[0][blockY][0];
-				}
-				else
-				{
-					if( blockX == CHUNK_WIDTH-1 ) {
-						blockPosXPosZ = chunkPosX->blocks[0][blockY][blockZ+1];
-					}
-					else if( blockZ == CHUNK_WIDTH-1 ) {
-						blockPosXPosZ = chunkPosZ->blocks[blockX+1][blockY][0];
-					}
-					else {
-						blockPosXPosZ = chunkPosZ->blocks[blockX+1][blockY][blockZ+1];
-					}
-				}
-
-				BLOCK_TYPE blockNegXPosZ;
-				if( blockX == 0 && blockZ == CHUNK_WIDTH-1 )
-				{
-					blockNegXPosZ = chunkNegXPosZ->blocks[CHUNK_WIDTH-1][blockY][0];
-				}
-				else
-				{
-					if( blockX == 0 ) {
-						blockNegXPosZ = chunkNegX->blocks[CHUNK_WIDTH-1][blockY][blockZ+1];
-					}
-					else if( blockZ == CHUNK_WIDTH-1 ) {
-						blockNegXPosZ = chunkPosZ->blocks[blockX-1][blockY][0];
-					}
-					else {
-						blockNegXPosZ = chunkPosZ->blocks[blockX-1][blockY][blockZ+1];
-					}
-				}
-
-				BLOCK_TYPE blockPosXNegZ;
-				if( blockX == CHUNK_WIDTH-1 && blockZ == 0 )
-				{
-					blockPosXNegZ = chunkPosXNegZ->blocks[0][blockY][CHUNK_WIDTH-1];
-				}
-				else
-				{
-					if( blockX == CHUNK_WIDTH-1 ) {
-						blockPosXNegZ = chunkPosX->blocks[0][blockY][blockZ+1];
-					}
-					else if( blockZ == 0 ) {
-						blockPosXNegZ = chunkNegZ->blocks[blockX+1][blockY][CHUNK_WIDTH-1];
-					}
-					else {
-						blockPosXNegZ = chunkPosZ->blocks[blockX+1][blockY][blockZ-1];
-					}
-				}
-
-				BLOCK_TYPE blockNegXNegZ;
-				if( blockX == 0 && blockZ == 0 )
-				{
-					blockNegXNegZ = chunkNegXNegZ->blocks[CHUNK_WIDTH-1][blockY][CHUNK_WIDTH-1];
-				}
-				else
-				{
-					if( blockX == 0 ) {
-						blockNegXNegZ = chunkNegX->blocks[CHUNK_WIDTH-1][blockY][blockZ-1];
-					}
-					else if( blockZ == 0 ) {
-						blockNegXNegZ = chunkNegZ->blocks[blockX-1][blockY][CHUNK_WIDTH-1];
-					}
-					else {
-						blockNegXNegZ = chunkPosZ->blocks[blockX-1][blockY][blockZ-1];
-					}
-				}
-
-				if( blockPosX == BT_AIR )
+				if( neighbours[BOD_POS][BOD_SAM][BOD_SAM] == BT_AIR )
 				{
 					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_X );
 					vertexIndex += VERTS_PER_FACE;
 				}
-				if( blockNegX == BT_AIR )
+				if( neighbours[BOD_NEG][BOD_SAM][BOD_SAM] == BT_AIR )
 				{
 					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_NEG_X );
 					vertexIndex += VERTS_PER_FACE;
 				}
-				if( blockPosZ == BT_AIR )
+				if( neighbours[BOD_SAM][BOD_SAM][BOD_POS] == BT_AIR )
 				{
 					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_Z );
 					vertexIndex += VERTS_PER_FACE;
 				}
-				if( blockNegZ == BT_AIR )
+				if( neighbours[BOD_SAM][BOD_SAM][BOD_NEG] == BT_AIR )
 				{
 					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_NEG_Z );
 					vertexIndex += VERTS_PER_FACE;
 				}
-				if( blockPosY == BT_AIR )
+				if( neighbours[BOD_SAM][BOD_POS][BOD_SAM] == BT_AIR )
 				{
 					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_Y );
 					vertexIndex += VERTS_PER_FACE;
 				}
-				if( blockNegY == BT_AIR )
+				if( neighbours[BOD_SAM][BOD_NEG][BOD_SAM] == BT_AIR )
 				{
 					// TODO: add downward face
 				}

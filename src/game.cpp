@@ -203,17 +203,17 @@ void Game::DoFrame( float dt )
 					break;
 				}
 				
-				Chunk* chunk = &world_->chunks[x+16][z+16];
+				Chunk* chunk = &world_->chunks[x+HALF_CHUNKS_TO_GENERATE][z+HALF_CHUNKS_TO_GENERATE];
 
-				Chunk* chunkPosX = &world_->chunks[x+16+1][z+16];
-				Chunk* chunkNegX = &world_->chunks[x+16-1][z+16];
-				Chunk* chunkPosZ = &world_->chunks[x+16][z+16+1];
-				Chunk* chunkNegZ = &world_->chunks[x+16][z+16-1];
+				Chunk* chunkPosX = &world_->chunks[x+HALF_CHUNKS_TO_GENERATE+1][z+HALF_CHUNKS_TO_GENERATE];
+				Chunk* chunkNegX = &world_->chunks[x+HALF_CHUNKS_TO_GENERATE-1][z+HALF_CHUNKS_TO_GENERATE];
+				Chunk* chunkPosZ = &world_->chunks[x+HALF_CHUNKS_TO_GENERATE][z+HALF_CHUNKS_TO_GENERATE+1];
+				Chunk* chunkNegZ = &world_->chunks[x+HALF_CHUNKS_TO_GENERATE][z+HALF_CHUNKS_TO_GENERATE-1];
 
-				Chunk* chunkPosXPosZ = &world_->chunks[x+16+1][z+16+1];
-				Chunk* chunkNegXPosZ = &world_->chunks[x+16-1][z+16+1];
-				Chunk* chunkPosXNegZ = &world_->chunks[x+16+1][z+16-1];
-				Chunk* chunkNegXNegZ = &world_->chunks[x+16-1][z+16-1];
+				Chunk* chunkPosXPosZ = &world_->chunks[x+HALF_CHUNKS_TO_GENERATE+1][z+HALF_CHUNKS_TO_GENERATE+1];
+				Chunk* chunkNegXPosZ = &world_->chunks[x+HALF_CHUNKS_TO_GENERATE-1][z+HALF_CHUNKS_TO_GENERATE+1];
+				Chunk* chunkPosXNegZ = &world_->chunks[x+HALF_CHUNKS_TO_GENERATE+1][z+HALF_CHUNKS_TO_GENERATE-1];
+				Chunk* chunkNegXNegZ = &world_->chunks[x+HALF_CHUNKS_TO_GENERATE-1][z+HALF_CHUNKS_TO_GENERATE-1];
 
 				GenerateChunkMesh( chunkMesh, chunkNegXPosZ,	chunkPosZ,	chunkPosXPosZ,
 											  chunkNegX,		chunk,		chunkPosX,
