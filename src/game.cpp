@@ -73,6 +73,8 @@ XMFLOAT3 playerUp = 	{ 0.0f,  1.0f, 0.0f };
 int playerChunkX = 0;
 int playerChunkZ = 0;
 
+bool gDrawOverlay = false;
+
 void Game::DoFrame( float dt )
 {
 	ProfileNewFrame( dt );
@@ -174,6 +176,10 @@ void Game::DoFrame( float dt )
 
 	// const int CHUNKS_TO_DRAW = 4;
 
+	if( input.key[ VK_F1 ] ) {
+		gDrawOverlay = !gDrawOverlay;
+	}
+
 	for( int z = playerChunkZ - CHUNKS_TO_DRAW; z <= playerChunkZ + CHUNKS_TO_DRAW; z++ )
 	{
 		for( int x = playerChunkX - CHUNKS_TO_DRAW; x <= playerChunkX + CHUNKS_TO_DRAW; x++ )
@@ -254,23 +260,26 @@ void Game::DoFrame( float dt )
 	}
 	ProfileStop();
 
-	ProfileStart( "Overlay" );
+	if( gDrawOverlay )
+	{
+		ProfileStart( "Overlay" );
 
-	float delta = sum / UPDATE_DELTA_FRAMES;
-	int fps = (int)(1000 / delta);
+		float delta = sum / UPDATE_DELTA_FRAMES;
+		int fps = (int)(1000 / delta);
 
-	overlay.Reset();
-	overlay.WriteLine( "Frame time: %5.2f (%i fps)", sum / UPDATE_DELTA_FRAMES, fps);
-	overlay.WriteLine( "Chunk buffer size: %i KB", sizeof( BlockVertex ) * MAX_VERTS_PER_BATCH / 1024 );
-	overlay.WriteLine( "Batches rendered: %i", renderer.numBatches_ );
-	overlay.WriteLine( "Vertices rendered: %i", numDrawnVertices );
-	overlay.WriteLine( "Chunk meshes rebuild: %i", chunkMeshesRebuilt );
-	overlay.WriteLine( "Mouse offset: %+03i - %+03i", input.mouse.x, input.mouse.y );
-	overlay.WriteLine( "" );
-	overlay.WriteLine( "Player pos: %5.2f %5.2f %5.2f", playerPos.x, playerPos.y, playerPos.z );
-	overlay.WriteLine( "Chunk pos:  %5i ----- %5i", playerChunkX, playerChunkZ );
+		overlay.Reset();
+		overlay.WriteLine( "Frame time: %5.2f (%i fps)", sum / UPDATE_DELTA_FRAMES, fps);
+		overlay.WriteLine( "Chunk buffer size: %i KB", sizeof( BlockVertex ) * MAX_VERTS_PER_BATCH / 1024 );
+		overlay.WriteLine( "Batches rendered: %i", renderer.numBatches_ );
+		overlay.WriteLine( "Vertices rendered: %i", numDrawnVertices );
+		overlay.WriteLine( "Chunk meshes rebuild: %i", chunkMeshesRebuilt );
+		overlay.WriteLine( "Mouse offset: %+03i - %+03i", input.mouse.x, input.mouse.y );
+		overlay.WriteLine( "" );
+		overlay.WriteLine( "Player pos: %5.2f %5.2f %5.2f", playerPos.x, playerPos.y, playerPos.z );
+		overlay.WriteLine( "Chunk pos:  %5i ----- %5i", playerChunkX, playerChunkZ );
 
-	ProfileStop();
+		ProfileStop();
+	}
 
 	renderer.End();
 

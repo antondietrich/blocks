@@ -66,6 +66,8 @@ PS_Input VSMain( VS_Input input )
 
 float4 PSMain( PS_Input input ) : SV_TARGET
 {
+	return ( 1 - input.occlusion ) * 0.5 + 0.5;
+
 	float4 negLightDir = normalize( float4( 0.5f, 0.8f, 0.25f, 0.0f ) );
 
 	float nDotL = dot( input.normal, negLightDir );
