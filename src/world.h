@@ -6,9 +6,9 @@
 * 	position.y		8
 * 	position.z		8
 * 	normalID		3
-* 	texcoordID		3
+* 	texcoordID		2
 * 	occluded		1
-* 	unused			1
+* 	unused			2
 * 					--
 * 					32
 /**************************************/

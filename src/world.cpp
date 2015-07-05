@@ -186,7 +186,7 @@ void GetNeighbouringBlocks( BLOCK_TYPE neighbours[][BOD_COUNT][BOD_COUNT],
 					neighbours[BOD_POS][yBOD][BOD_POS] = chunkPosZ->blocks[x+1][yOffset][0];
 				}
 				else {
-					neighbours[BOD_POS][yBOD][BOD_POS] = chunkPosZ->blocks[x+1][yOffset][z+1];
+					neighbours[BOD_POS][yBOD][BOD_POS] = chunk->blocks[x+1][yOffset][z+1];
 				}
 			}
 
@@ -203,7 +203,7 @@ void GetNeighbouringBlocks( BLOCK_TYPE neighbours[][BOD_COUNT][BOD_COUNT],
 					neighbours[BOD_NEG][yBOD][BOD_POS] = chunkPosZ->blocks[x-1][yOffset][0];
 				}
 				else {
-					neighbours[BOD_NEG][yBOD][BOD_POS] = chunkPosZ->blocks[x-1][yOffset][z+1];
+					neighbours[BOD_NEG][yBOD][BOD_POS] = chunk->blocks[x-1][yOffset][z+1];
 				}
 			}
 
@@ -214,13 +214,13 @@ void GetNeighbouringBlocks( BLOCK_TYPE neighbours[][BOD_COUNT][BOD_COUNT],
 			else
 			{
 				if( x == CHUNK_WIDTH-1 ) {
-					neighbours[BOD_POS][yBOD][BOD_NEG] = chunkPosX->blocks[0][yOffset][z+1];
+					neighbours[BOD_POS][yBOD][BOD_NEG] = chunkPosX->blocks[0][yOffset][z-1];
 				}
 				else if( z == 0 ) {
 					neighbours[BOD_POS][yBOD][BOD_NEG] = chunkNegZ->blocks[x+1][yOffset][CHUNK_WIDTH-1];
 				}
 				else {
-					neighbours[BOD_POS][yBOD][BOD_NEG] = chunkPosZ->blocks[x+1][yOffset][z-1];
+					neighbours[BOD_POS][yBOD][BOD_NEG] = chunk->blocks[x+1][yOffset][z-1];
 				}
 			}
 
@@ -237,7 +237,7 @@ void GetNeighbouringBlocks( BLOCK_TYPE neighbours[][BOD_COUNT][BOD_COUNT],
 					neighbours[BOD_NEG][yBOD][BOD_NEG] = chunkNegZ->blocks[x-1][yOffset][CHUNK_WIDTH-1];
 				}
 				else {
-					neighbours[BOD_NEG][yBOD][BOD_NEG] = chunkPosZ->blocks[x-1][yOffset][z-1];
+					neighbours[BOD_NEG][yBOD][BOD_NEG] = chunk->blocks[x-1][yOffset][z-1];
 				}
 			}
 		} // else
@@ -256,7 +256,7 @@ void GetNeighbouringBlocks( BLOCK_TYPE neighbours[][BOD_COUNT][BOD_COUNT],
 //cbData.texcoords[2] = { 1.0f, 0.0f, 0.0f, 0.0f }; // top right
 //cbData.texcoords[3] = { 1.0f, 1.0f, 0.0f, 0.0f }; // bottom right
 
-#define PACK_NORMAL_AND_TEXCOORD( normalIndex, texcoordIndex ) ((normalIndex) << 5) | (texcoordIndex << 2) | 0
+#define PACK_NORMAL_AND_TEXCOORD( normalIndex, texcoordIndex ) ((normalIndex) << 5) | (texcoordIndex << 3) | 0
 
 BlockVertex block[] = 
 {
@@ -304,7 +304,7 @@ BlockVertex block[] =
 	{ 1, 0, 0, PACK_NORMAL_AND_TEXCOORD( 5, 2 ) }, // 2
 };
 
-void AddFace( BlockVertex *vertexBuffer, int startVertexIndex, uint8_t blockX, uint8_t blockY, uint8_t blockZ, FACE_INDEX faceIndex )
+void AddFace( BlockVertex *vertexBuffer, int startVertexIndex, uint8_t blockX, uint8_t blockY, uint8_t blockZ, FACE_INDEX faceIndex, uint8_t occluded )
 {
 	memcpy( &vertexBuffer[ startVertexIndex ],
 			&block[ faceIndex ],
@@ -315,8 +315,13 @@ void AddFace( BlockVertex *vertexBuffer, int startVertexIndex, uint8_t blockX, u
 		vertexBuffer[ startVertexIndex + i ].data[0] += blockX;
 		vertexBuffer[ startVertexIndex + i ].data[1] += blockY;
 		vertexBuffer[ startVertexIndex + i ].data[2] += blockZ;
+		//if( occluded ) {
+		//	vertexBuffer[ startVertexIndex + i ].data[3] |= 0x00000100;
+		//}
 	}
 }
+
+// TODO: rotate face's inner edge based on occlusion direction (interpolation bugs)
 
 int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkPosZ, Chunk* chunkPosXPosZ,
 											 Chunk* chunkNegX, Chunk* chunk, Chunk* chunkPosX,
@@ -343,27 +348,137 @@ int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkP
 
 				if( neighbours[BOD_POS][BOD_SAM][BOD_SAM] == BT_AIR )
 				{
-					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_X );
+					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_X, false );
+					if( neighbours[BOD_POS][BOD_POS][BOD_NEG] != BT_AIR ||
+						neighbours[BOD_POS][BOD_POS][BOD_SAM] != BT_AIR ||
+						neighbours[BOD_POS][BOD_SAM][BOD_NEG] != BT_AIR ) {
+						chunkVertexBuffer[ vertexIndex + 0 ].data[3] |= 0x00000001;
+						chunkVertexBuffer[ vertexIndex + 3 ].data[3] |= 0x00000001;
+					}
+					if( neighbours[BOD_POS][BOD_POS][BOD_POS] != BT_AIR ||
+						neighbours[BOD_POS][BOD_POS][BOD_SAM] != BT_AIR ||
+						neighbours[BOD_POS][BOD_SAM][BOD_POS] != BT_AIR ) {
+						chunkVertexBuffer[ vertexIndex + 5 ].data[3] |= 0x00000001;
+					}
+					if( neighbours[BOD_POS][BOD_NEG][BOD_POS] != BT_AIR ||
+						neighbours[BOD_POS][BOD_NEG][BOD_SAM] != BT_AIR ||
+						neighbours[BOD_POS][BOD_SAM][BOD_POS] != BT_AIR ) {
+						chunkVertexBuffer[ vertexIndex + 2 ].data[3] |= 0x00000001;
+						chunkVertexBuffer[ vertexIndex + 4 ].data[3] |= 0x00000001;
+					}
+					if( neighbours[BOD_POS][BOD_NEG][BOD_NEG] != BT_AIR ||
+						neighbours[BOD_POS][BOD_NEG][BOD_SAM] != BT_AIR ||
+						neighbours[BOD_POS][BOD_SAM][BOD_NEG] != BT_AIR ) {
+						chunkVertexBuffer[ vertexIndex + 1 ].data[3] |= 0x00000001;
+					}
 					vertexIndex += VERTS_PER_FACE;
 				}
 				if( neighbours[BOD_NEG][BOD_SAM][BOD_SAM] == BT_AIR )
 				{
-					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_NEG_X );
+					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_NEG_X, false );
+					if( neighbours[BOD_NEG][BOD_POS][BOD_NEG] != BT_AIR ||
+						neighbours[BOD_NEG][BOD_POS][BOD_SAM] != BT_AIR ||
+						neighbours[BOD_NEG][BOD_SAM][BOD_NEG] != BT_AIR ) {
+						chunkVertexBuffer[ vertexIndex + 5 ].data[3] |= 0x00000001;
+					}
+					if( neighbours[BOD_NEG][BOD_POS][BOD_POS] != BT_AIR ||
+						neighbours[BOD_NEG][BOD_POS][BOD_SAM] != BT_AIR ||
+						neighbours[BOD_NEG][BOD_SAM][BOD_POS] != BT_AIR ) {
+						chunkVertexBuffer[ vertexIndex + 0 ].data[3] |= 0x00000001;
+						chunkVertexBuffer[ vertexIndex + 3 ].data[3] |= 0x00000001;
+					}
+					if( neighbours[BOD_NEG][BOD_NEG][BOD_POS] != BT_AIR ||
+						neighbours[BOD_NEG][BOD_NEG][BOD_SAM] != BT_AIR ||
+						neighbours[BOD_NEG][BOD_SAM][BOD_POS] != BT_AIR ) {
+						chunkVertexBuffer[ vertexIndex + 1 ].data[3] |= 0x00000001;
+					}
+					if( neighbours[BOD_NEG][BOD_NEG][BOD_NEG] != BT_AIR ||
+						neighbours[BOD_NEG][BOD_NEG][BOD_SAM] != BT_AIR ||
+						neighbours[BOD_NEG][BOD_SAM][BOD_NEG] != BT_AIR ) {
+						chunkVertexBuffer[ vertexIndex + 2 ].data[3] |= 0x00000001;
+						chunkVertexBuffer[ vertexIndex + 4 ].data[3] |= 0x00000001;
+					}
 					vertexIndex += VERTS_PER_FACE;
 				}
 				if( neighbours[BOD_SAM][BOD_SAM][BOD_POS] == BT_AIR )
 				{
-					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_Z );
+					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_Z, false );
+					if( neighbours[BOD_NEG][BOD_POS][BOD_POS] != BT_AIR ||
+						neighbours[BOD_SAM][BOD_POS][BOD_POS] != BT_AIR ||
+						neighbours[BOD_NEG][BOD_SAM][BOD_POS] != BT_AIR ) {
+						chunkVertexBuffer[ vertexIndex + 5 ].data[3] |= 0x00000001;
+					}
+					if( neighbours[BOD_NEG][BOD_NEG][BOD_POS] != BT_AIR ||
+						neighbours[BOD_NEG][BOD_SAM][BOD_POS] != BT_AIR ||
+						neighbours[BOD_SAM][BOD_NEG][BOD_POS] != BT_AIR ) {
+						chunkVertexBuffer[ vertexIndex + 2 ].data[3] |= 0x00000001;
+						chunkVertexBuffer[ vertexIndex + 4 ].data[3] |= 0x00000001;
+					}
+					if( neighbours[BOD_POS][BOD_NEG][BOD_POS] != BT_AIR ||
+						neighbours[BOD_SAM][BOD_NEG][BOD_POS] != BT_AIR ||
+						neighbours[BOD_POS][BOD_SAM][BOD_POS] != BT_AIR ) {
+						chunkVertexBuffer[ vertexIndex + 1 ].data[3] |= 0x00000001;
+					}
+					if( neighbours[BOD_POS][BOD_POS][BOD_POS] != BT_AIR ||
+						neighbours[BOD_POS][BOD_SAM][BOD_POS] != BT_AIR ||
+						neighbours[BOD_SAM][BOD_POS][BOD_POS] != BT_AIR ) {
+						chunkVertexBuffer[ vertexIndex + 0 ].data[3] |= 0x00000001;
+						chunkVertexBuffer[ vertexIndex + 3 ].data[3] |= 0x00000001;
+					}
 					vertexIndex += VERTS_PER_FACE;
 				}
 				if( neighbours[BOD_SAM][BOD_SAM][BOD_NEG] == BT_AIR )
 				{
-					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_NEG_Z );
+					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_NEG_Z, false );
+					if( neighbours[BOD_NEG][BOD_POS][BOD_NEG] != BT_AIR ||
+						neighbours[BOD_SAM][BOD_POS][BOD_NEG] != BT_AIR ||
+						neighbours[BOD_NEG][BOD_SAM][BOD_NEG] != BT_AIR ) {
+						chunkVertexBuffer[ vertexIndex + 0 ].data[3] |= 0x00000001;
+						chunkVertexBuffer[ vertexIndex + 3 ].data[3] |= 0x00000001;
+					}
+					if( neighbours[BOD_NEG][BOD_NEG][BOD_NEG] != BT_AIR ||
+						neighbours[BOD_NEG][BOD_SAM][BOD_NEG] != BT_AIR ||
+						neighbours[BOD_SAM][BOD_NEG][BOD_NEG] != BT_AIR ) {
+						chunkVertexBuffer[ vertexIndex + 1 ].data[3] |= 0x00000001;
+					}
+					if( neighbours[BOD_POS][BOD_NEG][BOD_NEG] != BT_AIR ||
+						neighbours[BOD_SAM][BOD_NEG][BOD_NEG] != BT_AIR ||
+						neighbours[BOD_POS][BOD_SAM][BOD_NEG] != BT_AIR ) {
+						chunkVertexBuffer[ vertexIndex + 2 ].data[3] |= 0x00000001;
+						chunkVertexBuffer[ vertexIndex + 4 ].data[3] |= 0x00000001;
+					}
+					if( neighbours[BOD_POS][BOD_POS][BOD_NEG] != BT_AIR ||
+						neighbours[BOD_POS][BOD_SAM][BOD_NEG] != BT_AIR ||
+						neighbours[BOD_SAM][BOD_POS][BOD_NEG] != BT_AIR ) {
+						chunkVertexBuffer[ vertexIndex + 5 ].data[3] |= 0x00000001;
+					}
 					vertexIndex += VERTS_PER_FACE;
 				}
 				if( neighbours[BOD_SAM][BOD_POS][BOD_SAM] == BT_AIR )
 				{
-					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_Y );
+					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_Y, false );
+					if( neighbours[BOD_SAM][BOD_POS][BOD_POS] != BT_AIR ||
+						neighbours[BOD_POS][BOD_POS][BOD_SAM] != BT_AIR ||
+						neighbours[BOD_POS][BOD_POS][BOD_POS] != BT_AIR ) {
+						chunkVertexBuffer[ vertexIndex + 5 ].data[3] |= 0x00000001;
+					}
+					if( neighbours[BOD_SAM][BOD_POS][BOD_NEG] != BT_AIR ||
+						neighbours[BOD_NEG][BOD_POS][BOD_SAM] != BT_AIR ||
+						neighbours[BOD_NEG][BOD_POS][BOD_NEG] != BT_AIR ) {
+						chunkVertexBuffer[ vertexIndex + 1 ].data[3] |= 0x00000001;
+					}
+					if( neighbours[BOD_POS][BOD_POS][BOD_NEG] != BT_AIR ||
+						neighbours[BOD_POS][BOD_POS][BOD_SAM] != BT_AIR ||
+						neighbours[BOD_SAM][BOD_POS][BOD_NEG] != BT_AIR ) {
+						chunkVertexBuffer[ vertexIndex + 2 ].data[3] |= 0x00000001;
+						chunkVertexBuffer[ vertexIndex + 4 ].data[3] |= 0x00000001;
+					}
+					if( neighbours[BOD_NEG][BOD_POS][BOD_POS] != BT_AIR ||
+						neighbours[BOD_SAM][BOD_POS][BOD_POS] != BT_AIR ||
+						neighbours[BOD_NEG][BOD_POS][BOD_SAM] != BT_AIR ) {
+						chunkVertexBuffer[ vertexIndex + 0 ].data[3] |= 0x00000001;
+						chunkVertexBuffer[ vertexIndex + 3 ].data[3] |= 0x00000001;
+					}
 					vertexIndex += VERTS_PER_FACE;
 				}
 				if( neighbours[BOD_SAM][BOD_NEG][BOD_SAM] == BT_AIR )

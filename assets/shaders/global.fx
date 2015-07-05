@@ -30,6 +30,7 @@ struct PS_Input
 	float4 pos : SV_POSITION;
 	float4 normal : TEXCOORD0;
 	float2 texcoord : TEXCOORD1;
+	float occlusion : TEXCOORD2;
 };
 
 PS_Input VSMain( VS_Input input )
@@ -42,8 +43,8 @@ PS_Input VSMain( VS_Input input )
 
 	int temp = ( input.pos & 0xff000000 ) >> 24;
 	int normalIndex = ( temp & 0xe0 ) >> 5; 	// 11100000
-	int texcoordIndex = ( temp & 0x1c ) >> 2; 	// 00011100
-	int occluded = ( temp & 0x02 ) >> 1;		// 00000010
+	int texcoordIndex = ( temp & 0x18 ) >> 3; 	// 00011000
+	int occluded = ( temp & 0x01 ) >> 0;		// 00000100
 
 	PS_Input output;
 
@@ -58,6 +59,8 @@ PS_Input VSMain( VS_Input input )
 
 	output.texcoord = texcoords[ texcoordIndex ];
 
+	output.occlusion = occluded;
+
 	return output;
 }
 
@@ -70,9 +73,10 @@ float4 PSMain( PS_Input input ) : SV_TARGET
 
 	float4 sun = float4( 1.0f, 1.0f, 0.9f, 1.0f );
 
+	float ao = saturate( ( 1 - input.occlusion )*( 1 - input.occlusion ) + 0.7 );
 	float4 lambert = texSample * nDotL * sun;
-	float4 ambient = texSample;
+	float4 ambient = texSample + texSample*ao*0.5;// - ao;
 
-	return saturate( 0.8*ambient + 0.2*lambert );
+	return saturate( 0.8*ambient + 0.2*lambert);
 	//return saturate( texSample*nDotL + texSample*float4( 0.1f, 0.1f, 0.23f, 1.0f )*2 );
 }
