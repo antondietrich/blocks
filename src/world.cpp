@@ -51,11 +51,11 @@ float InterpolatedNoise( float x, float y )
 enum FACE_INDEX
 {
 	FACE_NEG_Z = 0,
-	FACE_POS_X = 6,
-	FACE_POS_Z = 12,
-	FACE_NEG_X = 18,
-	FACE_POS_Y = 24,
-	FACE_NEG_Y = 30
+	FACE_POS_X = 4,
+	FACE_POS_Z = 8,
+	FACE_NEG_X = 12,
+	FACE_POS_Y = 16,
+	FACE_NEG_Y = 20
 };
 
 // void AddFace( BlockVertex *vertexBuffer, int vertexIndex, int blockX, int blockY, int blockZ, FACE_INDEX faceIndex );
@@ -264,64 +264,82 @@ BlockVertex block[] =
 	{ 0, 1, 0, PACK_NORMAL_AND_TEXCOORD( 0, 0 ) }, // 0
 	{ 0, 0, 0, PACK_NORMAL_AND_TEXCOORD( 0, 1 ) }, // 1
 	{ 1, 0, 0, PACK_NORMAL_AND_TEXCOORD( 0, 3 ) }, // 2
-	{ 0, 1, 0, PACK_NORMAL_AND_TEXCOORD( 0, 0 ) }, // 0
-	{ 1, 0, 0, PACK_NORMAL_AND_TEXCOORD( 0, 3 ) }, // 2
 	{ 1, 1, 0, PACK_NORMAL_AND_TEXCOORD( 0, 2 ) }, // 3
 	// face 2 / +X
 	{ 1, 1, 0, PACK_NORMAL_AND_TEXCOORD( 1, 0 ) }, // 3
 	{ 1, 0, 0, PACK_NORMAL_AND_TEXCOORD( 1, 1 ) }, // 2
-	{ 1, 0, 1, PACK_NORMAL_AND_TEXCOORD( 1, 3 ) }, // 4
-	{ 1, 1, 0, PACK_NORMAL_AND_TEXCOORD( 1, 0 ) }, // 3
 	{ 1, 0, 1, PACK_NORMAL_AND_TEXCOORD( 1, 3 ) }, // 4
 	{ 1, 1, 1, PACK_NORMAL_AND_TEXCOORD( 1, 2 ) }, // 5
 	// face 3 / +Z
 	{ 1, 1, 1, PACK_NORMAL_AND_TEXCOORD( 2, 0 ) }, // 5
 	{ 1, 0, 1, PACK_NORMAL_AND_TEXCOORD( 2, 1 ) }, // 4
 	{ 0, 0, 1, PACK_NORMAL_AND_TEXCOORD( 2, 3 ) }, // 6
-	{ 1, 1, 1, PACK_NORMAL_AND_TEXCOORD( 2, 0 ) }, // 5
-	{ 0, 0, 1, PACK_NORMAL_AND_TEXCOORD( 2, 3 ) }, // 6
 	{ 0, 1, 1, PACK_NORMAL_AND_TEXCOORD( 2, 2 ) }, // 7
 	// face 4 / -X
 	{ 0, 1, 1, PACK_NORMAL_AND_TEXCOORD( 3, 0 ) }, // 7
 	{ 0, 0, 1, PACK_NORMAL_AND_TEXCOORD( 3, 1 ) }, // 6
-	{ 0, 0, 0, PACK_NORMAL_AND_TEXCOORD( 3, 3 ) }, // 1
-	{ 0, 1, 1, PACK_NORMAL_AND_TEXCOORD( 3, 0 ) }, // 7
 	{ 0, 0, 0, PACK_NORMAL_AND_TEXCOORD( 3, 3 ) }, // 1
 	{ 0, 1, 0, PACK_NORMAL_AND_TEXCOORD( 3, 2 ) }, // 0
 	// face 5 / +Y
 	{ 0, 1, 1, PACK_NORMAL_AND_TEXCOORD( 4, 0 ) }, // 7
 	{ 0, 1, 0, PACK_NORMAL_AND_TEXCOORD( 4, 1 ) }, // 0
 	{ 1, 1, 0, PACK_NORMAL_AND_TEXCOORD( 4, 3 ) }, // 3
-	{ 0, 1, 1, PACK_NORMAL_AND_TEXCOORD( 4, 0 ) }, // 7
-	{ 1, 1, 0, PACK_NORMAL_AND_TEXCOORD( 4, 3 ) }, // 3
 	{ 1, 1, 1, PACK_NORMAL_AND_TEXCOORD( 4, 2 ) }, // 5
 	// face 6 / -Y
 	{ 0, 0, 0, PACK_NORMAL_AND_TEXCOORD( 5, 0 ) }, // 1
 	{ 0, 0, 1, PACK_NORMAL_AND_TEXCOORD( 5, 1 ) }, // 6
 	{ 1, 0, 1, PACK_NORMAL_AND_TEXCOORD( 5, 3 ) }, // 4
-	{ 0, 0, 0, PACK_NORMAL_AND_TEXCOORD( 5, 0 ) }, // 1
-	{ 1, 0, 1, PACK_NORMAL_AND_TEXCOORD( 5, 3 ) }, // 4
 	{ 1, 0, 0, PACK_NORMAL_AND_TEXCOORD( 5, 2 ) }, // 2
 };
 
-void AddFace( BlockVertex *vertexBuffer, int startVertexIndex, uint8_t blockX, uint8_t blockY, uint8_t blockZ, FACE_INDEX faceIndex, uint8_t occluded )
+void AddFace( BlockVertex *vertexBuffer, int startVertexIndex, uint8_t blockX, uint8_t blockY, uint8_t blockZ, FACE_INDEX faceIndex, uint8_t occluded[4] )
 {
-	memcpy( &vertexBuffer[ startVertexIndex ],
-			&block[ faceIndex ],
-			sizeof( BlockVertex ) * VERTS_PER_FACE );
+	vertexBuffer[ startVertexIndex + 0 ] = block[ faceIndex + 0];
+		vertexBuffer[ startVertexIndex + 0 ].data[0] += blockX;
+		vertexBuffer[ startVertexIndex + 0 ].data[1] += blockY;
+		vertexBuffer[ startVertexIndex + 0 ].data[2] += blockZ;
+		vertexBuffer[ startVertexIndex + 0 ].ao = occluded[0];
+	vertexBuffer[ startVertexIndex + 1 ] = block[ faceIndex + 1];
+		vertexBuffer[ startVertexIndex + 1 ].data[0] += blockX;
+		vertexBuffer[ startVertexIndex + 1 ].data[1] += blockY;
+		vertexBuffer[ startVertexIndex + 1 ].data[2] += blockZ;
+		vertexBuffer[ startVertexIndex + 1 ].ao = occluded[1];
+	vertexBuffer[ startVertexIndex + 4 ] = block[ faceIndex + 2];
+		vertexBuffer[ startVertexIndex + 4 ].data[0] += blockX;
+		vertexBuffer[ startVertexIndex + 4 ].data[1] += blockY;
+		vertexBuffer[ startVertexIndex + 4 ].data[2] += blockZ;
+		vertexBuffer[ startVertexIndex + 4 ].ao = occluded[2];
+	vertexBuffer[ startVertexIndex + 5 ] = block[ faceIndex + 3];
+		vertexBuffer[ startVertexIndex + 5 ].data[0] += blockX;
+		vertexBuffer[ startVertexIndex + 5 ].data[1] += blockY;
+		vertexBuffer[ startVertexIndex + 5 ].data[2] += blockZ;
+		vertexBuffer[ startVertexIndex + 5 ].ao = occluded[3];
 
-	for( int i = 0; i < VERTS_PER_FACE; i++ )
+	if( occluded[0] + occluded[2] <= occluded[1] + occluded[3] ) // normal quad
 	{
-		vertexBuffer[ startVertexIndex + i ].data[0] += blockX;
-		vertexBuffer[ startVertexIndex + i ].data[1] += blockY;
-		vertexBuffer[ startVertexIndex + i ].data[2] += blockZ;
-		//if( occluded ) {
-		//	vertexBuffer[ startVertexIndex + i ].data[3] |= 0x00000100;
-		//}
+		vertexBuffer[ startVertexIndex + 2 ] = vertexBuffer[ startVertexIndex + 4 ];
+		vertexBuffer[ startVertexIndex + 3 ] = vertexBuffer[ startVertexIndex + 0 ];
+	}
+	else // flipped quad
+	{
+		vertexBuffer[ startVertexIndex + 2 ] = vertexBuffer[ startVertexIndex + 5 ];
+		vertexBuffer[ startVertexIndex + 3 ] = vertexBuffer[ startVertexIndex + 1 ];
 	}
 }
 
 // TODO: rotate face's inner edge based on occlusion direction (interpolation bugs)
+
+uint8_t VertexAO( BLOCK_TYPE side1, BLOCK_TYPE side2, BLOCK_TYPE corner )
+{
+	if( side1 != BT_AIR && side2 != BT_AIR ) {
+		return 3;
+	}
+	int a1 = side1 == BT_AIR ? 0 : 1;
+	int a2 = side2 == BT_AIR ? 0 : 1;
+	int a3 = corner == BT_AIR ? 0 : 1;
+
+	return a1 + a2 + a3;
+}
 
 int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkPosZ, Chunk* chunkPosXPosZ,
 											 Chunk* chunkNegX, Chunk* chunk, Chunk* chunkPosX,
@@ -346,141 +364,113 @@ int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkP
 									   chunkNegX,		chunk,		chunkPosX,
 									   chunkNegXNegZ,	chunkNegZ,	chunkPosXNegZ );
 
+//				for( FACE_INDEX faceDir = 0; faceDir < 6; faceDir++ )
+//				{
+//
+//				}
+
+				uint8_t occlusion[] = { 0, 0, 0, 0 };
+
+				// X+
 				if( neighbours[BOD_POS][BOD_SAM][BOD_SAM] == BT_AIR )
 				{
-					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_X, false );
-					if( neighbours[BOD_POS][BOD_POS][BOD_NEG] != BT_AIR ||
-						neighbours[BOD_POS][BOD_POS][BOD_SAM] != BT_AIR ||
-						neighbours[BOD_POS][BOD_SAM][BOD_NEG] != BT_AIR ) {
-						chunkVertexBuffer[ vertexIndex + 0 ].data[3] |= 0x00000001;
-						chunkVertexBuffer[ vertexIndex + 3 ].data[3] |= 0x00000001;
-					}
-					if( neighbours[BOD_POS][BOD_POS][BOD_POS] != BT_AIR ||
-						neighbours[BOD_POS][BOD_POS][BOD_SAM] != BT_AIR ||
-						neighbours[BOD_POS][BOD_SAM][BOD_POS] != BT_AIR ) {
-						chunkVertexBuffer[ vertexIndex + 5 ].data[3] |= 0x00000001;
-					}
-					if( neighbours[BOD_POS][BOD_NEG][BOD_POS] != BT_AIR ||
-						neighbours[BOD_POS][BOD_NEG][BOD_SAM] != BT_AIR ||
-						neighbours[BOD_POS][BOD_SAM][BOD_POS] != BT_AIR ) {
-						chunkVertexBuffer[ vertexIndex + 2 ].data[3] |= 0x00000001;
-						chunkVertexBuffer[ vertexIndex + 4 ].data[3] |= 0x00000001;
-					}
-					if( neighbours[BOD_POS][BOD_NEG][BOD_NEG] != BT_AIR ||
-						neighbours[BOD_POS][BOD_NEG][BOD_SAM] != BT_AIR ||
-						neighbours[BOD_POS][BOD_SAM][BOD_NEG] != BT_AIR ) {
-						chunkVertexBuffer[ vertexIndex + 1 ].data[3] |= 0x00000001;
-					}
+					occlusion[0] = VertexAO( neighbours[BOD_POS][BOD_POS][BOD_SAM],
+											neighbours[BOD_POS][BOD_SAM][BOD_NEG], 
+											neighbours[BOD_POS][BOD_POS][BOD_NEG] );
+					occlusion[1] = VertexAO( neighbours[BOD_POS][BOD_NEG][BOD_SAM],
+											neighbours[BOD_POS][BOD_SAM][BOD_NEG], 
+											neighbours[BOD_POS][BOD_NEG][BOD_NEG] );
+					occlusion[2] = VertexAO( neighbours[BOD_POS][BOD_NEG][BOD_SAM],
+											neighbours[BOD_POS][BOD_SAM][BOD_POS], 
+											neighbours[BOD_POS][BOD_NEG][BOD_POS] );
+					occlusion[3] = VertexAO( neighbours[BOD_POS][BOD_POS][BOD_SAM],
+											neighbours[BOD_POS][BOD_SAM][BOD_POS], 
+											neighbours[BOD_POS][BOD_POS][BOD_POS] );
+					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_X, occlusion );
 					vertexIndex += VERTS_PER_FACE;
 				}
+
+				// X-
 				if( neighbours[BOD_NEG][BOD_SAM][BOD_SAM] == BT_AIR )
 				{
-					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_NEG_X, false );
-					if( neighbours[BOD_NEG][BOD_POS][BOD_NEG] != BT_AIR ||
-						neighbours[BOD_NEG][BOD_POS][BOD_SAM] != BT_AIR ||
-						neighbours[BOD_NEG][BOD_SAM][BOD_NEG] != BT_AIR ) {
-						chunkVertexBuffer[ vertexIndex + 5 ].data[3] |= 0x00000001;
-					}
-					if( neighbours[BOD_NEG][BOD_POS][BOD_POS] != BT_AIR ||
-						neighbours[BOD_NEG][BOD_POS][BOD_SAM] != BT_AIR ||
-						neighbours[BOD_NEG][BOD_SAM][BOD_POS] != BT_AIR ) {
-						chunkVertexBuffer[ vertexIndex + 0 ].data[3] |= 0x00000001;
-						chunkVertexBuffer[ vertexIndex + 3 ].data[3] |= 0x00000001;
-					}
-					if( neighbours[BOD_NEG][BOD_NEG][BOD_POS] != BT_AIR ||
-						neighbours[BOD_NEG][BOD_NEG][BOD_SAM] != BT_AIR ||
-						neighbours[BOD_NEG][BOD_SAM][BOD_POS] != BT_AIR ) {
-						chunkVertexBuffer[ vertexIndex + 1 ].data[3] |= 0x00000001;
-					}
-					if( neighbours[BOD_NEG][BOD_NEG][BOD_NEG] != BT_AIR ||
-						neighbours[BOD_NEG][BOD_NEG][BOD_SAM] != BT_AIR ||
-						neighbours[BOD_NEG][BOD_SAM][BOD_NEG] != BT_AIR ) {
-						chunkVertexBuffer[ vertexIndex + 2 ].data[3] |= 0x00000001;
-						chunkVertexBuffer[ vertexIndex + 4 ].data[3] |= 0x00000001;
-					}
+					occlusion[0] = VertexAO( neighbours[BOD_NEG][BOD_POS][BOD_SAM],
+											 neighbours[BOD_NEG][BOD_SAM][BOD_POS],
+											 neighbours[BOD_NEG][BOD_POS][BOD_POS] );
+					occlusion[3] = VertexAO( neighbours[BOD_NEG][BOD_POS][BOD_SAM],
+											 neighbours[BOD_NEG][BOD_SAM][BOD_NEG],
+											 neighbours[BOD_NEG][BOD_POS][BOD_NEG] );
+					occlusion[2] = VertexAO( neighbours[BOD_NEG][BOD_NEG][BOD_SAM],
+											 neighbours[BOD_NEG][BOD_SAM][BOD_NEG],
+											 neighbours[BOD_NEG][BOD_NEG][BOD_NEG] );
+					occlusion[1] = VertexAO( neighbours[BOD_NEG][BOD_NEG][BOD_SAM],
+											 neighbours[BOD_NEG][BOD_SAM][BOD_POS],
+											 neighbours[BOD_NEG][BOD_NEG][BOD_POS] );
+					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_NEG_X, occlusion );
 					vertexIndex += VERTS_PER_FACE;
 				}
+
+				// Z+
 				if( neighbours[BOD_SAM][BOD_SAM][BOD_POS] == BT_AIR )
 				{
-					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_Z, false );
-					if( neighbours[BOD_NEG][BOD_POS][BOD_POS] != BT_AIR ||
-						neighbours[BOD_SAM][BOD_POS][BOD_POS] != BT_AIR ||
-						neighbours[BOD_NEG][BOD_SAM][BOD_POS] != BT_AIR ) {
-						chunkVertexBuffer[ vertexIndex + 5 ].data[3] |= 0x00000001;
-					}
-					if( neighbours[BOD_NEG][BOD_NEG][BOD_POS] != BT_AIR ||
-						neighbours[BOD_NEG][BOD_SAM][BOD_POS] != BT_AIR ||
-						neighbours[BOD_SAM][BOD_NEG][BOD_POS] != BT_AIR ) {
-						chunkVertexBuffer[ vertexIndex + 2 ].data[3] |= 0x00000001;
-						chunkVertexBuffer[ vertexIndex + 4 ].data[3] |= 0x00000001;
-					}
-					if( neighbours[BOD_POS][BOD_NEG][BOD_POS] != BT_AIR ||
-						neighbours[BOD_SAM][BOD_NEG][BOD_POS] != BT_AIR ||
-						neighbours[BOD_POS][BOD_SAM][BOD_POS] != BT_AIR ) {
-						chunkVertexBuffer[ vertexIndex + 1 ].data[3] |= 0x00000001;
-					}
-					if( neighbours[BOD_POS][BOD_POS][BOD_POS] != BT_AIR ||
-						neighbours[BOD_POS][BOD_SAM][BOD_POS] != BT_AIR ||
-						neighbours[BOD_SAM][BOD_POS][BOD_POS] != BT_AIR ) {
-						chunkVertexBuffer[ vertexIndex + 0 ].data[3] |= 0x00000001;
-						chunkVertexBuffer[ vertexIndex + 3 ].data[3] |= 0x00000001;
-					}
+					occlusion[0] = VertexAO( neighbours[BOD_POS][BOD_SAM][BOD_POS],
+											 neighbours[BOD_SAM][BOD_POS][BOD_POS],
+											 neighbours[BOD_POS][BOD_POS][BOD_POS] );
+					occlusion[1] = VertexAO( neighbours[BOD_POS][BOD_SAM][BOD_POS],
+											 neighbours[BOD_SAM][BOD_NEG][BOD_POS],
+											 neighbours[BOD_POS][BOD_NEG][BOD_POS] );
+					occlusion[2] = VertexAO( neighbours[BOD_NEG][BOD_SAM][BOD_POS],
+											 neighbours[BOD_SAM][BOD_NEG][BOD_POS],
+											 neighbours[BOD_NEG][BOD_NEG][BOD_POS] );
+					occlusion[3] = VertexAO( neighbours[BOD_NEG][BOD_SAM][BOD_POS],
+											 neighbours[BOD_SAM][BOD_POS][BOD_POS],
+											 neighbours[BOD_NEG][BOD_POS][BOD_POS] );
+					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_Z, occlusion );
 					vertexIndex += VERTS_PER_FACE;
 				}
+
+				// Z-
 				if( neighbours[BOD_SAM][BOD_SAM][BOD_NEG] == BT_AIR )
 				{
-					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_NEG_Z, false );
-					if( neighbours[BOD_NEG][BOD_POS][BOD_NEG] != BT_AIR ||
-						neighbours[BOD_SAM][BOD_POS][BOD_NEG] != BT_AIR ||
-						neighbours[BOD_NEG][BOD_SAM][BOD_NEG] != BT_AIR ) {
-						chunkVertexBuffer[ vertexIndex + 0 ].data[3] |= 0x00000001;
-						chunkVertexBuffer[ vertexIndex + 3 ].data[3] |= 0x00000001;
-					}
-					if( neighbours[BOD_NEG][BOD_NEG][BOD_NEG] != BT_AIR ||
-						neighbours[BOD_NEG][BOD_SAM][BOD_NEG] != BT_AIR ||
-						neighbours[BOD_SAM][BOD_NEG][BOD_NEG] != BT_AIR ) {
-						chunkVertexBuffer[ vertexIndex + 1 ].data[3] |= 0x00000001;
-					}
-					if( neighbours[BOD_POS][BOD_NEG][BOD_NEG] != BT_AIR ||
-						neighbours[BOD_SAM][BOD_NEG][BOD_NEG] != BT_AIR ||
-						neighbours[BOD_POS][BOD_SAM][BOD_NEG] != BT_AIR ) {
-						chunkVertexBuffer[ vertexIndex + 2 ].data[3] |= 0x00000001;
-						chunkVertexBuffer[ vertexIndex + 4 ].data[3] |= 0x00000001;
-					}
-					if( neighbours[BOD_POS][BOD_POS][BOD_NEG] != BT_AIR ||
-						neighbours[BOD_POS][BOD_SAM][BOD_NEG] != BT_AIR ||
-						neighbours[BOD_SAM][BOD_POS][BOD_NEG] != BT_AIR ) {
-						chunkVertexBuffer[ vertexIndex + 5 ].data[3] |= 0x00000001;
-					}
+					occlusion[0] = VertexAO( neighbours[BOD_NEG][BOD_SAM][BOD_NEG],
+											 neighbours[BOD_SAM][BOD_POS][BOD_NEG],
+											 neighbours[BOD_NEG][BOD_POS][BOD_NEG] );
+					occlusion[1] = VertexAO( neighbours[BOD_NEG][BOD_SAM][BOD_NEG],
+											 neighbours[BOD_SAM][BOD_NEG][BOD_NEG],
+											 neighbours[BOD_NEG][BOD_NEG][BOD_NEG] );
+					occlusion[2] = VertexAO( neighbours[BOD_POS][BOD_SAM][BOD_NEG],
+											 neighbours[BOD_SAM][BOD_NEG][BOD_NEG],
+											 neighbours[BOD_POS][BOD_NEG][BOD_NEG] );
+					occlusion[3] = VertexAO( neighbours[BOD_POS][BOD_SAM][BOD_NEG],
+											 neighbours[BOD_SAM][BOD_POS][BOD_NEG],
+											 neighbours[BOD_POS][BOD_POS][BOD_NEG] );
+					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_NEG_Z, occlusion );
 					vertexIndex += VERTS_PER_FACE;
 				}
+
+				// Y+
 				if( neighbours[BOD_SAM][BOD_POS][BOD_SAM] == BT_AIR )
 				{
-					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_Y, false );
-					if( neighbours[BOD_SAM][BOD_POS][BOD_POS] != BT_AIR ||
-						neighbours[BOD_POS][BOD_POS][BOD_SAM] != BT_AIR ||
-						neighbours[BOD_POS][BOD_POS][BOD_POS] != BT_AIR ) {
-						chunkVertexBuffer[ vertexIndex + 5 ].data[3] |= 0x00000001;
-					}
-					if( neighbours[BOD_SAM][BOD_POS][BOD_NEG] != BT_AIR ||
-						neighbours[BOD_NEG][BOD_POS][BOD_SAM] != BT_AIR ||
-						neighbours[BOD_NEG][BOD_POS][BOD_NEG] != BT_AIR ) {
-						chunkVertexBuffer[ vertexIndex + 1 ].data[3] |= 0x00000001;
-					}
-					if( neighbours[BOD_POS][BOD_POS][BOD_NEG] != BT_AIR ||
-						neighbours[BOD_POS][BOD_POS][BOD_SAM] != BT_AIR ||
-						neighbours[BOD_SAM][BOD_POS][BOD_NEG] != BT_AIR ) {
-						chunkVertexBuffer[ vertexIndex + 2 ].data[3] |= 0x00000001;
-						chunkVertexBuffer[ vertexIndex + 4 ].data[3] |= 0x00000001;
-					}
-					if( neighbours[BOD_NEG][BOD_POS][BOD_POS] != BT_AIR ||
-						neighbours[BOD_SAM][BOD_POS][BOD_POS] != BT_AIR ||
-						neighbours[BOD_NEG][BOD_POS][BOD_SAM] != BT_AIR ) {
-						chunkVertexBuffer[ vertexIndex + 0 ].data[3] |= 0x00000001;
-						chunkVertexBuffer[ vertexIndex + 3 ].data[3] |= 0x00000001;
-					}
+					occlusion[0] = VertexAO( neighbours[BOD_NEG][BOD_POS][BOD_SAM],
+											 neighbours[BOD_SAM][BOD_POS][BOD_POS],
+											 neighbours[BOD_NEG][BOD_POS][BOD_POS] );
+					occlusion[1] = VertexAO( neighbours[BOD_NEG][BOD_POS][BOD_SAM],
+											 neighbours[BOD_SAM][BOD_POS][BOD_NEG],
+											 neighbours[BOD_NEG][BOD_POS][BOD_NEG] );
+					occlusion[2] = VertexAO( neighbours[BOD_POS][BOD_POS][BOD_SAM],
+											 neighbours[BOD_SAM][BOD_POS][BOD_NEG],
+											 neighbours[BOD_POS][BOD_POS][BOD_NEG] );
+					occlusion[3] = VertexAO( neighbours[BOD_POS][BOD_POS][BOD_SAM],
+											 neighbours[BOD_SAM][BOD_POS][BOD_POS],
+											 neighbours[BOD_POS][BOD_POS][BOD_POS] );
+					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_Y, occlusion );
 					vertexIndex += VERTS_PER_FACE;
 				}
+
+				// Y-
+				occlusion[0] = 0;
+				occlusion[1] = 0;
+				occlusion[2] = 0;
+				occlusion[3] = 0;
 				if( neighbours[BOD_SAM][BOD_NEG][BOD_SAM] == BT_AIR )
 				{
 					// TODO: add downward face

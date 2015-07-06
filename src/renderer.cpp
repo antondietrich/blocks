@@ -232,9 +232,8 @@ bool Renderer::Start( HWND wnd )
 	D3D11_RASTERIZER_DESC rasterizerStateDesc;
 	ZeroMemory( &rasterizerStateDesc, sizeof( rasterizerStateDesc ) );
 	rasterizerStateDesc.FillMode = D3D11_FILL_SOLID;
-	// rasterizerStateDesc.FillMode = D3D11_FILL_WIREFRAME;
+	//rasterizerStateDesc.FillMode = D3D11_FILL_WIREFRAME;
 	rasterizerStateDesc.CullMode = D3D11_CULL_BACK;
-	// rasterizerStateDesc.CullMode = D3D11_CULL_FRONT;
 	rasterizerStateDesc.FrontCounterClockwise = TRUE;
 	rasterizerStateDesc.DepthBias = 0;
 	rasterizerStateDesc.DepthBiasClamp = 0.0f;

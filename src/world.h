@@ -51,6 +51,7 @@ enum BLOCK_TYPE
 struct BlockVertex
 {
 	uint8_t data[4];
+	uint32_t ao;
 };
 
 struct Chunk
