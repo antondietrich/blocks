@@ -7,8 +7,8 @@
 * 	position.z		8
 * 	normalID		3
 * 	texcoordID		2
-* 	occluded		1
-* 	unused			2
+* 	occlusion		2
+* 	unused			1
 * 					--
 * 					32
 /**************************************/
@@ -51,7 +51,6 @@ enum BLOCK_TYPE
 struct BlockVertex
 {
 	uint8_t data[4];
-	uint32_t ao;
 };
 
 struct Chunk

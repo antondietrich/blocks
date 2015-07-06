@@ -21,9 +21,6 @@ cbuffer ModelCB : register( b2 )
 struct VS_Input
 {
 	uint pos : POSITION;
-	uint ao : TEXCOORD0;
-	//uint normal : TEXCOORD0;
-	//uint texcoord : TEXCOORD1;
 };
 
 struct PS_Input
@@ -45,7 +42,7 @@ PS_Input VSMain( VS_Input input )
 	int temp = ( input.pos & 0xff000000 ) >> 24;
 	int normalIndex = ( temp & 0xe0 ) >> 5; 	// 11100000
 	int texcoordIndex = ( temp & 0x18 ) >> 3; 	// 00011000
-	int occluded = ( temp & 0x01 ) >> 0;		// 00000100
+	int occluded = ( temp & 0x06 ) >> 1;		// 00000100
 
 	PS_Input output;
 
@@ -60,7 +57,7 @@ PS_Input VSMain( VS_Input input )
 
 	output.texcoord = texcoords[ texcoordIndex ] * 0.5;
 
-	output.occlusion = input.ao / 3.0;
+	output.occlusion = occluded / 3.0; //input.ao;// / 3.0;
 
 	return output;
 }
@@ -74,7 +71,7 @@ float4 PSMain( PS_Input input ) : SV_TARGET
 
 	float4 texSample =  fontTexture_.Sample( sampler_, input.texcoord );
 
-	return ao;
+//	return ao;
 	return ao * texSample * nDotL;
 
 	float4 sun = float4( 1.0f, 1.0f, 0.9f, 1.0f );

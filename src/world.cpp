@@ -298,22 +298,22 @@ void AddFace( BlockVertex *vertexBuffer, int startVertexIndex, uint8_t blockX, u
 		vertexBuffer[ startVertexIndex + 0 ].data[0] += blockX;
 		vertexBuffer[ startVertexIndex + 0 ].data[1] += blockY;
 		vertexBuffer[ startVertexIndex + 0 ].data[2] += blockZ;
-		vertexBuffer[ startVertexIndex + 0 ].ao = occluded[0];
+		vertexBuffer[ startVertexIndex + 0 ].data[3] |= ( occluded[0] << 1 );
 	vertexBuffer[ startVertexIndex + 1 ] = block[ faceIndex + 1];
 		vertexBuffer[ startVertexIndex + 1 ].data[0] += blockX;
 		vertexBuffer[ startVertexIndex + 1 ].data[1] += blockY;
 		vertexBuffer[ startVertexIndex + 1 ].data[2] += blockZ;
-		vertexBuffer[ startVertexIndex + 1 ].ao = occluded[1];
+		vertexBuffer[ startVertexIndex + 1 ].data[3] |= ( occluded[1] << 1 );
 	vertexBuffer[ startVertexIndex + 4 ] = block[ faceIndex + 2];
 		vertexBuffer[ startVertexIndex + 4 ].data[0] += blockX;
 		vertexBuffer[ startVertexIndex + 4 ].data[1] += blockY;
 		vertexBuffer[ startVertexIndex + 4 ].data[2] += blockZ;
-		vertexBuffer[ startVertexIndex + 4 ].ao = occluded[2];
+		vertexBuffer[ startVertexIndex + 4 ].data[3] |= ( occluded[2] << 1 );
 	vertexBuffer[ startVertexIndex + 5 ] = block[ faceIndex + 3];
 		vertexBuffer[ startVertexIndex + 5 ].data[0] += blockX;
 		vertexBuffer[ startVertexIndex + 5 ].data[1] += blockY;
 		vertexBuffer[ startVertexIndex + 5 ].data[2] += blockZ;
-		vertexBuffer[ startVertexIndex + 5 ].ao = occluded[3];
+		vertexBuffer[ startVertexIndex + 5 ].data[3] |= ( occluded[3] << 1 );
 
 	if( occluded[0] + occluded[2] <= occluded[1] + occluded[3] ) // normal quad
 	{
