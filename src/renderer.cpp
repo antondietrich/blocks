@@ -406,7 +406,7 @@ bool Renderer::Start( HWND wnd )
 
 	hr = device_->CreateBuffer( &cbDesc, &cbInitData, &globalConstantBuffer_ );
 	if( FAILED( hr ) ) {
-		OutputDebugStringA( "Failed to create overlay constant buffer!" );
+		OutputDebugStringA( "Failed to create global constant buffer!" );
 		return false;
 	}
 
@@ -694,7 +694,7 @@ void Renderer::DrawChunk( int x, int z, BlockVertex *vertices, int numVertices )
 	ProfileStop();
 
 	ModelCB modelCBData;
-	modelCBData.translate = XMFLOAT4( x, 0, z, 0 );
+	modelCBData.translate = XMFLOAT4( (float)x, 0.0f, (float)z, 0.0f );
 	context_->UpdateSubresource( modelConstantBuffer_, 0, NULL, &modelCBData, sizeof( ModelCB ), 0 );
 
 	ProfileStart( "Draw" );
@@ -853,6 +853,18 @@ bool Renderer::ResizeBuffers()
 		0.0f,							 0.0f,							1.0f,	 0.0f,
 		0.0f,							 0.0f,							0.0f,	 1.0f
 	);
+
+	cbData.normals[0] = {  0.0f,  0.0f, -1.0f, 0.0f }; // -Z
+	cbData.normals[1] = {  1.0f,  0.0f,  0.0f, 0.0f }; // +X
+	cbData.normals[2] = {  0.0f,  0.0f,  1.0f, 0.0f }; // +Z
+	cbData.normals[3] = { -1.0f,  0.0f,  0.0f, 0.0f }; // -X
+	cbData.normals[4] = {  0.0f,  1.0f,  0.0f, 0.0f }; // +Y
+	cbData.normals[5] = {  0.0f, -1.0f,  0.0f, 0.0f }; // -Y
+
+	cbData.texcoords[0] = { 0.0f, 0.0f, 0.0f, 0.0f }; // top left
+	cbData.texcoords[1] = { 0.0f, 1.0f, 0.0f, 0.0f }; // bottom left
+	cbData.texcoords[2] = { 1.0f, 0.0f, 0.0f, 0.0f }; // top right
+	cbData.texcoords[3] = { 1.0f, 1.0f, 0.0f, 0.0f }; // bottom right
 
 	if( globalConstantBuffer_ ) {
 		context_->UpdateSubresource( globalConstantBuffer_, 0, NULL, &cbData, sizeof( GlobalCB ), 0 );

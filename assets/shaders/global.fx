@@ -71,7 +71,7 @@ float4 PSMain( PS_Input input ) : SV_TARGET
 
 	float4 texSample =  fontTexture_.Sample( sampler_, input.texcoord );
 
-//	return ao;
+	//return ao;
 	return ao * texSample * nDotL;
 
 	float4 sun = float4( 1.0f, 1.0f, 0.9f, 1.0f );
