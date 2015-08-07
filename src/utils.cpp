@@ -35,11 +35,14 @@ LONGLONG GetTicksPerSecond()
 //********************
 // Profile
 //********************
-long long Profile::framesRendered_;
+int64 Profile::framesRendered_;
 float Profile::avgFrameTime_ = 0;
 int Profile::activeProfileIndex_ = 0;
 Profile::ProfileEntry Profile::activeProfiles_[];
 Profile::ProfileEntry Profile::finishedProfiles_[];
+
+// TODO: better hash function XD
+uint8 hash( const uint8 *str );
 
 float Average( float a, float b )
 {
@@ -51,9 +54,9 @@ float Average( float a, float b )
 	return result;
 }
 
-long long Average( long long a, long long b )
+int64 Average( int64 a, int64 b )
 {
-	long long result;
+	int64 result;
 	if( a == 0 ) {
 		result = b;
 	}
@@ -94,9 +97,9 @@ void Profile::Stop()
 	// pop the last active profile
 	activeProfileIndex_--;
 
-	long long profileTime = Time::Now() - activeProfiles_[ activeProfileIndex_ ].timePerCall;
+	int64 profileTime = Time::Now() - activeProfiles_[ activeProfileIndex_ ].timePerCall;
 
-	unsigned char storageIndex = hash( (unsigned char*)activeProfiles_[ activeProfileIndex_ ].name );
+	uint8 storageIndex = hash( (uint8*)activeProfiles_[ activeProfileIndex_ ].name );
 
 	// make sure we didn't hit a collision
 	assert( finishedProfiles_[ storageIndex ].name == 0 || 
@@ -139,11 +142,11 @@ void Profile::Report()
 	OutputDebugStringA( "\n\n" );
 }
 
-unsigned char hash( const unsigned char *str )
+uint8 hash( const uint8 *str )
 {
 	//unsigned long hash = 5381;
-	unsigned char hash = 179;
-	unsigned char c;
+	uint8 hash = 179;
+	uint8 c;
 
 	while( c = *str++ )
 		hash = ( ( hash << 5 ) + hash ) + c; /* hash * 33 + c */

@@ -100,7 +100,7 @@ void GenerateWorld( World *world )
 	}
 }
 
-int MeshCacheIndexFromChunkPos( unsigned int x, unsigned int z )
+int MeshCacheIndexFromChunkPos( uint x, uint z )
 {
 	int cacheX = x % VISIBLE_CHUNKS_RADIUS;
 	int cacheZ = z % VISIBLE_CHUNKS_RADIUS;
@@ -292,7 +292,7 @@ BlockVertex block[] =
 	{ 1, 0, 0, PACK_NORMAL_AND_TEXCOORD( 5, 2 ) }, // 2
 };
 
-void AddFace( BlockVertex *vertexBuffer, int startVertexIndex, uint8_t blockX, uint8_t blockY, uint8_t blockZ, FACE_INDEX faceIndex, uint8_t occluded[4] )
+void AddFace( BlockVertex *vertexBuffer, int startVertexIndex, uint8 blockX, uint8 blockY, uint8 blockZ, FACE_INDEX faceIndex, uint8 occluded[4] )
 {
 	vertexBuffer[ startVertexIndex + 0 ] = block[ faceIndex + 0];
 		vertexBuffer[ startVertexIndex + 0 ].data[0] += blockX;
@@ -329,14 +329,14 @@ void AddFace( BlockVertex *vertexBuffer, int startVertexIndex, uint8_t blockX, u
 
 // TODO: rotate face's inner edge based on occlusion direction (interpolation bugs)
 
-uint8_t VertexAO( BLOCK_TYPE side1, BLOCK_TYPE side2, BLOCK_TYPE corner )
+uint8 VertexAO( BLOCK_TYPE side1, BLOCK_TYPE side2, BLOCK_TYPE corner )
 {
 	if( side1 != BT_AIR && side2 != BT_AIR ) {
 		return 3;
 	}
-	int a1 = side1 == BT_AIR ? 0 : 1;
-	int a2 = side2 == BT_AIR ? 0 : 1;
-	int a3 = corner == BT_AIR ? 0 : 1;
+	uint8 a1 = side1 == BT_AIR ? 0 : 1;
+	uint8 a2 = side2 == BT_AIR ? 0 : 1;
+	uint8 a3 = corner == BT_AIR ? 0 : 1;
 
 	return a1 + a2 + a3;
 }
@@ -346,11 +346,11 @@ int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkP
 											 Chunk* chunkNegXNegZ, Chunk* chunkNegZ, Chunk* chunkPosXNegZ )
 {
 	int vertexIndex = 0;
-	for( uint8_t blockY = 0; blockY < CHUNK_HEIGHT; blockY++ )
+	for( uint8 blockY = 0; blockY < CHUNK_HEIGHT; blockY++ )
 	{
-		for( uint8_t blockX = 0; blockX < CHUNK_WIDTH; blockX++ )
+		for( uint8 blockX = 0; blockX < CHUNK_WIDTH; blockX++ )
 		{
-			for( uint8_t blockZ = 0; blockZ < CHUNK_WIDTH; blockZ++ )
+			for( uint8 blockZ = 0; blockZ < CHUNK_WIDTH; blockZ++ )
 			{
 				if( chunk->blocks[blockX][blockY][blockZ] == BT_AIR ) {
 					continue;
@@ -369,7 +369,7 @@ int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkP
 //
 //				}
 
-				uint8_t occlusion[] = { 0, 0, 0, 0 };
+				uint8 occlusion[] = { 0, 0, 0, 0 };
 
 				// X+
 				if( neighbours[BOD_POS][BOD_SAM][BOD_SAM] == BT_AIR )

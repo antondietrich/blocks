@@ -8,6 +8,7 @@
 #include <assert.h>
 
 #include "DDSTextureLoader.h"
+#include "types.h"
 #include "world.h"
 #include "config.h"
 #include "utils.h"
@@ -149,12 +150,10 @@ public:
 	bool Start( HWND wnd );
 	void Begin();
 	void End();
-	void Draw( unsigned int vertexCount, unsigned int startVertexOffset = 0 );
+	void Draw( uint vertexCount, uint startVertexOffset = 0 );
 	void DrawCube( DirectX::XMFLOAT3 offset );
-//	void SubmitBlock( DirectX::XMFLOAT3 offset );
 	void DrawChunk( int x, int z, BlockVertex *vertices, int numVertices );
 
-//	void SubmitFace( DirectX::XMFLOAT3 offset, unsigned char faceIndex );
 	void Flush();
 
 	/* Window management */
@@ -175,7 +174,7 @@ public:
 	void SetView( DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 dir, DirectX::XMFLOAT3 up );
 	void SetMesh( const Mesh& mesh );
 	void SetShader( const Shader& shader );
-	void SetTexture( const Texture& texture, SHADER_TYPE shader, unsigned int slot = 0 );
+	void SetTexture( const Texture& texture, SHADER_TYPE shader, uint slot = 0 );
 
 	unsigned int numBatches_;
 private:
@@ -202,8 +201,8 @@ private:
 //	BlockVertex block_[ VERTS_PER_BLOCK ];
 	// TODO: move this out of stack!!
 	BlockVertex *blockCache_;
-	unsigned int numCachedBlocks_;
-	unsigned int numCachedVerts_;
+	uint numCachedBlocks_;
+	uint numCachedVerts_;
 	
 	Shader shaders_[ MAX_SHADERS ];
 	Texture textures_[ MAX_TEXTURES ];
@@ -267,8 +266,8 @@ private:
 //	ID3D11SamplerState *sampler_;
 	ID3D11Buffer *constantBuffer_;
 
-	unsigned int lineNumber_;
-	unsigned int lineOffset_;
+	uint lineNumber_;
+	uint lineOffset_;
 	DirectX::XMFLOAT4 currentColor_;
 };
 

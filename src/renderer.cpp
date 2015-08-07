@@ -105,7 +105,7 @@ bool Renderer::Start( HWND wnd )
 	{
 		D3D_DRIVER_TYPE_HARDWARE, D3D_DRIVER_TYPE_WARP, D3D_DRIVER_TYPE_SOFTWARE
 	};
-	unsigned int totalDriverTypes = ARRAYSIZE( driverTypes );
+	uint totalDriverTypes = ARRAYSIZE( driverTypes );
 
 	D3D_FEATURE_LEVEL featureLevels[] =
 	{
@@ -113,15 +113,15 @@ bool Renderer::Start( HWND wnd )
 		D3D_FEATURE_LEVEL_10_1,
 		D3D_FEATURE_LEVEL_10_0
 	};
-	unsigned int totalFeatureLevels = ARRAYSIZE( featureLevels );
+	uint totalFeatureLevels = ARRAYSIZE( featureLevels );
 
 	// Device and context
-	unsigned int deviceFlags = 0;
+	uint deviceFlags = 0;
 	#ifdef _DEBUG_
 		deviceFlags = D3D11_CREATE_DEVICE_DEBUG;
 	#endif
 
-	unsigned int driverType = 0;
+	uint driverType = 0;
 	for( driverType = 0; driverType < totalDriverTypes; ++driverType )
 	{
 		hr = D3D11CreateDevice( NULL, driverTypes[driverType], NULL, deviceFlags, featureLevels, 
@@ -150,7 +150,7 @@ bool Renderer::Start( HWND wnd )
 	if( Config.multisampling == 2 || Config.multisampling == 4 || Config.multisampling == 8 || Config.multisampling == 16 )
 	{
 		swapChainDesc.SampleDesc.Count = (UINT)Config.multisampling;
-		unsigned int quality;
+		uint quality;
 		device_->CheckMultisampleQualityLevels( swapChainDesc.BufferDesc.Format, swapChainDesc.SampleDesc.Count, &quality );
 		if( quality > 0 )
 		{
@@ -218,8 +218,7 @@ bool Renderer::Start( HWND wnd )
 	RELEASE( dxgiFactory );
 	RELEASE( dxgiAdapter );
 	RELEASE( dxgiDevice );
-	
-	
+		
 
 	// NOTE: as a side-effect, sets the back buffer and the depth buffer (consider making separate functions)
 	ResizeBuffers();
@@ -590,8 +589,8 @@ void Renderer::Begin()
 	SetShader( shaders_[0] );
 	SetDepthBufferMode( DB_ENABLED );
 
-	unsigned int stride = sizeof( BlockVertex );
-	unsigned int offset = 0;
+	uint stride = sizeof( BlockVertex );
+	uint offset = 0;
 	context_->IASetVertexBuffers( 0, 1, &blockVB_, &stride, &offset );
 
 	numBatches_ = 0;
@@ -606,7 +605,7 @@ void Renderer::Flush()
 	}
 }
 
-void Renderer::Draw( unsigned int vertexCount, unsigned int startVertexOffset )
+void Renderer::Draw( uint vertexCount, uint startVertexOffset )
 {
 //	assert( numCachedBlocks_ * VERTS_PER_BLOCK == numPrimitives );
 //	D3D11_MAPPED_SUBRESOURCE mapResource;
@@ -621,8 +620,8 @@ void Renderer::Draw( unsigned int vertexCount, unsigned int startVertexOffset )
 
 	numCachedBlocks_ = 0;
 
-//	unsigned int stride = sizeof( BlockVertex );
-//	unsigned int offset = 0;
+//	uint stride = sizeof( BlockVertex );
+//	uint offset = 0;
 //	context_->IASetVertexBuffers( 0, 1, &blockVB_, &stride, &offset );
 
 	context_->Draw( vertexCount, startVertexOffset );
@@ -645,23 +644,6 @@ void Renderer::DrawCube( XMFLOAT3 offset )
 	SetShader( shaders_[0] );
 	context_->Draw( 36, 0 );
 }
-
-#if 0
-void Renderer::SubmitBlock( DirectX::XMFLOAT3 offset )
-{
-	memcpy( &blockCache_[ numCachedBlocks_ * VERTS_PER_BLOCK ],
-			&block_,
-			sizeof( VertexPosNormalTexcoord ) * VERTS_PER_BLOCK );
-	for( int i = 0; i < VERTS_PER_BLOCK; i++ )
-	{
-		blockCache_[ numCachedBlocks_ * VERTS_PER_BLOCK + i ].pos[0] += offset.x;
-		blockCache_[ numCachedBlocks_ * VERTS_PER_BLOCK + i ].pos[1] += offset.y;
-		blockCache_[ numCachedBlocks_ * VERTS_PER_BLOCK + i ].pos[2] += offset.z;
-	}
-	
-	++numCachedBlocks_;
-}
-#endif
 
 void Renderer::DrawChunk( int x, int z, BlockVertex *vertices, int numVertices )
 {
@@ -703,30 +685,6 @@ void Renderer::DrawChunk( int x, int z, BlockVertex *vertices, int numVertices )
 
 	numCachedVerts_ += numVertices;
 }
-
-
-#if 0
-void Renderer::SubmitFace( DirectX::XMFLOAT3 offset, unsigned char faceIndex )
-{
-	memcpy( &blockCache_[ numCachedVerts_ ],
-			&block_[ faceIndex ],
-			sizeof( VertexPosNormalTexcoord ) * VERTS_PER_FACE );
-
-	for( int i = 0; i < VERTS_PER_FACE; i++ )
-	{
-		blockCache_[ numCachedVerts_ + i ].pos[0] += offset.x;
-		blockCache_[ numCachedVerts_ + i ].pos[1] += offset.y;
-		blockCache_[ numCachedVerts_ + i ].pos[2] += offset.z;
-	}
-
-	numCachedVerts_ += VERTS_PER_FACE;
-
-	if( numCachedVerts_ == MAX_VERTS_PER_BATCH ) {
-		Draw( numCachedVerts_ );
-		numCachedVerts_ = 0;
-	}
-}
-#endif
 
 void Renderer::End()
 {
@@ -894,8 +852,8 @@ void Renderer::SetView( XMFLOAT3 pos, XMFLOAT3 dir, XMFLOAT3 up )
 
 void Renderer::SetSampler( SAMPLER_TYPE st )
 {
-	unsigned int slot = 0;
-	unsigned int numSamplers = 1;
+	uint slot = 0;
+	uint numSamplers = 1;
 	context_->PSSetSamplers( slot, numSamplers, &samplers_[ st ] );
 }
 
@@ -907,14 +865,14 @@ void Renderer::SetBlendMode( BLEND_MODE bm )
 
 void Renderer::SetDepthBufferMode( DEPTH_BUFFER_MODE dbm )
 {
-	unsigned int stencilRef = 0;
+	uint stencilRef = 0;
 	context_->OMSetDepthStencilState( depthStencilStates_[ dbm ], stencilRef );
 }
 
 void Renderer::SetMesh( const Mesh& mesh )
 {
-	unsigned int stride = sizeof( VertexPosNormalTexcoord );
-	unsigned int offset = 0;
+	uint stride = sizeof( VertexPosNormalTexcoord );
+	uint offset = 0;
 	context_->IASetVertexBuffers( 0, 1, &mesh.vertexBuffer_, &stride, &offset );
 }
 
@@ -925,7 +883,7 @@ void Renderer::SetShader( const Shader& shader )
 	context_->PSSetShader( shader.pixelShader_, NULL, 0 );
 }
 
-void Renderer::SetTexture( const Texture& texture, SHADER_TYPE shader, unsigned int slot )
+void Renderer::SetTexture( const Texture& texture, SHADER_TYPE shader, uint slot )
 {
 	if( ( shader & ST_VERTEX ) == ST_VERTEX ) {
 		context_->VSSetShaderResources( slot, 1, &texture.textureView_ );	
@@ -1311,8 +1269,8 @@ void Overlay::DisplayText( int x, int y, const char* text, XMFLOAT4 color )
 	memcpy( mapResource.pData, vertices, sizeof( OverlayVertex ) * textLength * 6 );
 	renderer_->context_->Unmap( vb_, 0 );
 
-	unsigned int stride = sizeof( OverlayVertex );
-	unsigned int offset = 0;
+	uint stride = sizeof( OverlayVertex );
+	uint offset = 0;
 
 	// update constant buffer
 	if( color.x != currentColor_.x ||
@@ -1388,9 +1346,9 @@ HRESULT CreateInputLayoutFromShaderBytecode( ID3DBlob* shaderBytecode, ID3D11Dev
 	vShaderReflection->GetDesc( &shaderDesc );
 
 	// Read input layout description from shader info
-	unsigned int numInputParameters = shaderDesc.InputParameters;
+	uint numInputParameters = shaderDesc.InputParameters;
 	D3D11_INPUT_ELEMENT_DESC *inputLayoutDesc = new D3D11_INPUT_ELEMENT_DESC[ numInputParameters ];
-	for( unsigned int i = 0; i < numInputParameters; ++i )
+	for( uint i = 0; i < numInputParameters; ++i )
 	{
 		D3D11_SIGNATURE_PARAMETER_DESC paramDesc;
 		vShaderReflection->GetInputParameterDesc( i, &paramDesc );

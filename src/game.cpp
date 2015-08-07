@@ -185,8 +185,8 @@ void Game::DoFrame( float dt )
 		for( int x = playerChunkX - CHUNKS_TO_DRAW; x <= playerChunkX + CHUNKS_TO_DRAW; x++ )
 		{
 			// always positive
-			unsigned int storageX = x + INT_MAX;
-			unsigned int storageZ = z + INT_MAX;
+			uint storageX = x + INT_MAX;
+			uint storageZ = z + INT_MAX;
 			ChunkMesh *chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( storageX, storageZ ) ];
 			if( chunkMesh->vertices && chunkMesh->chunkPos[0] == x && chunkMesh->chunkPos[1] == z )
 			{

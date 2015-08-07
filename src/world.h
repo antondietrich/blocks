@@ -19,7 +19,8 @@
 
 #include <cstdlib>
 #include <string>
-#include <stdint.h>
+//#include <stdint.h>
+#include "types.h"
 
 namespace Blocks
 {
@@ -50,7 +51,7 @@ enum BLOCK_TYPE
 
 struct BlockVertex
 {
-	uint8_t data[4];
+	uint8 data[4];
 };
 
 struct Chunk
@@ -76,7 +77,7 @@ int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkP
 											 Chunk* chunkNegX, Chunk* chunk, Chunk* chunkPosX,
 											 Chunk* chunkNegXNegZ, Chunk* chunkNegZ, Chunk* chunkPosXNegZ );
 
-int MeshCacheIndexFromChunkPos( unsigned int x, unsigned int z );
+int MeshCacheIndexFromChunkPos( uint x, uint z );
 
 }
 

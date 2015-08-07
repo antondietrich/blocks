@@ -11,6 +11,7 @@
 //
 #define RELEASE(p) if(p) { p->Release(); p = 0; }
 
+
 //
 // Hi-res timer
 //
@@ -24,10 +25,10 @@ private:
 	static LONGLONG ticksPerSecond_;
 };
 
+
 //
 // Profiler
 //
-
 #ifdef _PROFILE_
 
 #define ProfileStart( name ) Profile::Start( (name) );
@@ -44,9 +45,6 @@ private:
 
 #endif
 
-// TODO: better hash function XD
-unsigned char hash( const unsigned char *str );
-
 #define MAX_ACTIVE_PROFILES 32
 #define MAX_STORED_PROFILES 255
 class Profile
@@ -61,14 +59,14 @@ public:
 private:
 	struct ProfileEntry {
 		const char* name;
-		long long timePerCall;
-		long long timePerCallAccumulator;
-		long long timePerFrame;
-		unsigned int callsPerFrame;
+		int64 timePerCall;
+		int64 timePerCallAccumulator;
+		int64 timePerFrame;
+		uint callsPerFrame;
 		float percentage;
 	};
 
-	static long long framesRendered_;
+	static int64 framesRendered_;
 	static float avgFrameTime_;
 	static int activeProfileIndex_; // last active profile + 1
 	static ProfileEntry activeProfiles_[ MAX_ACTIVE_PROFILES ]; // active profiles in LIFO order

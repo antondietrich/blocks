@@ -5,6 +5,7 @@
 #include <DirectXMath.h>
 #include <limits.h>
 
+#include "types.h"
 #include "renderer.h"
 #include "world.h"
 #include "config.h"
