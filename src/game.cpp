@@ -28,7 +28,7 @@ Game::~Game()
 //	}
 }
 
-ChunkMesh chunkMeshCache[ VISIBLE_CHUNKS_RADIUS * VISIBLE_CHUNKS_RADIUS ];
+ChunkMesh chunkMeshCache[ MESH_CACHE_DIM * MESH_CACHE_DIM ];
 
 bool Game::Start( HWND wnd )
 {
@@ -52,7 +52,7 @@ bool Game::Start( HWND wnd )
 	world_ = new World();
 	GenerateWorld( world_ );
 
-	for( int i = 0; i < VISIBLE_CHUNKS_RADIUS * VISIBLE_CHUNKS_RADIUS; i++ ) {
+	for( int i = 0; i < MESH_CACHE_DIM * MESH_CACHE_DIM; i++ ) {
 		chunkMeshCache[i].vertices = 0;
 		chunkMeshCache[i].size = 0;
 		chunkMeshCache[i].chunkPos[0] = 0;
@@ -73,7 +73,7 @@ XMFLOAT3 playerUp = 	{ 0.0f,  1.0f, 0.0f };
 int playerChunkX = 0;
 int playerChunkZ = 0;
 
-bool gDrawOverlay = false;
+bool gDrawOverlay = true;
 
 void Game::DoFrame( float dt )
 {
@@ -172,22 +172,42 @@ void Game::DoFrame( float dt )
 //	int numDrawnBatches = 0;
 	int numDrawnVertices = 0;
 	int chunkMeshesRebuilt = 0;
+	int chunksGenerated = 0;
 	//BlockVertex *vertexBuffer = new BlockVertex[ MAX_VERTS_PER_CHUNK_MESH ];
 
 	// const int CHUNKS_TO_DRAW = 4;
-
+	// TODO: key state (down, up, press, release)
 	if( input.key[ VK_F1 ] ) {
 		gDrawOverlay = !gDrawOverlay;
+	}
+
+	assert( CHUNKS_TO_DRAW <= CHUNK_CACHE_DIM );
+
+	for( int z = playerChunkZ - CHUNK_CACHE_HALF_DIM; z <= playerChunkZ + CHUNK_CACHE_HALF_DIM; z++ )
+	{
+		for( int x = playerChunkX - CHUNK_CACHE_HALF_DIM; x <= playerChunkX + CHUNK_CACHE_HALF_DIM; x++ )
+		{
+			int index = ChunkCacheIndexFromChunkPos( x, z );
+			Chunk *chunk = &world_->chunks[ index ];
+
+			if( chunk->pos[0] == x && chunk->pos[1] == z )
+			{
+				// use stored chunk
+			}
+			else
+			{
+				// generate new chunk
+				chunksGenerated++;
+				GenerateChunk( chunk, x, z );
+			}
+		}
 	}
 
 	for( int z = playerChunkZ - CHUNKS_TO_DRAW; z <= playerChunkZ + CHUNKS_TO_DRAW; z++ )
 	{
 		for( int x = playerChunkX - CHUNKS_TO_DRAW; x <= playerChunkX + CHUNKS_TO_DRAW; x++ )
 		{
-			// always positive
-			uint storageX = x + INT_MAX;
-			uint storageZ = z + INT_MAX;
-			ChunkMesh *chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( storageX, storageZ ) ];
+			ChunkMesh *chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( x, z ) ];
 			if( chunkMesh->vertices && chunkMesh->chunkPos[0] == x && chunkMesh->chunkPos[1] == z )
 			{
 				// use chunk mesh
@@ -205,21 +225,22 @@ void Game::DoFrame( float dt )
 					chunkMesh->vertices = 0;
 				}
 
+				// TODO: any reason to break here?
 				if( chunkMeshesRebuilt > 1 ) {
 					break;
 				}
 				
-				Chunk* chunk = &world_->chunks[x+HALF_CHUNKS_TO_GENERATE][z+HALF_CHUNKS_TO_GENERATE];
+				Chunk* chunk = &world_->chunks[ ChunkCacheIndexFromChunkPos( x, z ) ];
 
-				Chunk* chunkPosX = &world_->chunks[x+HALF_CHUNKS_TO_GENERATE+1][z+HALF_CHUNKS_TO_GENERATE];
-				Chunk* chunkNegX = &world_->chunks[x+HALF_CHUNKS_TO_GENERATE-1][z+HALF_CHUNKS_TO_GENERATE];
-				Chunk* chunkPosZ = &world_->chunks[x+HALF_CHUNKS_TO_GENERATE][z+HALF_CHUNKS_TO_GENERATE+1];
-				Chunk* chunkNegZ = &world_->chunks[x+HALF_CHUNKS_TO_GENERATE][z+HALF_CHUNKS_TO_GENERATE-1];
+				Chunk* chunkPosX = &world_->chunks[ ChunkCacheIndexFromChunkPos( x+1, z ) ];
+				Chunk* chunkNegX = &world_->chunks[ ChunkCacheIndexFromChunkPos( x-1, z ) ];
+				Chunk* chunkPosZ = &world_->chunks[ ChunkCacheIndexFromChunkPos( x, z+1 ) ];
+				Chunk* chunkNegZ = &world_->chunks[ ChunkCacheIndexFromChunkPos( x, z-1 ) ];
 
-				Chunk* chunkPosXPosZ = &world_->chunks[x+HALF_CHUNKS_TO_GENERATE+1][z+HALF_CHUNKS_TO_GENERATE+1];
-				Chunk* chunkNegXPosZ = &world_->chunks[x+HALF_CHUNKS_TO_GENERATE-1][z+HALF_CHUNKS_TO_GENERATE+1];
-				Chunk* chunkPosXNegZ = &world_->chunks[x+HALF_CHUNKS_TO_GENERATE+1][z+HALF_CHUNKS_TO_GENERATE-1];
-				Chunk* chunkNegXNegZ = &world_->chunks[x+HALF_CHUNKS_TO_GENERATE-1][z+HALF_CHUNKS_TO_GENERATE-1];
+				Chunk* chunkPosXPosZ = &world_->chunks[ ChunkCacheIndexFromChunkPos( x+1, z+1 ) ];
+				Chunk* chunkNegXPosZ = &world_->chunks[ ChunkCacheIndexFromChunkPos( x-1, z+1 ) ];
+				Chunk* chunkPosXNegZ = &world_->chunks[ ChunkCacheIndexFromChunkPos( x+1, z-1 ) ];
+				Chunk* chunkNegXNegZ = &world_->chunks[ ChunkCacheIndexFromChunkPos( x-1, z-1 ) ];
 
 				GenerateChunkMesh( chunkMesh, chunkNegXPosZ,	chunkPosZ,	chunkPosXPosZ,
 											  chunkNegX,		chunk,		chunkPosX,
@@ -241,13 +262,19 @@ void Game::DoFrame( float dt )
 		OutputDebugStringA( " chunk meshes rebuilt\n" );
 	}
 
+	if( chunksGenerated != 0 )
+	{
+		OutputDebugStringA( std::to_string( chunksGenerated ).c_str() );
+		OutputDebugStringA( " chunks generated\n" );
+	}
+
 //	if( batchVertexCount ) {
 //		renderer.Draw( batchVertexCount );
 //		numDrawnBatches++;
 //	}
 
 	ProfileStart( "Render" );
-	for( int meshIndex = 0; meshIndex < VISIBLE_CHUNKS_RADIUS * VISIBLE_CHUNKS_RADIUS; meshIndex++ )
+	for( int meshIndex = 0; meshIndex < MESH_CACHE_DIM * MESH_CACHE_DIM; meshIndex++ )
 	{
 		if( chunkMeshCache[ meshIndex ].vertices )
 		{
@@ -270,10 +297,11 @@ void Game::DoFrame( float dt )
 		overlay.Reset();
 		overlay.WriteLine( "Frame time: %5.2f (%i fps)", sum / UPDATE_DELTA_FRAMES, fps);
 		overlay.WriteLine( "Chunk buffer size: %i KB", sizeof( BlockVertex ) * MAX_VERTS_PER_BATCH / 1024 );
-		overlay.WriteLine( "Batches rendered: %i", renderer.numBatches_ );
-		overlay.WriteLine( "Vertices rendered: %i", numDrawnVertices );
+//		overlay.WriteLine( "Batches rendered: %i", renderer.numBatches_ );
+//		overlay.WriteLine( "Vertices rendered: %i", numDrawnVertices );
+		overlay.WriteLine( "Chunks generated: %i", chunksGenerated );
 		overlay.WriteLine( "Chunk meshes rebuild: %i", chunkMeshesRebuilt );
-		overlay.WriteLine( "Mouse offset: %+03i - %+03i", input.mouse.x, input.mouse.y );
+//		overlay.WriteLine( "Mouse offset: %+03i - %+03i", input.mouse.x, input.mouse.y );
 		overlay.WriteLine( "" );
 		overlay.WriteLine( "Player pos: %5.2f %5.2f %5.2f", playerPos.x, playerPos.y, playerPos.z );
 		overlay.WriteLine( "Chunk pos:  %5i ----- %5i", playerChunkX, playerChunkZ );

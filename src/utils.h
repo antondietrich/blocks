@@ -6,6 +6,8 @@
 #include <cstdio>
 #include <string>
 
+#include "types.h"
+
 //
 // Safely releases a COM interface
 //

@@ -67,44 +67,65 @@ void InitWorldGen()
 	chunkVertexBuffer = new BlockVertex[ MAX_VERTS_PER_CHUNK_MESH ];
 }
 
-void GenerateWorld( World *world )
+void GenerateChunk( Chunk *chunk, int x, int z )
 {
-	// srand( 12345 );
-	for( int z = 0; z < CHUNKS_TO_GENERATE; z++ )
-	{
-		for( int x = 0; x < CHUNKS_TO_GENERATE; x++ )
-		{
-			for( int blockY = 0; blockY < CHUNK_HEIGHT; blockY++ )
-			{
-				for( int blockZ = 0; blockZ < CHUNK_WIDTH; blockZ++ )
-				{
-					for( int blockX = 0; blockX < CHUNK_WIDTH; blockX++ )
-					{
-						float scale = 0.125f;
-						scale = 0.0625f / 2.0f;
-						int height = (int)( InterpolatedNoise( ( x * CHUNK_WIDTH + blockX ) * scale, ( z * CHUNK_WIDTH + blockZ ) * scale ) * 40 );
+	chunk->pos[0] = x;
+	chunk->pos[1] = z;
 
-						if( blockY < height ) {
-							world->chunks[x][z].blocks[blockX][blockY][blockZ] = BT_DIRT;
-						}
-						else if( blockY == height ) {
-							world->chunks[x][z].blocks[blockX][blockY][blockZ] = BT_GRASS;
-						}
-						else {
-							world->chunks[x][z].blocks[blockX][blockY][blockZ] = BT_AIR;
-						}
-					}
+	
+
+	for( int blockY = 0; blockY < CHUNK_HEIGHT; blockY++ )
+	{
+		for( int blockZ = 0; blockZ < CHUNK_WIDTH; blockZ++ )
+		{
+			for( int blockX = 0; blockX < CHUNK_WIDTH; blockX++ )
+			{
+				float scale = 0.125f;
+				scale = 0.0625f / 2.0f;
+				int height = (int)( InterpolatedNoise( ( x * CHUNK_WIDTH + blockX ) * scale, ( z * CHUNK_WIDTH + blockZ ) * scale ) * 40 );
+
+				if( blockY < height ) {
+					chunk->blocks[blockX][blockY][blockZ] = BT_DIRT;
+				}
+				else if( blockY == height ) {
+					chunk->blocks[blockX][blockY][blockZ] = BT_GRASS;
+				}
+				else {
+					chunk->blocks[blockX][blockY][blockZ] = BT_AIR;
 				}
 			}
 		}
 	}
 }
 
+void GenerateWorld( World *world )
+{
+	for( int z = 0; z < CHUNK_CACHE_DIM; z++ )
+	{
+		for( int x = 0; x < CHUNK_CACHE_DIM; x++ )
+		{
+			GenerateChunk( &world->chunks[ z * CHUNK_CACHE_DIM + x ], x, z );
+		}
+	}
+}
+
+int ChunkCacheIndexFromChunkPos( int x, int z )
+{
+	unsigned int ux = x + INT_MAX;
+	unsigned int uz = z + INT_MAX;
+	int cacheX = ux % CHUNK_CACHE_DIM;
+	int cacheZ = uz % CHUNK_CACHE_DIM;
+	int cacheIndex = cacheZ * CHUNK_CACHE_DIM + cacheX;
+	return cacheIndex;
+}
+
 int MeshCacheIndexFromChunkPos( uint x, uint z )
 {
-	int cacheX = x % VISIBLE_CHUNKS_RADIUS;
-	int cacheZ = z % VISIBLE_CHUNKS_RADIUS;
-	int cacheIndex = cacheZ * VISIBLE_CHUNKS_RADIUS + cacheX;
+	unsigned int ux = x + INT_MAX;
+	unsigned int uz = z + INT_MAX;
+	int cacheX = ux % MESH_CACHE_DIM;
+	int cacheZ = uz % MESH_CACHE_DIM;
+	int cacheIndex = cacheZ * MESH_CACHE_DIM + cacheX;
 	return cacheIndex;
 }
 
