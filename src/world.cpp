@@ -67,23 +67,67 @@ void InitWorldGen()
 	chunkVertexBuffer = new BlockVertex[ MAX_VERTS_PER_CHUNK_MESH ];
 }
 
-void GenerateChunk( Chunk *chunk, int x, int z )
+struct ChunkHeightField
+{
+	int height[CHUNK_WIDTH][CHUNK_WIDTH];
+};
+
+void GenerateChunkHeightField( ChunkHeightField *heightfield, Chunk *chunk, int x, int z, int scale, int heightScale )
 {
 	chunk->pos[0] = x;
 	chunk->pos[1] = z;
 
-	
+	int absX = x >= 0 ?
+				abs( x % scale ) :
+				( scale - abs( x % scale ) ) % scale;
 
-	for( int blockY = 0; blockY < CHUNK_HEIGHT; blockY++ )
+	int absZ = z >= 0 ?
+				abs( z % scale ) :
+				( scale - abs( z % scale ) ) % scale;
+
+	int minX = x - absX;
+	int maxX = minX + scale;
+	int minZ = z - absZ;
+	int maxZ = minZ + scale;
+
+	float noise1 = Noise2D( minX, minZ );
+	float noise2 = Noise2D( maxX, minZ );
+	float noise3 = Noise2D( minX, maxZ );
+	float noise4 = Noise2D( maxX, maxZ );
+
+	for( int blockZ = 0; blockZ < CHUNK_WIDTH; blockZ++ )
 	{
-		for( int blockZ = 0; blockZ < CHUNK_WIDTH; blockZ++ )
+		for( int blockX = 0; blockX < CHUNK_WIDTH; blockX++ )
 		{
-			for( int blockX = 0; blockX < CHUNK_WIDTH; blockX++ )
-			{
-				float scale = 0.125f;
-				scale = 0.0625f / 2.0f;
-				int height = (int)( InterpolatedNoise( ( x * CHUNK_WIDTH + blockX ) * scale, ( z * CHUNK_WIDTH + blockZ ) * scale ) * 40 );
+			float xT = (float)( absX * CHUNK_WIDTH + blockX ) / ( CHUNK_WIDTH * scale );
+			float zT = (float)( absZ * CHUNK_WIDTH + blockZ ) / ( CHUNK_WIDTH * scale );
 
+			float lerp1 = Lerp( noise1, noise2, xT );
+			float lerp2 = Lerp( noise3, noise4, xT );
+			float lerp3 = Lerp( lerp1, lerp2, zT );
+
+			int height = (int)(lerp3 * heightScale);
+
+			heightfield->height[blockZ][blockX] = height;
+		}
+	}
+}
+
+void GenerateChunk( Chunk *chunk, int x, int z )
+{
+	ChunkHeightField heightfield1 = {};
+	GenerateChunkHeightField( &heightfield1, chunk, x, z, 1, 10 );
+	ChunkHeightField heightfield2 = {};
+	GenerateChunkHeightField( &heightfield2, chunk, x, z, 8, 20 );
+
+	for( int blockZ = 0; blockZ < CHUNK_WIDTH; blockZ++ )
+	{
+		for( int blockX = 0; blockX < CHUNK_WIDTH; blockX++ )
+		{
+			float height = heightfield1.height[blockZ][blockX] + heightfield2.height[blockZ][blockX];
+
+			for( int blockY = 0; blockY < CHUNK_HEIGHT; blockY++ )
+			{
 				if( blockY < height ) {
 					chunk->blocks[blockX][blockY][blockZ] = BT_DIRT;
 				}
@@ -109,7 +153,7 @@ void GenerateWorld( World *world )
 	}
 }
 
-int ChunkCacheIndexFromChunkPos( int x, int z )
+int ChunkCacheIndexFromChunkPos( uint x, uint z )
 {
 	unsigned int ux = x + INT_MAX;
 	unsigned int uz = z + INT_MAX;

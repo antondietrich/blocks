@@ -38,7 +38,7 @@ namespace Blocks
 #define FACES_PER_BLOCK 6
 #define VERTS_PER_FACE 6
 
-#define CHUNKS_TO_DRAW 2
+#define CHUNKS_TO_DRAW 5
 #define MESH_CACHE_DIM (CHUNKS_TO_DRAW * 2 + 1)
 
 #define MAX_VERTS_PER_CHUNK_MESH (CHUNK_WIDTH * CHUNK_WIDTH * CHUNK_HEIGHT * FACES_PER_BLOCK * VERTS_PER_FACE)
@@ -81,7 +81,7 @@ int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkP
 											 Chunk* chunkNegX, Chunk* chunk, Chunk* chunkPosX,
 											 Chunk* chunkNegXNegZ, Chunk* chunkNegZ, Chunk* chunkPosXNegZ );
 
-int ChunkCacheIndexFromChunkPos( int x, int z );
+int ChunkCacheIndexFromChunkPos( uint x, uint z );
 int MeshCacheIndexFromChunkPos( uint x, uint z );
 
 }
