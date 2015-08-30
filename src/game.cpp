@@ -71,6 +71,7 @@ XMFLOAT3 playerRight 	= { 1.0f,  0.0f, 0.0f };
 XMFLOAT3 playerUp 		= { 0.0f,  1.0f, 0.0f };
 XMFLOAT3 playerSpeed 	= { 0.0f,  0.0f, 0.0f };
 float playerMass = 75.0f;
+float playerHeight = 1.8f;
 
 int playerChunkX = 0;
 int playerChunkZ = 0;
@@ -139,6 +140,40 @@ void Game::DoFrame( float dt )
 	vPos = vPos + vSpeed * dTSec + ( acceleration * dTSec * dTSec ) / 2.0f;
 	vSpeed = vSpeed + acceleration * dTSec;
 
+	// TEMP: ground the player
+	if( playerPos.x >= 0 ) {
+		playerChunkX = (int)playerPos.x / CHUNK_WIDTH;
+	}
+	else {
+		playerChunkX = (int)playerPos.x / CHUNK_WIDTH - 1;
+	}
+
+	if( playerPos.z >= 0 ) {
+		playerChunkZ = (int)playerPos.z / CHUNK_WIDTH;
+	}
+	else {
+		playerChunkZ = (int)playerPos.z / CHUNK_WIDTH - 1;
+	}
+
+	int groundHeight = 20;
+
+	int playerBlockX = (int)floor( playerPos.x - playerChunkX * CHUNK_WIDTH );
+	int playerBlockZ = (int)floor( playerPos.z - playerChunkZ * CHUNK_WIDTH );
+
+	int index = ChunkCacheIndexFromChunkPos( playerChunkX, playerChunkZ );
+	Chunk *chunk = &world_->chunks[ index ];
+
+	for( int i = 0; i < CHUNK_HEIGHT; i++ )
+	{
+		if( chunk->blocks[playerBlockX][i][playerBlockZ] == BT_AIR )
+		{
+			groundHeight = i;
+			break;
+		}
+	}
+
+	vPos = XMVectorSetY( vPos, (float)groundHeight );
+
 	if( input.mouse.x ) {
 		float yawDegrees = input.mouse.x / 10.0f;
 		XMMATRIX yaw = XMMatrixRotationY( XMConvertToRadians( yawDegrees ) );
@@ -166,21 +201,10 @@ void Game::DoFrame( float dt )
 	XMStoreFloat3( &playerUp, vUp );
 	XMStoreFloat3( &playerSpeed, vSpeed );
 
-	renderer.SetView( playerPos, playerLook, playerUp );
+	XMFLOAT3 playerEyePos = playerPos;
+	playerEyePos.y += playerHeight;
 
-	if( playerPos.x >= 0 ) {
-		playerChunkX = (int)playerPos.x / CHUNK_WIDTH;
-	}
-	else {
-		playerChunkX = (int)playerPos.x / CHUNK_WIDTH - 1;
-	}
-
-	if( playerPos.z >= 0 ) {
-		playerChunkZ = (int)playerPos.z / CHUNK_WIDTH;
-	}
-	else {
-		playerChunkZ = (int)playerPos.z / CHUNK_WIDTH - 1;
-	}
+	renderer.SetView( playerEyePos, playerLook, playerUp );
 
 	// world rendering
 //	int batchVertexCount = 0;
