@@ -64,11 +64,13 @@ bool Game::Start( HWND wnd )
 	return true;
 }
 
-XMFLOAT3 playerPos = 	{ 0.0f, 50.0f, 0.0f };
-XMFLOAT3 playerDir = 	{ 0.0f,  0.0f, 1.0f };
-XMFLOAT3 playerLook = 	{ 0.0f,  0.0f, 1.0f };
-XMFLOAT3 playerRight = 	{ 1.0f,  0.0f, 0.0f };
-XMFLOAT3 playerUp = 	{ 0.0f,  1.0f, 0.0f };
+XMFLOAT3 playerPos 		= { 0.0f, 20.0f, 0.0f };
+XMFLOAT3 playerDir 		= { 0.0f,  0.0f, 1.0f };
+XMFLOAT3 playerLook 	= { 0.0f,  0.0f, 1.0f };
+XMFLOAT3 playerRight 	= { 1.0f,  0.0f, 0.0f };
+XMFLOAT3 playerUp 		= { 0.0f,  1.0f, 0.0f };
+XMFLOAT3 playerSpeed 	= { 0.0f,  0.0f, 0.0f };
+float playerMass = 75.0f;
 
 int playerChunkX = 0;
 int playerChunkZ = 0;
@@ -100,31 +102,43 @@ void Game::DoFrame( float dt )
 	sprintf( deltaStr, "%5.2f", sum / UPDATE_DELTA_FRAMES );
 
 	// player movement
-	XMVECTOR vPos, vDir, vLook, vRight, vUp;
-	vPos = XMLoadFloat3( &playerPos );
-	vDir = XMLoadFloat3( &playerDir );
-	vLook = XMLoadFloat3( &playerLook );
-	vRight = XMLoadFloat3( &playerRight );
-	vUp = XMLoadFloat3( &playerUp );
+	float dTSec = dt / 1000.0f;
+	XMVECTOR vPos, vDir, vLook, vRight, vUp, vSpeed, force, acceleration, drag, gravity;
+	vPos 	= XMLoadFloat3( &playerPos );
+	vDir 	= XMLoadFloat3( &playerDir );
+	vLook 	= XMLoadFloat3( &playerLook );
+	vRight 	= XMLoadFloat3( &playerRight );
+	vUp 	= XMLoadFloat3( &playerUp );
+	vSpeed 	= XMLoadFloat3( &playerSpeed );
+
+	force = XMVectorZero();
+	acceleration = XMVectorZero();
+	gravity = XMVectorSet( 0.0f, -9.8f, 0.0f, 0.0f ) * playerMass;
 
 	if( input.key[ 'W' ] ) {
-		vPos += vDir*0.1f;
+		force += vDir;
 	}
 	if( input.key[ 'S' ] ) {
-		vPos -= vDir*0.1f;
+		force -= vDir;
 	}
 	if( input.key[ 'D' ] ) {
-		vPos += vRight*0.1f;
+		force += vRight;
 	}
 	if( input.key[ 'A' ] ) {
-		vPos -= vRight*0.1f;
+		force -= vRight;
 	}
 	if( input.key[ VK_SPACE ] ) {
-		vPos += vUp*0.1f;
+		force += vUp;
 	}
-	if( input.key[ VK_CONTROL ] ) {
-		vPos -= vUp*0.1f;
-	}
+	force = XMVector4Normalize( force ) * 1500.0f;
+	force += gravity;
+
+	drag = 0.5f * vSpeed;
+	acceleration = force / playerMass - drag;
+
+	vPos = vPos + vSpeed * dTSec + ( acceleration * dTSec * dTSec ) / 2.0f;
+	vSpeed = vSpeed + acceleration * dTSec;
+
 	if( input.mouse.x ) {
 		float yawDegrees = input.mouse.x / 10.0f;
 		XMMATRIX yaw = XMMatrixRotationY( XMConvertToRadians( yawDegrees ) );
@@ -150,6 +164,7 @@ void Game::DoFrame( float dt )
 	XMStoreFloat3( &playerLook, vLook );
 	XMStoreFloat3( &playerRight, vRight );
 	XMStoreFloat3( &playerUp, vUp );
+	XMStoreFloat3( &playerSpeed, vSpeed );
 
 	renderer.SetView( playerPos, playerLook, playerUp );
 
@@ -305,6 +320,7 @@ void Game::DoFrame( float dt )
 		overlay.WriteLine( "" );
 		overlay.WriteLine( "Player pos: %5.2f %5.2f %5.2f", playerPos.x, playerPos.y, playerPos.z );
 		overlay.WriteLine( "Chunk pos:  %5i ----- %5i", playerChunkX, playerChunkZ );
+		overlay.WriteLine( "Speed:  %5.2f", XMVectorGetX( XMVector4Length( vSpeed ) ) );
 
 		ProfileStop();
 	}
