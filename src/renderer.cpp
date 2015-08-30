@@ -1091,24 +1091,6 @@ bool Overlay::Start( Renderer *renderer )
 		return false;
 	}
 
-	// create texture sampler
-//	D3D11_SAMPLER_DESC samplerDesc;
-//	ZeroMemory( &samplerDesc, sizeof( samplerDesc ) );
-//	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
-//	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-//	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-//	samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-//	samplerDesc.MipLODBias = 0;
-//	samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-//	samplerDesc.MinLOD = 0;
-//	samplerDesc.MaxLOD = 0;
-//
-//	hr = renderer_->device_->CreateSamplerState( &samplerDesc, &sampler_ );
-//	if( FAILED( hr ) ) {
-//		OutputDebugStringA( "Failed to create sampler state!" );
-//		return false;
-//	}
-
 	// create constant buffer
 	D3D11_BUFFER_DESC cbDesc;
 	ZeroMemory( &cbDesc, sizeof( cbDesc ) );
@@ -1132,7 +1114,6 @@ bool Overlay::Start( Renderer *renderer )
 		OutputDebugStringA( "Failed to create overlay constant buffer!" );
 		return false;
 	}
-
 
 	return true;
 }
@@ -1285,6 +1266,7 @@ void Overlay::DisplayText( int x, int y, const char* text, XMFLOAT4 color )
 		renderer_->context_->UpdateSubresource( constantBuffer_, 0, NULL, &cbData, sizeof( OverlayShaderCB ), 0 );
 	}
 
+	renderer_->SetDepthBufferMode( DB_DISABLED );
 	renderer_->SetBlendMode( BM_ALPHA );
 	renderer_->context_->IASetVertexBuffers( 0, 1, &vb_, &stride, &offset );
 	// renderer_->context_->PSSetShaderResources( 0, 1, &textureView_ );
