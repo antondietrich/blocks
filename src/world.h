@@ -19,6 +19,7 @@
 
 #include <cstdlib>
 #include <string>
+#include <DirectXMath.h>
 //#include <stdint.h>
 #include "types.h"
 
@@ -80,6 +81,10 @@ void GenerateWorld( World *world );
 int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkPosZ, Chunk* chunkPosXPosZ,
 											 Chunk* chunkNegX, Chunk* chunk, Chunk* chunkPosX,
 											 Chunk* chunkNegXNegZ, Chunk* chunkNegZ, Chunk* chunkPosXNegZ );
+
+DirectX::XMINT3 GetPlayerChunkPos( DirectX::XMFLOAT3 playerPos );
+DirectX::XMINT3 GetPlayerBlockPos( DirectX::XMFLOAT3 playerPos );
+BLOCK_TYPE GetBlockType( const Chunk &chunk, DirectX::XMINT3 blockPos );
 
 int ChunkCacheIndexFromChunkPos( uint x, uint z );
 int MeshCacheIndexFromChunkPos( uint x, uint z );

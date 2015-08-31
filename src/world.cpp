@@ -3,6 +3,8 @@
 namespace Blocks
 {
 
+using namespace DirectX;
+
 // http://freespace.virgin.net/hugo.elias/models/m_perlin.htm
 //
 // returns a random float in the 0.0 - 1.0 range
@@ -124,7 +126,7 @@ void GenerateChunk( Chunk *chunk, int x, int z )
 	{
 		for( int blockX = 0; blockX < CHUNK_WIDTH; blockX++ )
 		{
-			float height = heightfield1.height[blockZ][blockX] + heightfield2.height[blockZ][blockX];
+			int height = heightfield1.height[blockZ][blockX] + heightfield2.height[blockZ][blockX];
 
 			for( int blockY = 0; blockY < CHUNK_HEIGHT; blockY++ )
 			{
@@ -151,6 +153,45 @@ void GenerateWorld( World *world )
 			GenerateChunk( &world->chunks[ z * CHUNK_CACHE_DIM + x ], x, z );
 		}
 	}
+}
+
+
+XMINT3 GetPlayerChunkPos( XMFLOAT3 playerPos )
+{
+	XMINT3 chunkPos = {};
+
+	if( playerPos.x >= 0 ) {
+		chunkPos.x = (int)playerPos.x / CHUNK_WIDTH;
+	}
+	else {
+		chunkPos.x = (int)playerPos.x / CHUNK_WIDTH - 1;
+	}
+
+	if( playerPos.z >= 0 ) {
+		chunkPos.z = (int)playerPos.z / CHUNK_WIDTH;
+	}
+	else {
+		chunkPos.z = (int)playerPos.z / CHUNK_WIDTH - 1;
+	}
+
+	return chunkPos;
+}
+
+XMINT3 GetPlayerBlockPos( XMFLOAT3 playerPos )
+{
+	XMINT3 blockPos = {};
+	XMINT3 chunkPos = GetPlayerChunkPos( playerPos );
+
+	blockPos.x = (int)floor( playerPos.x - chunkPos.x * CHUNK_WIDTH );
+	blockPos.z = (int)floor( playerPos.z - chunkPos.z * CHUNK_WIDTH );
+	blockPos.y = (int)floor( playerPos.y );
+
+	return blockPos;
+}
+
+BLOCK_TYPE GetBlockType( const Chunk &chunk, XMINT3 blockPos )
+{
+	return chunk.blocks[blockPos.x][blockPos.y][blockPos.z];
 }
 
 int ChunkCacheIndexFromChunkPos( uint x, uint z )

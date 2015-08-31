@@ -72,9 +72,7 @@ XMFLOAT3 playerUp 		= { 0.0f,  1.0f, 0.0f };
 XMFLOAT3 playerSpeed 	= { 0.0f,  0.0f, 0.0f };
 float playerMass = 75.0f;
 float playerHeight = 1.8f;
-
-int playerChunkX = 0;
-int playerChunkZ = 0;
+bool playerAirborne = true;
 
 bool gDrawOverlay = true;
 
@@ -102,6 +100,32 @@ void Game::DoFrame( float dt )
 
 	sprintf( deltaStr, "%5.2f", sum / UPDATE_DELTA_FRAMES );
 
+	// player posiion in chunks and blocks
+	XMINT3 playerChunkPos = GetPlayerChunkPos( playerPos );
+	XMINT3 playerBlockPos = GetPlayerBlockPos( playerPos );
+
+	// Generate chunks around player
+	int chunksGenerated = 0;
+	for( int z = playerChunkPos.z - CHUNK_CACHE_HALF_DIM; z <= playerChunkPos.z + CHUNK_CACHE_HALF_DIM; z++ )
+	{
+		for( int x = playerChunkPos.x - CHUNK_CACHE_HALF_DIM; x <= playerChunkPos.x + CHUNK_CACHE_HALF_DIM; x++ )
+		{
+			int index = ChunkCacheIndexFromChunkPos( x, z );
+			Chunk *chunk = &world_->chunks[ index ];
+
+			if( chunk->pos[0] == x && chunk->pos[1] == z )
+			{
+				// use stored chunk
+			}
+			else
+			{
+				// generate new chunk
+				chunksGenerated++;
+				GenerateChunk( chunk, x, z );
+			}
+		}
+	}
+
 	// player movement
 	float dTSec = dt / 1000.0f;
 	XMVECTOR vPos, vDir, vLook, vRight, vUp, vSpeed, force, acceleration, drag, gravity;
@@ -128,51 +152,106 @@ void Game::DoFrame( float dt )
 	if( input.key[ 'A' ] ) {
 		force -= vRight;
 	}
-	if( input.key[ VK_SPACE ] ) {
-		force += vUp;
-	}
+	
 	force = XMVector4Normalize( force ) * 1500.0f;
-	force += gravity;
-
-	drag = 0.5f * vSpeed;
-	acceleration = force / playerMass - drag;
-
-	vPos = vPos + vSpeed * dTSec + ( acceleration * dTSec * dTSec ) / 2.0f;
-	vSpeed = vSpeed + acceleration * dTSec;
-
-	// TEMP: ground the player
-	if( playerPos.x >= 0 ) {
-		playerChunkX = (int)playerPos.x / CHUNK_WIDTH;
-	}
-	else {
-		playerChunkX = (int)playerPos.x / CHUNK_WIDTH - 1;
-	}
-
-	if( playerPos.z >= 0 ) {
-		playerChunkZ = (int)playerPos.z / CHUNK_WIDTH;
-	}
-	else {
-		playerChunkZ = (int)playerPos.z / CHUNK_WIDTH - 1;
-	}
-
-	int groundHeight = 20;
-
-	int playerBlockX = (int)floor( playerPos.x - playerChunkX * CHUNK_WIDTH );
-	int playerBlockZ = (int)floor( playerPos.z - playerChunkZ * CHUNK_WIDTH );
-
-	int index = ChunkCacheIndexFromChunkPos( playerChunkX, playerChunkZ );
-	Chunk *chunk = &world_->chunks[ index ];
-
-	for( int i = 0; i < CHUNK_HEIGHT; i++ )
-	{
-		if( chunk->blocks[playerBlockX][i][playerBlockZ] == BT_AIR )
-		{
-			groundHeight = i;
-			break;
+	
+	if( input.key[ VK_SPACE ] ) {
+		if( !playerAirborne ) {
+			force += vUp * 2400.0 * playerMass;
+			playerAirborne = true;
 		}
 	}
+	
+	force += gravity;
 
-	vPos = XMVectorSetY( vPos, (float)groundHeight );
+	drag = 3.5f * vSpeed;
+	drag = XMVectorSetY( drag, XMVectorGetY( drag ) * 1.0f / 9.0f );
+
+	acceleration = force / playerMass - drag;
+
+	// check for world collisions
+	XMVECTOR vTargetPos = vPos + vSpeed * dTSec + ( acceleration * dTSec * dTSec ) / 2.0f;
+	XMVECTOR vPlayerDelta = vTargetPos - vPos;
+
+	XMFLOAT3 targetPos = {};
+	XMStoreFloat3( &targetPos, vTargetPos );
+
+	XMINT3 targetChunkPos = GetPlayerChunkPos( targetPos );
+	XMINT3 targetBlockPos = GetPlayerBlockPos( targetPos );
+
+	//BLOCK_TYPE targetBT = GetBlockType( world_->chunks[ ChunkCacheIndexFromChunkPos( targetChunkPos.x, targetChunkPos.z ) ], targetBlockPos );
+
+	// add non-air blocks around player to collision testing
+#if 0
+	AABB boxes[9];
+	int boxIndex = 0;
+	for( int x = playerBlockPos.x - 1; x <= playerBlockPos.x + 1; x++ )
+	{
+		for( int y = playerBlockPos.y - 1; y <= playerBlockPos.y + 1; y++ )
+		{
+			for( int z = playerBlockPos.z - 1; z <= playerBlockPos.z + 1; z++ )
+			{
+				if( z > 0 && z < CHUNK_WIDTH && x > 0 && x < CHUNK_WIDTH &&
+					GetBlockType( world_->chunks[ ChunkCacheIndexFromChunkPos( playerChunkPos.x, playerChunkPos.z ) ], XMINT3( x, y, z ) ) != BT_AIR )
+				{
+					boxes[ boxIndex ] = { XMFLOAT3( x, y, z ), XMFLOAT3( x+1, y+1, z+1 ) };
+					boxIndex++;
+				}
+			}
+		}
+	}
+#endif
+
+	// decompose playerDelta to three main axes and test for collision per axis
+	float playerDeltaX = XMVectorGetX( vPlayerDelta );
+	float playerDeltaY = XMVectorGetY( vPlayerDelta );
+	float playerDeltaZ = XMVectorGetZ( vPlayerDelta );
+
+	XMFLOAT3 targetPosX = playerPos;
+	targetPosX.x += playerDeltaX;
+
+	XMFLOAT3 targetPosY = playerPos;
+	targetPosY.y += playerDeltaY;
+
+	XMFLOAT3 targetPosZ = playerPos;
+	targetPosZ.z += playerDeltaZ;
+
+	XMINT3 targetChunkPosX = GetPlayerChunkPos( targetPosX );
+	XMINT3 targetChunkPosY = GetPlayerChunkPos( targetPosY );
+	XMINT3 targetChunkPosZ = GetPlayerChunkPos( targetPosZ );
+
+	XMINT3 targetBlockPosX = GetPlayerBlockPos( targetPosX );
+	XMINT3 targetBlockPosY = GetPlayerBlockPos( targetPosY );
+	XMINT3 targetBlockPosZ = GetPlayerBlockPos( targetPosZ );
+
+	BLOCK_TYPE targetBlockTypeX = GetBlockType( world_->chunks[ ChunkCacheIndexFromChunkPos(targetChunkPosX.x, targetChunkPosX.z) ], targetBlockPosX );
+	if( targetBlockTypeX != BT_AIR )
+	{
+		playerDeltaX = 0.0f;
+		vSpeed = XMVectorSetX( vSpeed, 0.0f );
+	}
+
+	BLOCK_TYPE targetBlockTypeY = GetBlockType( world_->chunks[ ChunkCacheIndexFromChunkPos(targetChunkPosY.x, targetChunkPosY.z) ], targetBlockPosY );
+	if( targetBlockTypeY != BT_AIR )
+	{
+		playerDeltaY = 0.0f;
+		playerAirborne = false;
+		vSpeed = XMVectorSetY( vSpeed, 0.0f );
+	}
+
+	BLOCK_TYPE targetBlockTypeZ = GetBlockType( world_->chunks[ ChunkCacheIndexFromChunkPos(targetChunkPosZ.x, targetChunkPosZ.z) ], targetBlockPosZ );
+	if( targetBlockTypeZ != BT_AIR )
+	{
+		playerDeltaZ = 0.0f;
+		vSpeed = XMVectorSetZ( vSpeed, 0.0f );
+	}
+
+	vTargetPos = XMVectorSet( playerPos.x + playerDeltaX, playerPos.y + playerDeltaY, playerPos.z + playerDeltaZ, 0.0f );
+
+
+	// move player
+	vPos = vTargetPos;
+	vSpeed = vSpeed + acceleration * dTSec;
 
 	if( input.mouse.x ) {
 		float yawDegrees = input.mouse.x / 10.0f;
@@ -211,40 +290,19 @@ void Game::DoFrame( float dt )
 //	int numDrawnBatches = 0;
 	int numDrawnVertices = 0;
 	int chunkMeshesRebuilt = 0;
-	int chunksGenerated = 0;
-	//BlockVertex *vertexBuffer = new BlockVertex[ MAX_VERTS_PER_CHUNK_MESH ];
 
-	// const int CHUNKS_TO_DRAW = 4;
 	// TODO: key state (down, up, press, release)
 	if( input.key[ VK_F1 ] ) {
 		gDrawOverlay = !gDrawOverlay;
 	}
 
+
+	// render chunks around player
 	assert( CHUNKS_TO_DRAW <= CHUNK_CACHE_DIM );
 
-	for( int z = playerChunkZ - CHUNK_CACHE_HALF_DIM; z <= playerChunkZ + CHUNK_CACHE_HALF_DIM; z++ )
+	for( int z = playerChunkPos.z - CHUNKS_TO_DRAW; z <= playerChunkPos.z + CHUNKS_TO_DRAW; z++ )
 	{
-		for( int x = playerChunkX - CHUNK_CACHE_HALF_DIM; x <= playerChunkX + CHUNK_CACHE_HALF_DIM; x++ )
-		{
-			int index = ChunkCacheIndexFromChunkPos( x, z );
-			Chunk *chunk = &world_->chunks[ index ];
-
-			if( chunk->pos[0] == x && chunk->pos[1] == z )
-			{
-				// use stored chunk
-			}
-			else
-			{
-				// generate new chunk
-				chunksGenerated++;
-				GenerateChunk( chunk, x, z );
-			}
-		}
-	}
-
-	for( int z = playerChunkZ - CHUNKS_TO_DRAW; z <= playerChunkZ + CHUNKS_TO_DRAW; z++ )
-	{
-		for( int x = playerChunkX - CHUNKS_TO_DRAW; x <= playerChunkX + CHUNKS_TO_DRAW; x++ )
+		for( int x = playerChunkPos.x - CHUNKS_TO_DRAW; x <= playerChunkPos.x + CHUNKS_TO_DRAW; x++ )
 		{
 			ChunkMesh *chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( x, z ) ];
 			if( chunkMesh->vertices && chunkMesh->chunkPos[0] == x && chunkMesh->chunkPos[1] == z )
@@ -343,7 +401,7 @@ void Game::DoFrame( float dt )
 //		overlay.WriteLine( "Mouse offset: %+03i - %+03i", input.mouse.x, input.mouse.y );
 		overlay.WriteLine( "" );
 		overlay.WriteLine( "Player pos: %5.2f %5.2f %5.2f", playerPos.x, playerPos.y, playerPos.z );
-		overlay.WriteLine( "Chunk pos:  %5i ----- %5i", playerChunkX, playerChunkZ );
+		overlay.WriteLine( "Chunk pos:  %5i ----- %5i", playerChunkPos.x, playerChunkPos.z );
 		overlay.WriteLine( "Speed:  %5.2f", XMVectorGetX( XMVector4Length( vSpeed ) ) );
 
 		ProfileStop();

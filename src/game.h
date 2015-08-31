@@ -8,6 +8,7 @@
 #include "types.h"
 #include "renderer.h"
 #include "world.h"
+#include "collision.h"
 #include "config.h"
 
 namespace Blocks
