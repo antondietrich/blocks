@@ -157,7 +157,7 @@ void Game::DoFrame( float dt )
 	
 	if( input.key[ VK_SPACE ] ) {
 		if( !playerAirborne ) {
-			force += vUp * 2400.0 * playerMass;
+			force += vUp * 2400.0 * playerMass * 2.35 / dt;
 			playerAirborne = true;
 		}
 	}
@@ -165,7 +165,7 @@ void Game::DoFrame( float dt )
 	force += gravity;
 
 	drag = 3.5f * vSpeed;
-	drag = XMVectorSetY( drag, XMVectorGetY( drag ) * 1.0f / 9.0f );
+	drag = XMVectorSetY( drag, XMVectorGetY( drag ) * 0.12f );
 
 	acceleration = force / playerMass - drag;
 
@@ -232,11 +232,12 @@ void Game::DoFrame( float dt )
 	}
 
 	BLOCK_TYPE targetBlockTypeY = GetBlockType( world_->chunks[ ChunkCacheIndexFromChunkPos(targetChunkPosY.x, targetChunkPosY.z) ], targetBlockPosY );
-	if( targetBlockTypeY != BT_AIR )
+	if( targetBlockTypeY != BT_AIR && playerSpeed.y < 0.0f )
 	{
 		playerDeltaY = 0.0f;
 		playerAirborne = false;
 		vSpeed = XMVectorSetY( vSpeed, 0.0f );
+		acceleration = XMVectorSetY( acceleration, -9.8f );
 	}
 
 	BLOCK_TYPE targetBlockTypeZ = GetBlockType( world_->chunks[ ChunkCacheIndexFromChunkPos(targetChunkPosZ.x, targetChunkPosZ.z) ], targetBlockPosZ );
@@ -246,7 +247,7 @@ void Game::DoFrame( float dt )
 		vSpeed = XMVectorSetZ( vSpeed, 0.0f );
 	}
 
-	vTargetPos = XMVectorSet( playerPos.x + playerDeltaX, playerPos.y + playerDeltaY, playerPos.z + playerDeltaZ, 0.0f );
+	vTargetPos = XMVectorSet( playerPos.x + playerDeltaX, playerPos.y + playerDeltaY, playerPos.z + playerDeltaZ, 1.0f );
 
 
 	// move player
