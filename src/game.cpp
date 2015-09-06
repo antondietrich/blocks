@@ -42,9 +42,9 @@ bool Game::Start( HWND wnd )
 		return false;
 	}
 
-	for( int i = 0; i < NUM_VKEYS; i++ )
+	for( int i = 0; i < KEY::COUNT; i++ )
 	{
-		input.key[i] = false;
+		input.key[i] = { 0 };
 	}
 	input.mouse = {0, 0};
 
@@ -140,22 +140,22 @@ void Game::DoFrame( float dt )
 	acceleration = XMVectorZero();
 	gravity = XMVectorSet( 0.0f, -9.8f, 0.0f, 0.0f ) * playerMass;
 
-	if( input.key[ 'W' ] ) {
+	if( input.key[ KEY::W ].Down ) {
 		force += vDir;
 	}
-	if( input.key[ 'S' ] ) {
+	if( input.key[ KEY::S ].Down ) {
 		force -= vDir;
 	}
-	if( input.key[ 'D' ] ) {
+	if( input.key[ KEY::D ].Down ) {
 		force += vRight;
 	}
-	if( input.key[ 'A' ] ) {
+	if( input.key[ KEY::A ].Down ) {
 		force -= vRight;
 	}
 	
 	force = XMVector4Normalize( force ) * 1500.0f;
 	
-	if( input.key[ VK_SPACE ] ) {
+	if( input.key[ KEY::SPACE ].Down ) {
 		if( !playerAirborne ) {
 			force += vUp * 2400.0 * playerMass * 2.35 / dt;
 			playerAirborne = true;
@@ -293,7 +293,7 @@ void Game::DoFrame( float dt )
 	int chunkMeshesRebuilt = 0;
 
 	// TODO: key state (down, up, press, release)
-	if( input.key[ VK_F1 ] ) {
+	if( input.key[ KEY::F1 ].Pressed ) {
 		gDrawOverlay = !gDrawOverlay;
 	}
 
@@ -404,12 +404,27 @@ void Game::DoFrame( float dt )
 		overlay.WriteLine( "Player pos: %5.2f %5.2f %5.2f", playerPos.x, playerPos.y, playerPos.z );
 		overlay.WriteLine( "Chunk pos:  %5i ----- %5i", playerChunkPos.x, playerChunkPos.z );
 		overlay.WriteLine( "Speed:  %5.2f", XMVectorGetX( XMVector4Length( vSpeed ) ) );
+		overlay.Write( "Keys pressed: " );
+
+		for( int i = 0; i < KEY::COUNT; i++ )
+		{
+			if( input.key[i].Down )
+			{
+				overlay.Write( "%s, ", GetKeyName( (KEY)i ) );
+			}
+		}
+		overlay.Write( "" );
 
 		ProfileStop();
 	}
 
 	renderer.End();
 
+	for( int i = 0; i < KEY::COUNT; i++ )
+	{
+		input.key[i].Pressed = false;
+		input.key[i].Released = false;
+	}
 	input.mouse.x = 0;
 	input.mouse.y = 0;
 }

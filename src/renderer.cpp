@@ -205,7 +205,12 @@ bool Renderer::Start( HWND wnd )
 		return false;
 	}
 
-	dxgiFactory->CreateSwapChain( device_, &swapChainDesc, &swapChain_ );
+	hr = dxgiFactory->CreateSwapChain( device_, &swapChainDesc, &swapChain_ );
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "Failed to create swap chain!" );
+		return false;
+	}
 
 	// Handle Alt-Enter ourselves
 	hr = dxgiFactory->MakeWindowAssociation( wnd, DXGI_MWA_NO_ALT_ENTER );
@@ -721,7 +726,12 @@ bool Renderer::ResizeBuffers()
 	RELEASE( depthStencilView_ );
 
 	// Let DXGI figure out buffer size and format
-	swapChain_->ResizeBuffers( 0, 0, 0, DXGI_FORMAT_UNKNOWN, 0 );
+	hr = swapChain_->ResizeBuffers( 0, 0, 0, DXGI_FORMAT_UNKNOWN, 0 );
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "Failed to resize back buffers!" );
+		return false;
+	}
 
 	ID3D11Texture2D* backBufferTexture = 0;
 	hr = swapChain_->GetBuffer( 0, __uuidof( ID3D11Texture2D ), (LPVOID*)&backBufferTexture );

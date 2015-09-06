@@ -1,5 +1,8 @@
 #include <Windows.h>
 
+#define __BLOCKS_INPUT_IMPL__
+#include "input.h"
+#include "types.h"
 #include "game.h"
 #include "config.h"
 #include "utils.h"
@@ -320,10 +323,45 @@ void TranslateUserInput( UserInput &userInput, LPARAM lParam )
 				keyExtra = VK_LSHIFT;
 			}
 		}
-		userInput.key[ key ] =  pressed;
+		uint8 keyIndex = ( uint8 )VKeyToKey( key );
+		if( userInput.key[ keyIndex ].Down == pressed )
+		{
+			userInput.key[ keyIndex ].Pressed = false;
+			userInput.key[ keyIndex ].Released = false;
+		}
+		else if( !userInput.key[ keyIndex ].Down && pressed )
+		{
+			userInput.key[ keyIndex ].Pressed = true;
+			userInput.key[ keyIndex ].Released = false;
+		}
+		else if( userInput.key[ keyIndex ].Down && !pressed )
+		{
+			userInput.key[ keyIndex ].Released = true;
+			userInput.key[ keyIndex ].Pressed = false;
+		}
+
+		userInput.key[ keyIndex ].Down = pressed;
+
 		if( keyExtra )
 		{
-			userInput.key[ keyExtra ] = pressed;
+			uint8 extraKeyIndex = ( uint8 )VKeyToKey( keyExtra );
+			if( userInput.key[ extraKeyIndex ].Down == pressed )
+			{
+				userInput.key[ extraKeyIndex ].Pressed = false;
+				userInput.key[ extraKeyIndex ].Released = false;
+			}
+			else if( !userInput.key[ extraKeyIndex ].Down && pressed )
+			{
+				userInput.key[ extraKeyIndex ].Pressed = true;
+				userInput.key[ extraKeyIndex ].Released = false;
+			}
+			else if( userInput.key[ extraKeyIndex ].Down && !pressed )
+			{
+				userInput.key[ extraKeyIndex ].Released = true;
+				userInput.key[ extraKeyIndex ].Pressed = false;
+			}
+
+			userInput.key[ extraKeyIndex ].Down = pressed;
 		}
 	}
 

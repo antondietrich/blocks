@@ -29,7 +29,7 @@ set output=-Fdbin\ -Fobuild\ -Febin\blocks.exe
 goto COMMON
 
 :COMMON
-set source=src\main.cpp src\game.cpp src\renderer.cpp src\DDSTextureLoader.cpp src\world.cpp src\utils.cpp
+set source=src\main.cpp src\game.cpp src\renderer.cpp src\DDSTextureLoader.cpp src\world.cpp src\utils.cpp src\input.cpp
 goto BUILD
 
 :BUILD

@@ -6,3 +6,4 @@ compile.bat
 *.pdb
 *.suo
 *.sln
+bin

@@ -6,6 +6,7 @@
 #include <limits.h>
 
 #include "types.h"
+#include "input.h"
 #include "renderer.h"
 #include "world.h"
 #include "collision.h"
@@ -22,7 +23,7 @@ namespace Blocks
 
 struct UserInput
 {
-	bool key[ NUM_VKEYS ];
+	KeyState key[ KEY::COUNT ];
 	struct {
 		long x;
 		long y;
