@@ -1,4 +1,6 @@
-Texture2D fontTexture_ : register( t0 );
+Texture2D textureA_ : register( t0 );
+Texture2D textureB_ : register( t1 );
+Texture2D textureC_ : register( t2 );
 SamplerState sampler_ : register( s0 );
 
 cbuffer GlobalCB : register( b0 )
@@ -21,6 +23,7 @@ cbuffer ModelCB : register( b2 )
 struct VS_Input
 {
 	uint pos : POSITION;
+	uint texID : TEXCOORD0;
 };
 
 struct PS_Input
@@ -29,6 +32,7 @@ struct PS_Input
 	float4 normal : TEXCOORD0;
 	float2 texcoord : TEXCOORD1;
 	float occlusion : TEXCOORD2;
+	float texID : TEXCOORD3;
 };
 
 PS_Input VSMain( VS_Input input )
@@ -59,6 +63,8 @@ PS_Input VSMain( VS_Input input )
 
 	output.occlusion = occluded / 3.0; //input.ao;// / 3.0;
 
+	output.texID = input.texID;
+
 	return output;
 }
 
@@ -66,10 +72,25 @@ float4 PSMain( PS_Input input ) : SV_TARGET
 {
 	float ao = ( 1.0 - input.occlusion ) * 0.7 + 0.3;
 
+	//return 0.2 * ao * input.texID;
+
 	float4 negLightDir = normalize( float4( 0.5f, 0.8f, 0.25f, 0.0f ) );
 	float nDotL = dot( input.normal, negLightDir ) * 0.3 + 0.7;
 
-	float4 texSample =  fontTexture_.Sample( sampler_, input.texcoord );
+	//float4 texSample =  textureA_.Sample( sampler_, input.texcoord );
+	float4 texSample;
+	if( input.texID < 0.5 )
+	{
+		texSample =  textureA_.Sample( sampler_, input.texcoord );
+	}
+	else if( input.texID > 0.5 && input.texID < 1.5)
+	{
+		texSample =  textureB_.Sample( sampler_, input.texcoord );
+	}
+	else if( input.texID > 1.5 && input.texID < 2.5)
+	{
+		texSample =  textureC_.Sample( sampler_, input.texcoord );
+	}
 
 	//return ao;
 	return ao * texSample * nDotL;

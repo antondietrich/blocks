@@ -398,28 +398,32 @@ BlockVertex block[] =
 	{ 1, 0, 0, PACK_NORMAL_AND_TEXCOORD( 5, 2 ) }, // 2
 };
 
-void AddFace( BlockVertex *vertexBuffer, int startVertexIndex, uint8 blockX, uint8 blockY, uint8 blockZ, FACE_INDEX faceIndex, uint8 occluded[4] )
+void AddFace( BlockVertex *vertexBuffer, int startVertexIndex, uint8 blockX, uint8 blockY, uint8 blockZ, FACE_INDEX faceIndex, uint8 occluded[4], uint32 texID )
 {
 	vertexBuffer[ startVertexIndex + 0 ] = block[ faceIndex + 0];
 		vertexBuffer[ startVertexIndex + 0 ].data[0] += blockX;
 		vertexBuffer[ startVertexIndex + 0 ].data[1] += blockY;
 		vertexBuffer[ startVertexIndex + 0 ].data[2] += blockZ;
 		vertexBuffer[ startVertexIndex + 0 ].data[3] |= ( occluded[0] << 1 );
+		vertexBuffer[ startVertexIndex + 0 ].texID = texID;
 	vertexBuffer[ startVertexIndex + 1 ] = block[ faceIndex + 1];
 		vertexBuffer[ startVertexIndex + 1 ].data[0] += blockX;
 		vertexBuffer[ startVertexIndex + 1 ].data[1] += blockY;
 		vertexBuffer[ startVertexIndex + 1 ].data[2] += blockZ;
 		vertexBuffer[ startVertexIndex + 1 ].data[3] |= ( occluded[1] << 1 );
+		vertexBuffer[ startVertexIndex + 1 ].texID = texID;
 	vertexBuffer[ startVertexIndex + 4 ] = block[ faceIndex + 2];
 		vertexBuffer[ startVertexIndex + 4 ].data[0] += blockX;
 		vertexBuffer[ startVertexIndex + 4 ].data[1] += blockY;
 		vertexBuffer[ startVertexIndex + 4 ].data[2] += blockZ;
 		vertexBuffer[ startVertexIndex + 4 ].data[3] |= ( occluded[2] << 1 );
+		vertexBuffer[ startVertexIndex + 4 ].texID = texID;
 	vertexBuffer[ startVertexIndex + 5 ] = block[ faceIndex + 3];
 		vertexBuffer[ startVertexIndex + 5 ].data[0] += blockX;
 		vertexBuffer[ startVertexIndex + 5 ].data[1] += blockY;
 		vertexBuffer[ startVertexIndex + 5 ].data[2] += blockZ;
 		vertexBuffer[ startVertexIndex + 5 ].data[3] |= ( occluded[3] << 1 );
+		vertexBuffer[ startVertexIndex + 5 ].texID = texID;
 
 	if( occluded[0] + occluded[2] <= occluded[1] + occluded[3] ) // normal quad
 	{
@@ -470,10 +474,23 @@ int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkP
 									   chunkNegX,		chunk,		chunkPosX,
 									   chunkNegXNegZ,	chunkNegZ,	chunkPosXNegZ );
 
-//				for( FACE_INDEX faceDir = 0; faceDir < 6; faceDir++ )
-//				{
-//
-//				}
+				uint32 texID = 0;
+				switch( chunk->blocks[blockX][blockY][blockZ] )
+				{
+					case BT_GRASS:
+						texID = 1;
+					break;
+
+					case BT_DIRT:
+						texID = 1;
+					break;
+
+					default:
+						texID = 0;
+					break;
+				}
+
+				texID = rand() % 3;
 
 				uint8 occlusion[] = { 0, 0, 0, 0 };
 
@@ -492,7 +509,7 @@ int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkP
 					occlusion[3] = VertexAO( neighbours[BOD_POS][BOD_POS][BOD_SAM],
 											neighbours[BOD_POS][BOD_SAM][BOD_POS], 
 											neighbours[BOD_POS][BOD_POS][BOD_POS] );
-					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_X, occlusion );
+					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_X, occlusion, texID );
 					vertexIndex += VERTS_PER_FACE;
 				}
 
@@ -511,7 +528,7 @@ int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkP
 					occlusion[1] = VertexAO( neighbours[BOD_NEG][BOD_NEG][BOD_SAM],
 											 neighbours[BOD_NEG][BOD_SAM][BOD_POS],
 											 neighbours[BOD_NEG][BOD_NEG][BOD_POS] );
-					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_NEG_X, occlusion );
+					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_NEG_X, occlusion, texID );
 					vertexIndex += VERTS_PER_FACE;
 				}
 
@@ -530,7 +547,7 @@ int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkP
 					occlusion[3] = VertexAO( neighbours[BOD_NEG][BOD_SAM][BOD_POS],
 											 neighbours[BOD_SAM][BOD_POS][BOD_POS],
 											 neighbours[BOD_NEG][BOD_POS][BOD_POS] );
-					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_Z, occlusion );
+					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_Z, occlusion, texID );
 					vertexIndex += VERTS_PER_FACE;
 				}
 
@@ -549,7 +566,7 @@ int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkP
 					occlusion[3] = VertexAO( neighbours[BOD_POS][BOD_SAM][BOD_NEG],
 											 neighbours[BOD_SAM][BOD_POS][BOD_NEG],
 											 neighbours[BOD_POS][BOD_POS][BOD_NEG] );
-					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_NEG_Z, occlusion );
+					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_NEG_Z, occlusion, texID );
 					vertexIndex += VERTS_PER_FACE;
 				}
 
@@ -568,7 +585,7 @@ int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkP
 					occlusion[3] = VertexAO( neighbours[BOD_POS][BOD_POS][BOD_SAM],
 											 neighbours[BOD_SAM][BOD_POS][BOD_POS],
 											 neighbours[BOD_POS][BOD_POS][BOD_POS] );
-					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_Y, occlusion );
+					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_Y, occlusion, texID );
 					vertexIndex += VERTS_PER_FACE;
 				}
 

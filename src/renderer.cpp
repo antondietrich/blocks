@@ -489,6 +489,10 @@ bool Renderer::Start( HWND wnd )
 		OutputDebugStringA( "Failed to load texture!" );
 		return false;
 	}
+	if( !textures_[5].Load( L"assets/textures/wood.dds", device_ ) ) {
+		OutputDebugStringA( "Failed to load texture!" );
+		return false;
+	}
 
 	// Load shaders
 	if( !shaders_[0].Load( L"assets/shaders/global.fx", device_ ) ) {
@@ -590,7 +594,9 @@ void Renderer::Begin()
 	context_->VSSetConstantBuffers( 1, 1, &frameConstantBuffer_ );
 	context_->VSSetConstantBuffers( 2, 1, &modelConstantBuffer_ );
 	SetSampler( SAMPLER_ANISOTROPIC );
-	SetTexture( textures_[3], ST_FRAGMENT );
+	SetTexture( textures_[3], ST_FRAGMENT, 0 );
+	SetTexture( textures_[4], ST_FRAGMENT, 1 );
+	SetTexture( textures_[5], ST_FRAGMENT, 2 );
 	SetShader( shaders_[0] );
 	SetDepthBufferMode( DB_ENABLED );
 
