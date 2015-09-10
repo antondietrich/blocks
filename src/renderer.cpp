@@ -7,6 +7,8 @@ using namespace DirectX;
 
 extern ConfigType Config;
 
+void MakeGlobalCBInitData( GlobalCB *cbData, D3D11_SUBRESOURCE_DATA *cbInitData, float screenWidth, float screenHeight );
+
 bool Renderer::isInstantiated_ = false;
 
 Renderer::Renderer()
@@ -271,6 +273,7 @@ bool Renderer::Start( HWND wnd )
 	samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
 	samplerDesc.MinLOD = -FLT_MAX;
 	samplerDesc.MaxLOD = FLT_MAX;
+	// samplerDesc.MaxLOD = 6;
 	hr = device_->CreateSamplerState( &samplerDesc, &samplers_[ SAMPLER_POINT ] );
 	if( FAILED( hr ) ) {
 		OutputDebugStringA( "Failed to create point sampler state!" );
@@ -384,32 +387,12 @@ bool Renderer::Start( HWND wnd )
 	cbDesc.StructureByteStride = 0;
 
 	GlobalCB cbData;
-	cbData.screenToNDC = XMFLOAT4X4(
-		2.0f / screenViewport_.Width,	 0.0f,							0.0f,	-1.0f,
-		0.0f,							-2.0f / screenViewport_.Height,	0.0f,	 1.0f,
-		0.0f,							 0.0f,							1.0f,	 0.0f,
-		0.0f,							 0.0f,							0.0f,	 1.0f
-	);
-
-	cbData.normals[0] = {  0.0f,  0.0f, -1.0f, 0.0f }; // -Z
-	cbData.normals[1] = {  1.0f,  0.0f,  0.0f, 0.0f }; // +X
-	cbData.normals[2] = {  0.0f,  0.0f,  1.0f, 0.0f }; // +Z
-	cbData.normals[3] = { -1.0f,  0.0f,  0.0f, 0.0f }; // -X
-	cbData.normals[4] = {  0.0f,  1.0f,  0.0f, 0.0f }; // +Y
-	cbData.normals[5] = {  0.0f, -1.0f,  0.0f, 0.0f }; // -Y
-
-	cbData.texcoords[0] = { 0.0f, 0.0f, 0.0f, 0.0f }; // top left
-	cbData.texcoords[1] = { 0.0f, 1.0f, 0.0f, 0.0f }; // bottom left
-	cbData.texcoords[2] = { 1.0f, 0.0f, 0.0f, 0.0f }; // top right
-	cbData.texcoords[3] = { 1.0f, 1.0f, 0.0f, 0.0f }; // bottom right
-
 	D3D11_SUBRESOURCE_DATA cbInitData;
-	cbInitData.pSysMem = &cbData;
-	cbInitData.SysMemPitch = sizeof( GlobalCB );
-	cbInitData.SysMemSlicePitch = 0;
 
+	MakeGlobalCBInitData( &cbData, &cbInitData, screenViewport_.Width, screenViewport_.Height );
 	hr = device_->CreateBuffer( &cbDesc, &cbInitData, &globalConstantBuffer_ );
-	if( FAILED( hr ) ) {
+	if( FAILED( hr ) )
+	{
 		OutputDebugStringA( "Failed to create global constant buffer!" );
 		return false;
 	}
@@ -490,6 +473,10 @@ bool Renderer::Start( HWND wnd )
 		return false;
 	}
 	if( !textures_[5].Load( L"assets/textures/wood.dds", device_ ) ) {
+		OutputDebugStringA( "Failed to load texture!" );
+		return false;
+	}
+	if( !textures_[6].Load( L"assets/textures/atlas01.dds", device_ ) ) {
 		OutputDebugStringA( "Failed to load texture!" );
 		return false;
 	}
@@ -594,9 +581,7 @@ void Renderer::Begin()
 	context_->VSSetConstantBuffers( 1, 1, &frameConstantBuffer_ );
 	context_->VSSetConstantBuffers( 2, 1, &modelConstantBuffer_ );
 	SetSampler( SAMPLER_ANISOTROPIC );
-	SetTexture( textures_[3], ST_FRAGMENT, 0 );
-	SetTexture( textures_[4], ST_FRAGMENT, 1 );
-	SetTexture( textures_[5], ST_FRAGMENT, 2 );
+	SetTexture( textures_[6], ST_FRAGMENT, 0 );
 	SetShader( shaders_[0] );
 	SetDepthBufferMode( DB_ENABLED );
 
@@ -819,6 +804,7 @@ bool Renderer::ResizeBuffers()
 	screenViewport_.TopLeftY = 0;
 	context_->RSSetViewports( 1, &screenViewport_ );
 
+#if 0
 	// update the screen to NDC matrix, since the view dimensions have changed
 	GlobalCB cbData;
 	cbData.screenToNDC = XMFLOAT4X4(
@@ -839,6 +825,17 @@ bool Renderer::ResizeBuffers()
 	cbData.texcoords[1] = { 0.0f, 1.0f, 0.0f, 0.0f }; // bottom left
 	cbData.texcoords[2] = { 1.0f, 0.0f, 0.0f, 0.0f }; // top right
 	cbData.texcoords[3] = { 1.0f, 1.0f, 0.0f, 0.0f }; // bottom right
+
+#endif
+	D3D11_SUBRESOURCE_DATA cbInitData;
+	GlobalCB cbData;
+	MakeGlobalCBInitData( &cbData, &cbInitData, screenViewport_.Width, screenViewport_.Height );
+
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "Failed to create global constant buffer!" );
+		return false;
+	}
 
 	if( globalConstantBuffer_ ) {
 		context_->UpdateSubresource( globalConstantBuffer_, 0, NULL, &cbData, sizeof( GlobalCB ), 0 );
@@ -910,6 +907,48 @@ void Renderer::SetTexture( const Texture& texture, SHADER_TYPE shader, uint slot
 	if( ( shader & ST_FRAGMENT ) == ST_FRAGMENT ) {
 		context_->PSSetShaderResources( slot, 1, &texture.textureView_ );
 	}
+}
+
+void MakeGlobalCBInitData( GlobalCB *cbData, D3D11_SUBRESOURCE_DATA *cbInitData, float screenWidth, float screenHeight )
+{
+	cbData->screenToNDC = XMFLOAT4X4(
+		2.0f / screenWidth,	 0.0f,					0.0f,	-1.0f,
+		0.0f,				-2.0f / screenHeight,	0.0f,	 1.0f,
+		0.0f,				 0.0f,					1.0f,	 0.0f,
+		0.0f,				 0.0f,					0.0f,	 1.0f
+	);
+
+	cbData->normals[0] = {  0.0f,  0.0f, -1.0f, 0.0f }; // -Z
+	cbData->normals[1] = {  1.0f,  0.0f,  0.0f, 0.0f }; // +X
+	cbData->normals[2] = {  0.0f,  0.0f,  1.0f, 0.0f }; // +Z
+	cbData->normals[3] = { -1.0f,  0.0f,  0.0f, 0.0f }; // -X
+	cbData->normals[4] = {  0.0f,  1.0f,  0.0f, 0.0f }; // +Y
+	cbData->normals[5] = {  0.0f, -1.0f,  0.0f, 0.0f }; // -Y
+
+	cbData->texcoords[0] = { 2.0f / 512.0f, 		2.0f / 512.0f, 0.0f, 0.0f }; // top left
+	cbData->texcoords[1] = { 2.0f / 512.0f,		254.0f / 512.0f, 0.0f, 0.0f }; // bottom left
+	cbData->texcoords[2] = { 254.0f / 512.0f, 	2.0f / 512.0f, 0.0f, 0.0f }; // top right
+	cbData->texcoords[3] = { 254.0f / 512.0f, 	254.0f / 512.0f, 0.0f, 0.0f }; // bottom right
+
+	cbData->texcoords[4] = { ( 2.0f + 254.0f ) / 512.0f, 	2.0f / 512.0f, 0.0f, 0.0f }; // top left
+	cbData->texcoords[5] = { ( 2.0f + 254.0f ) / 512.0f,		254.0f / 512.0f, 0.0f, 0.0f }; // bottom left
+	cbData->texcoords[6] = { ( 254.0f + 254.0f ) / 512.0f, 	2.0f / 512.0f, 0.0f, 0.0f }; // top right
+	cbData->texcoords[7] = { ( 254.0f + 254.0f ) / 512.0f, 	254.0f / 512.0f, 0.0f, 0.0f }; // bottom right
+
+	cbData->texcoords[8] = { 2.0f / 512.0f,	 	( 2.0f + 254.0f ) / 512.0f, 0.0f, 0.0f }; // top left
+	cbData->texcoords[9] = { 2.0f / 512.0f,		( 254.0f + 254.0f ) / 512.0f, 0.0f, 0.0f }; // bottom left
+	cbData->texcoords[10] = { 254.0f / 512.0f, 	( 2.0f + 254.0f ) / 512.0f, 0.0f, 0.0f }; // top right
+	cbData->texcoords[11] = { 254.0f / 512.0f, 	( 254.0f + 254.0f ) / 512.0f, 0.0f, 0.0f }; // bottom right
+
+	cbData->texcoords[12] = { ( 2.0f + 254.0f ) / 512.0f,	 	( 2.0f + 254.0f ) / 512.0f, 0.0f, 0.0f }; // top left
+	cbData->texcoords[13] = { ( 2.0f + 254.0f ) / 512.0f,		( 254.0f + 254.0f ) / 512.0f, 0.0f, 0.0f }; // bottom left
+	cbData->texcoords[14] = { ( 254.0f + 254.0f ) / 512.0f, 	( 2.0f + 254.0f ) / 512.0f, 0.0f, 0.0f }; // top right
+	cbData->texcoords[15] = { ( 254.0f + 254.0f ) / 512.0f, 	( 254.0f + 254.0f ) / 512.0f, 0.0f, 0.0f }; // bottom right
+
+	cbInitData->pSysMem = cbData;
+	cbInitData->SysMemPitch = sizeof( GlobalCB );
+	cbInitData->SysMemSlicePitch = 0;
+
 }
 
 

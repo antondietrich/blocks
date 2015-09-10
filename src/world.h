@@ -6,11 +6,14 @@
 * 	position.y		8
 * 	position.z		8
 * 	normalID		3
-* 	texcoordID		2
-* 	occlusion		2
-* 	unused			1
+* 	texcoordID		5
 * 					--
 * 					32
+*
+* 	unused			30
+* 	occlusion		2
+*					--
+*					32
 /**************************************/
 
 
@@ -49,7 +52,9 @@ enum BLOCK_TYPE
 {
 	BT_AIR,
 	BT_DIRT,
-	BT_GRASS
+	BT_GRASS,
+	BT_STONE,
+	BT_WOOD
 };
 
 struct BlockVertex

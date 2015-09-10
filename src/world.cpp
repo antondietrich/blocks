@@ -62,11 +62,11 @@ enum FACE_INDEX
 
 // void AddFace( BlockVertex *vertexBuffer, int vertexIndex, int blockX, int blockY, int blockZ, FACE_INDEX faceIndex );
 
-BlockVertex *chunkVertexBuffer;
+BlockVertex *gChunkVertexBuffer;
 
 void InitWorldGen()
 {
-	chunkVertexBuffer = new BlockVertex[ MAX_VERTS_PER_CHUNK_MESH ];
+	gChunkVertexBuffer = new BlockVertex[ MAX_VERTS_PER_CHUNK_MESH ];
 }
 
 struct ChunkHeightField
@@ -118,15 +118,46 @@ void GenerateChunkHeightField( ChunkHeightField *heightfield, Chunk *chunk, int 
 void GenerateChunk( Chunk *chunk, int x, int z )
 {
 	ChunkHeightField heightfield1 = {};
-	GenerateChunkHeightField( &heightfield1, chunk, x, z, 1, 10 );
 	ChunkHeightField heightfield2 = {};
-	GenerateChunkHeightField( &heightfield2, chunk, x, z, 8, 20 );
+	
+	GenerateChunkHeightField( &heightfield1, chunk, x, z, 8, 10 );
+	GenerateChunkHeightField( &heightfield2, chunk, x, z, 2, 60 );
+	// GenerateChunkHeightField( &heightfield2, chunk, x, z, 8, 20 );
+	
+	ChunkHeightField biomeField = {};
+	GenerateChunkHeightField( &biomeField, chunk, x, z, 8, 100 );
 
 	for( int blockZ = 0; blockZ < CHUNK_WIDTH; blockZ++ )
 	{
 		for( int blockX = 0; blockX < CHUNK_WIDTH; blockX++ )
 		{
-			int height = heightfield1.height[blockZ][blockX] + heightfield2.height[blockZ][blockX];
+			BLOCK_TYPE biomeBlockType;
+			if( biomeField.height[blockZ][blockX] / 100.0f > 0.4f )
+			{
+				if( biomeField.height[blockZ][blockX] / 100.0f > 0.45f )
+				{
+					biomeBlockType = BT_GRASS;
+				}
+				else
+				{
+					float biomeParameter = ( ( biomeField.height[blockZ][blockX] / 100.0f ) - 0.4f ) * 20.0f; // 0.0 .. 1.0
+					float random = rand() / (float)RAND_MAX;
+					random = random;
+					if( random >= biomeParameter )
+						biomeBlockType = BT_STONE;
+					else
+						biomeBlockType = BT_GRASS;
+				}
+			}
+			else
+			{
+				biomeBlockType = BT_STONE;
+			}
+
+			float mountainsScale = biomeField.height[blockZ][blockX] / 100.0f > 0.4f ? 0.2f : 0.2f + ( 0.4f - biomeField.height[blockZ][blockX] / 100.0f ) * 2.5f;
+
+
+			int height = heightfield1.height[blockZ][blockX] + (int)( heightfield2.height[blockZ][blockX] * mountainsScale );
 
 			for( int blockY = 0; blockY < CHUNK_HEIGHT; blockY++ )
 			{
@@ -134,7 +165,7 @@ void GenerateChunk( Chunk *chunk, int x, int z )
 					chunk->blocks[blockX][blockY][blockZ] = BT_DIRT;
 				}
 				else if( blockY == height ) {
-					chunk->blocks[blockX][blockY][blockZ] = BT_GRASS;
+					chunk->blocks[blockX][blockY][blockZ] = biomeBlockType;
 				}
 				else {
 					chunk->blocks[blockX][blockY][blockZ] = BT_AIR;
@@ -362,9 +393,11 @@ void GetNeighbouringBlocks( BLOCK_TYPE neighbours[][BOD_COUNT][BOD_COUNT],
 //cbData.texcoords[2] = { 1.0f, 0.0f, 0.0f, 0.0f }; // top right
 //cbData.texcoords[3] = { 1.0f, 1.0f, 0.0f, 0.0f }; // bottom right
 
-#define PACK_NORMAL_AND_TEXCOORD( normalIndex, texcoordIndex ) ((normalIndex) << 5) | (texcoordIndex << 3) | 0
+#define PACK_NORMAL_AND_TEXCOORD( normalIndex, texcoordIndex ) ((normalIndex) << 5) | (texcoordIndex) | 0
+#define SET_TEXCOORD( texcoordIndex ) ( (texcoordIndex) & 0x1F );
+#define SET_NORMAL( normalIndex ) ( (normalIndex) << 5) & 0xE0 );
 
-BlockVertex block[] = 
+BlockVertex standardBlock[] = 
 {
 	// face 1 / -Z
 	{ 0, 1, 0, PACK_NORMAL_AND_TEXCOORD( 0, 0 ) }, // 0
@@ -398,32 +431,46 @@ BlockVertex block[] =
 	{ 1, 0, 0, PACK_NORMAL_AND_TEXCOORD( 5, 2 ) }, // 2
 };
 
-void AddFace( BlockVertex *vertexBuffer, int startVertexIndex, uint8 blockX, uint8 blockY, uint8 blockZ, FACE_INDEX faceIndex, uint8 occluded[4], uint32 texID )
+struct BlockTypeSpec
 {
-	vertexBuffer[ startVertexIndex + 0 ] = block[ faceIndex + 0];
+	int textureCoordsArrayOffset;
+	BlockVertex *vertices;
+};
+
+BlockTypeSpec grassBlockSpec = { 0, standardBlock };
+BlockTypeSpec dirtBlockSpec = { 4, standardBlock };
+BlockTypeSpec stoneBlockSpec = { 8, standardBlock };
+BlockTypeSpec woodBlockSpec = { 12, standardBlock };
+
+void AddFace( BlockVertex *vertexBuffer, int startVertexIndex, uint8 blockX, uint8 blockY, uint8 blockZ, FACE_INDEX faceIndex, uint8 occluded[4], BlockTypeSpec blockType )
+{
+	vertexBuffer[ startVertexIndex + 0 ] = blockType.vertices[ faceIndex + 0];
 		vertexBuffer[ startVertexIndex + 0 ].data[0] += blockX;
 		vertexBuffer[ startVertexIndex + 0 ].data[1] += blockY;
 		vertexBuffer[ startVertexIndex + 0 ].data[2] += blockZ;
-		vertexBuffer[ startVertexIndex + 0 ].data[3] |= ( occluded[0] << 1 );
-		vertexBuffer[ startVertexIndex + 0 ].texID = texID;
-	vertexBuffer[ startVertexIndex + 1 ] = block[ faceIndex + 1];
+		vertexBuffer[ startVertexIndex + 0 ].data[3] |= SET_TEXCOORD( 0 + blockType.textureCoordsArrayOffset );
+		vertexBuffer[ startVertexIndex + 0 ].texID = occluded[0];
+
+	vertexBuffer[ startVertexIndex + 1 ] = blockType.vertices[ faceIndex + 1];
 		vertexBuffer[ startVertexIndex + 1 ].data[0] += blockX;
 		vertexBuffer[ startVertexIndex + 1 ].data[1] += blockY;
 		vertexBuffer[ startVertexIndex + 1 ].data[2] += blockZ;
-		vertexBuffer[ startVertexIndex + 1 ].data[3] |= ( occluded[1] << 1 );
-		vertexBuffer[ startVertexIndex + 1 ].texID = texID;
-	vertexBuffer[ startVertexIndex + 4 ] = block[ faceIndex + 2];
+		vertexBuffer[ startVertexIndex + 1 ].data[3] |= SET_TEXCOORD( 1 + blockType.textureCoordsArrayOffset );
+		vertexBuffer[ startVertexIndex + 1 ].texID = occluded[1];
+
+	vertexBuffer[ startVertexIndex + 4 ] = blockType.vertices[ faceIndex + 2];
 		vertexBuffer[ startVertexIndex + 4 ].data[0] += blockX;
 		vertexBuffer[ startVertexIndex + 4 ].data[1] += blockY;
 		vertexBuffer[ startVertexIndex + 4 ].data[2] += blockZ;
-		vertexBuffer[ startVertexIndex + 4 ].data[3] |= ( occluded[2] << 1 );
-		vertexBuffer[ startVertexIndex + 4 ].texID = texID;
-	vertexBuffer[ startVertexIndex + 5 ] = block[ faceIndex + 3];
+		vertexBuffer[ startVertexIndex + 4 ].data[3] |= SET_TEXCOORD( 3 + blockType.textureCoordsArrayOffset );
+		vertexBuffer[ startVertexIndex + 4 ].texID = occluded[2];
+
+	vertexBuffer[ startVertexIndex + 5 ] = blockType.vertices[ faceIndex + 3];
 		vertexBuffer[ startVertexIndex + 5 ].data[0] += blockX;
 		vertexBuffer[ startVertexIndex + 5 ].data[1] += blockY;
 		vertexBuffer[ startVertexIndex + 5 ].data[2] += blockZ;
-		vertexBuffer[ startVertexIndex + 5 ].data[3] |= ( occluded[3] << 1 );
-		vertexBuffer[ startVertexIndex + 5 ].texID = texID;
+		vertexBuffer[ startVertexIndex + 5 ].data[3] |= SET_TEXCOORD( 2 + blockType.textureCoordsArrayOffset );
+		vertexBuffer[ startVertexIndex + 5 ].texID = occluded[3];
 
 	if( occluded[0] + occluded[2] <= occluded[1] + occluded[3] ) // normal quad
 	{
@@ -474,23 +521,29 @@ int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkP
 									   chunkNegX,		chunk,		chunkPosX,
 									   chunkNegXNegZ,	chunkNegZ,	chunkPosXNegZ );
 
-				uint32 texID = 0;
+				BlockTypeSpec blockSpec;
 				switch( chunk->blocks[blockX][blockY][blockZ] )
 				{
 					case BT_GRASS:
-						texID = 1;
+						blockSpec = grassBlockSpec;
 					break;
 
 					case BT_DIRT:
-						texID = 1;
+						blockSpec = dirtBlockSpec;
+					break;
+
+					case BT_STONE:
+						blockSpec = stoneBlockSpec;
+					break;
+
+					case BT_WOOD:
+						blockSpec = woodBlockSpec;
 					break;
 
 					default:
-						texID = 0;
+						blockSpec = grassBlockSpec;
 					break;
 				}
-
-				texID = rand() % 3;
 
 				uint8 occlusion[] = { 0, 0, 0, 0 };
 
@@ -509,7 +562,7 @@ int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkP
 					occlusion[3] = VertexAO( neighbours[BOD_POS][BOD_POS][BOD_SAM],
 											neighbours[BOD_POS][BOD_SAM][BOD_POS], 
 											neighbours[BOD_POS][BOD_POS][BOD_POS] );
-					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_X, occlusion, texID );
+					AddFace( gChunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_X, occlusion, blockSpec );
 					vertexIndex += VERTS_PER_FACE;
 				}
 
@@ -528,7 +581,7 @@ int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkP
 					occlusion[1] = VertexAO( neighbours[BOD_NEG][BOD_NEG][BOD_SAM],
 											 neighbours[BOD_NEG][BOD_SAM][BOD_POS],
 											 neighbours[BOD_NEG][BOD_NEG][BOD_POS] );
-					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_NEG_X, occlusion, texID );
+					AddFace( gChunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_NEG_X, occlusion, blockSpec );
 					vertexIndex += VERTS_PER_FACE;
 				}
 
@@ -547,7 +600,7 @@ int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkP
 					occlusion[3] = VertexAO( neighbours[BOD_NEG][BOD_SAM][BOD_POS],
 											 neighbours[BOD_SAM][BOD_POS][BOD_POS],
 											 neighbours[BOD_NEG][BOD_POS][BOD_POS] );
-					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_Z, occlusion, texID );
+					AddFace( gChunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_Z, occlusion, blockSpec );
 					vertexIndex += VERTS_PER_FACE;
 				}
 
@@ -566,7 +619,7 @@ int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkP
 					occlusion[3] = VertexAO( neighbours[BOD_POS][BOD_SAM][BOD_NEG],
 											 neighbours[BOD_SAM][BOD_POS][BOD_NEG],
 											 neighbours[BOD_POS][BOD_POS][BOD_NEG] );
-					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_NEG_Z, occlusion, texID );
+					AddFace( gChunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_NEG_Z, occlusion, blockSpec );
 					vertexIndex += VERTS_PER_FACE;
 				}
 
@@ -585,7 +638,7 @@ int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkP
 					occlusion[3] = VertexAO( neighbours[BOD_POS][BOD_POS][BOD_SAM],
 											 neighbours[BOD_SAM][BOD_POS][BOD_POS],
 											 neighbours[BOD_POS][BOD_POS][BOD_POS] );
-					AddFace( chunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_Y, occlusion, texID );
+					AddFace( gChunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_Y, occlusion, blockSpec );
 					vertexIndex += VERTS_PER_FACE;
 				}
 
@@ -603,7 +656,7 @@ int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkP
 	}
 
 	chunkMesh->vertices = new BlockVertex[ vertexIndex ];
-	memcpy( chunkMesh->vertices, chunkVertexBuffer, sizeof( BlockVertex ) * vertexIndex );
+	memcpy( chunkMesh->vertices, gChunkVertexBuffer, sizeof( BlockVertex ) * vertexIndex );
 	chunkMesh->size = vertexIndex;
 
 	return vertexIndex;

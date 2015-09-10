@@ -1,13 +1,11 @@
 Texture2D textureA_ : register( t0 );
-Texture2D textureB_ : register( t1 );
-Texture2D textureC_ : register( t2 );
 SamplerState sampler_ : register( s0 );
 
 cbuffer GlobalCB : register( b0 )
 {
 	matrix screenToNDC;
 	float4 normals[6];
-	float4 texcoords[4];
+	float4 texcoords[16];
 }
 
 cbuffer FrameCB : register( b1 )
@@ -32,7 +30,7 @@ struct PS_Input
 	float4 normal : TEXCOORD0;
 	float2 texcoord : TEXCOORD1;
 	float occlusion : TEXCOORD2;
-	float texID : TEXCOORD3;
+	// float texID : TEXCOORD3;
 };
 
 PS_Input VSMain( VS_Input input )
@@ -45,8 +43,10 @@ PS_Input VSMain( VS_Input input )
 
 	int temp = ( input.pos & 0xff000000 ) >> 24;
 	int normalIndex = ( temp & 0xe0 ) >> 5; 	// 11100000
-	int texcoordIndex = ( temp & 0x18 ) >> 3; 	// 00011000
-	int occluded = ( temp & 0x06 ) >> 1;		// 00000100
+	int texcoordIndex = ( temp & 0x1F ); 	// 00011111
+	// int occluded = ( temp & 0x06 ) >> 1;		// 00000100
+
+	int occluded = input.texID;
 
 	PS_Input output;
 
@@ -59,11 +59,11 @@ PS_Input VSMain( VS_Input input )
 
 	output.normal = normals[ normalIndex ];
 
-	output.texcoord = texcoords[ texcoordIndex ] * 0.5;
+	output.texcoord = texcoords[ texcoordIndex ];// * 0.5;
 
 	output.occlusion = occluded / 3.0; //input.ao;// / 3.0;
 
-	output.texID = input.texID;
+	// output.texID = input.texID;
 
 	return output;
 }
@@ -77,20 +77,7 @@ float4 PSMain( PS_Input input ) : SV_TARGET
 	float4 negLightDir = normalize( float4( 0.5f, 0.8f, 0.25f, 0.0f ) );
 	float nDotL = dot( input.normal, negLightDir ) * 0.3 + 0.7;
 
-	//float4 texSample =  textureA_.Sample( sampler_, input.texcoord );
-	float4 texSample;
-	if( input.texID < 0.5 )
-	{
-		texSample =  textureA_.Sample( sampler_, input.texcoord );
-	}
-	else if( input.texID > 0.5 && input.texID < 1.5)
-	{
-		texSample =  textureB_.Sample( sampler_, input.texcoord );
-	}
-	else if( input.texID > 1.5 && input.texID < 2.5)
-	{
-		texSample =  textureC_.Sample( sampler_, input.texcoord );
-	}
+	float4 texSample =  textureA_.Sample( sampler_, input.texcoord );
 
 	//return ao;
 	return ao * texSample * nDotL;

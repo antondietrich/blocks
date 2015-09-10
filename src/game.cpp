@@ -64,12 +64,14 @@ bool Game::Start( HWND wnd )
 	return true;
 }
 
-XMFLOAT3 playerPos 		= { 0.0f, 20.0f, 0.0f };
+XMFLOAT3 playerPos 		= { 0.0f, 120.0f, 0.0f };
 XMFLOAT3 playerDir 		= { 0.0f,  0.0f, 1.0f };
 XMFLOAT3 playerLook 	= { 0.0f,  0.0f, 1.0f };
 XMFLOAT3 playerRight 	= { 1.0f,  0.0f, 0.0f };
 XMFLOAT3 playerUp 		= { 0.0f,  1.0f, 0.0f };
 XMFLOAT3 playerSpeed 	= { 0.0f,  0.0f, 0.0f };
+XMFLOAT3 gravity 		= { 0.0f,  0.0f, 0.0f };
+
 float playerMass = 75.0f;
 float playerHeight = 1.8f;
 bool playerAirborne = true;
@@ -128,7 +130,7 @@ void Game::DoFrame( float dt )
 
 	// player movement
 	float dTSec = dt / 1000.0f;
-	XMVECTOR vPos, vDir, vLook, vRight, vUp, vSpeed, force, acceleration, drag, gravity;
+	XMVECTOR vPos, vDir, vLook, vRight, vUp, vSpeed, force, acceleration, drag, vGravity;
 	vPos 	= XMLoadFloat3( &playerPos );
 	vDir 	= XMLoadFloat3( &playerDir );
 	vLook 	= XMLoadFloat3( &playerLook );
@@ -138,7 +140,8 @@ void Game::DoFrame( float dt )
 
 	force = XMVectorZero();
 	acceleration = XMVectorZero();
-	gravity = XMVectorSet( 0.0f, -9.8f, 0.0f, 0.0f ) * playerMass;
+	// gravity = XMVectorSet( 0.0f, -9.8f, 0.0f, 0.0f ) * playerMass;
+	vGravity = XMLoadFloat3( &gravity ) * playerMass;
 
 	if( input.key[ KEY::W ].Down ) {
 		force += vDir;
@@ -152,6 +155,16 @@ void Game::DoFrame( float dt )
 	if( input.key[ KEY::A ].Down ) {
 		force -= vRight;
 	}
+	if( input.key[ KEY::LCTRL ].Pressed ) {
+		if( fabs( gravity.y - 0.0f ) < 0.000001f )
+		{
+			gravity.y = -9.8f;
+		}
+		else
+		{
+			gravity.y = 0.0f;
+		}
+	}
 	
 	force = XMVector4Normalize( force ) * 1500.0f;
 	
@@ -162,7 +175,7 @@ void Game::DoFrame( float dt )
 		}
 	}
 	
-	force += gravity;
+	force += vGravity;
 
 	drag = 3.5f * vSpeed;
 	drag = XMVectorSetY( drag, XMVectorGetY( drag ) * 0.12f );
