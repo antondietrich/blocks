@@ -27,6 +27,20 @@ float Lerp( float a, float b, float t )
 	return a * ( 1 - t ) + b * t;
 }
 
+float Cubic( float pL, float p0, float p3, float pR, float t )
+{
+	float p1 = p0 + ( p3 - pL ) / 6;
+	float p2 = p3 - ( pR - p0 ) / 6;
+
+	float A = (1-t) * (1-t) * (1-t);
+	float B = 3 * t * (1-t) * (1-t);
+	float C = 3 * t * t * (1-t);
+	float D = t * t * t;
+
+	float result = A*p0 + B*p1 + C*p2 + D*p3;
+	return result;
+}
+
 float InterpolatedNoise( float x, float y )
 {
 	int intX = (int)x;
@@ -73,6 +87,127 @@ struct ChunkHeightField
 {
 	int height[CHUNK_WIDTH][CHUNK_WIDTH];
 };
+
+float PerlinLinear( int x, int y, int scale )
+{
+	int x0 = (int)floor( (float)x / scale ) * scale;
+	int y0 = (int)floor( (float)y / scale ) * scale;
+	int x1 = x0 + scale;
+	int y1 = y0 + scale;
+
+	float r0 = Noise2D( x0, y0 );
+	float r1 = Noise2D( x1, y0 );
+	float r2 = Noise2D( x0, y1 );
+	float r3 = Noise2D( x1, y1 );
+	
+	float tX = (float)( x - x0 ) / scale;
+	float tY = (float)( y - y0 ) / scale;
+
+	float l0 = Lerp( r0, r1, tX );
+	float l1 = Lerp( r2, r3, tX );
+	float p = Lerp( l0, l1, tY );
+
+	return p;
+}
+
+float PerlinCubic( int x, int y, int scale )
+{
+	// closest anchor points
+	int x1 = (int)floor( (float)x / scale ) * scale;
+	int y1 = (int)floor( (float)y / scale ) * scale;
+	int x2 = x1 + scale;
+	int y2 = y1 + scale;
+
+	// next anchor points for computing tangents
+	int x0 = x1 - scale;
+	int y0 = y1 - scale;
+	int x3 = x2 + scale;
+	int y3 = y2 + scale;
+
+	// compute 4x4 heights at anchor points, rXY
+	float r00 = Noise2D( x0, y0 );
+	float r10 = Noise2D( x1, y0 );
+	float r20 = Noise2D( x2, y0 );
+	float r30 = Noise2D( x3, y0 );
+
+	float r01 = Noise2D( x0, y1 );
+	float r11 = Noise2D( x1, y1 );
+	float r21 = Noise2D( x2, y1 );
+	float r31 = Noise2D( x3, y1 );
+
+	float r02 = Noise2D( x0, y2 );
+	float r12 = Noise2D( x1, y2 );
+	float r22 = Noise2D( x2, y2 );
+	float r32 = Noise2D( x3, y2 );
+
+	float r03 = Noise2D( x0, y3 );
+	float r13 = Noise2D( x1, y3 );
+	float r23 = Noise2D( x2, y3 );
+	float r33 = Noise2D( x3, y3 );
+
+	// interpolation parameters
+	float tX = (float)( x - x1 ) / scale;
+	float tY = (float)( y - y1 ) / scale;
+
+	// interpolate along x
+	float c0 = Cubic( r00, r10, r20, r30, tX );
+	float c1 = Cubic( r01, r11, r21, r31, tX );
+	float c2 = Cubic( r02, r12, r22, r32, tX );
+	float c3 = Cubic( r03, r13, r23, r33, tX );
+
+	float p = Cubic( c0, c1, c2, c3, tY );
+	return p;
+}
+
+#if 1
+
+void GenerateChunk( Chunk *chunk, int x, int z )
+{
+	chunk->pos[0] = x;
+	chunk->pos[1] = z;
+
+	for( int blockZ = 0; blockZ < CHUNK_WIDTH; blockZ++ )
+	{
+		for( int blockX = 0; blockX < CHUNK_WIDTH; blockX++ )
+		{
+			float p0 = PerlinCubic( x * CHUNK_WIDTH + blockX, z * CHUNK_WIDTH + blockZ, 0.5 * CHUNK_WIDTH );
+			float p1 = PerlinCubic( x * CHUNK_WIDTH + blockX, z * CHUNK_WIDTH + blockZ, 2 * CHUNK_WIDTH );
+			float pbiome = PerlinCubic( x * CHUNK_WIDTH + blockX, z * CHUNK_WIDTH + blockZ, 8 * CHUNK_WIDTH );
+
+			BLOCK_TYPE biomeBlockType;
+			if( pbiome > 0.4f )
+			{
+				biomeBlockType = BT_GRASS;
+			}
+			else
+			{
+				biomeBlockType = BT_STONE;
+			}
+
+			float mountainsScale1 = pbiome > 0.4f ? 0.0f : ( 0.4f - pbiome ) * 2.5;
+			mountainsScale1 = sqrt( mountainsScale1 );
+			float mountainsScale2 = pbiome > 0.4f ? 0.2f : 0.2f + ( 0.4f - pbiome ) * 2.5f;
+
+			//int height = (int)( p1 * 30 );
+			int height = p0 * mountainsScale1 * 10 + (int)( p1 * 60 * mountainsScale2 );
+
+			for( int blockY = 0; blockY < CHUNK_HEIGHT; blockY++ )
+			{
+				if( blockY < height ) {
+					chunk->blocks[blockX][blockY][blockZ] = BT_DIRT;
+				}
+				else if( blockY == height ) {
+					chunk->blocks[blockX][blockY][blockZ] = biomeBlockType;
+				}
+				else {
+					chunk->blocks[blockX][blockY][blockZ] = BT_AIR;
+				}
+			}
+		}
+	}
+}
+
+#else
 
 void GenerateChunkHeightField( ChunkHeightField *heightfield, Chunk *chunk, int x, int z, int scale, int heightScale )
 {
@@ -134,20 +269,7 @@ void GenerateChunk( Chunk *chunk, int x, int z )
 			BLOCK_TYPE biomeBlockType;
 			if( biomeField.height[blockZ][blockX] / 100.0f > 0.4f )
 			{
-				if( biomeField.height[blockZ][blockX] / 100.0f > 0.45f )
-				{
-					biomeBlockType = BT_GRASS;
-				}
-				else
-				{
-					float biomeParameter = ( ( biomeField.height[blockZ][blockX] / 100.0f ) - 0.4f ) * 20.0f; // 0.0 .. 1.0
-					float random = rand() / (float)RAND_MAX;
-					random = random;
-					if( random >= biomeParameter )
-						biomeBlockType = BT_STONE;
-					else
-						biomeBlockType = BT_GRASS;
-				}
+				biomeBlockType = BT_GRASS;
 			}
 			else
 			{
@@ -174,6 +296,7 @@ void GenerateChunk( Chunk *chunk, int x, int z )
 		}
 	}
 }
+#endif
 
 void GenerateWorld( World *world )
 {

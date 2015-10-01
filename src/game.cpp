@@ -167,12 +167,16 @@ void Game::DoFrame( float dt )
 	}
 	
 	force = XMVector4Normalize( force ) * 1500.0f;
-	
+
 	if( input.key[ KEY::SPACE ].Down ) {
-		if( !playerAirborne ) {
-			force += vUp * 2400.0 * playerMass * 2.35 / dt;
+		if( 1 || !playerAirborne ) {
+			force += vUp * 100.0 * playerMass * 2.35 / dt;
 			playerAirborne = true;
 		}
+	}
+
+	if( input.key[ KEY::LSHIFT ].Down ) {
+		force *= 10;
 	}
 	
 	force += vGravity;
