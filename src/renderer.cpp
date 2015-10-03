@@ -59,6 +59,10 @@ Renderer::Renderer()
 	blockCache_ = new BlockVertex[ MAX_VERTS_PER_BATCH ];
 	numCachedBlocks_ = 0;
 	numCachedVerts_ = 0;
+
+	viewPosition_ = { 0, 0, 0 };
+	viewDirection_ = { 0, 0, 0 };
+	viewUp_ = { 0, 0, 0 };
 }
 
 Renderer::~Renderer()
@@ -250,7 +254,7 @@ bool Renderer::Start( HWND wnd )
 	if( Config.multisampling == 2 || Config.multisampling == 4 || Config.multisampling == 8 || Config.multisampling == 16 ) {
 		rasterizerStateDesc.MultisampleEnable = TRUE;
 	}
-	rasterizerStateDesc.AntialiasedLineEnable = FALSE;
+	rasterizerStateDesc.AntialiasedLineEnable = TRUE;
 
 	hr =  device_->CreateRasterizerState( &rasterizerStateDesc, &defaultRasterizerState_ );
 	if( FAILED( hr ) )
@@ -415,7 +419,7 @@ bool Renderer::Start( HWND wnd )
 	direction = XMVector4Normalize( direction );
 	XMVECTOR up = XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
 	XMMATRIX view =  XMMatrixLookToLH( eye, direction, up );
-	XMMATRIX projection = XMMatrixPerspectiveFovLH( XMConvertToRadians( 60.0f ), screenViewport_.Width / screenViewport_.Height, 1.0f, 1000.0f );
+	XMMATRIX projection = XMMatrixPerspectiveFovLH( XMConvertToRadians( 60.0f ), screenViewport_.Width / screenViewport_.Height, 0.1f, 1000.0f );
 	// XMStoreFloat4x4( &frameCBData.vp, XMMatrixMultiply( view, projection ) );
 	XMStoreFloat4x4( &frameCBData.vp, XMMatrixTranspose( XMMatrixMultiply( view, projection ) ) );
 	XMStoreFloat4x4( &view_, view );
@@ -804,29 +808,6 @@ bool Renderer::ResizeBuffers()
 	screenViewport_.TopLeftY = 0;
 	context_->RSSetViewports( 1, &screenViewport_ );
 
-#if 0
-	// update the screen to NDC matrix, since the view dimensions have changed
-	GlobalCB cbData;
-	cbData.screenToNDC = XMFLOAT4X4(
-		2.0f / screenViewport_.Width,	 0.0f,							0.0f,	-1.0f,
-		0.0f,							-2.0f / screenViewport_.Height,	0.0f,	 1.0f,
-		0.0f,							 0.0f,							1.0f,	 0.0f,
-		0.0f,							 0.0f,							0.0f,	 1.0f
-	);
-
-	cbData.normals[0] = {  0.0f,  0.0f, -1.0f, 0.0f }; // -Z
-	cbData.normals[1] = {  1.0f,  0.0f,  0.0f, 0.0f }; // +X
-	cbData.normals[2] = {  0.0f,  0.0f,  1.0f, 0.0f }; // +Z
-	cbData.normals[3] = { -1.0f,  0.0f,  0.0f, 0.0f }; // -X
-	cbData.normals[4] = {  0.0f,  1.0f,  0.0f, 0.0f }; // +Y
-	cbData.normals[5] = {  0.0f, -1.0f,  0.0f, 0.0f }; // -Y
-
-	cbData.texcoords[0] = { 0.0f, 0.0f, 0.0f, 0.0f }; // top left
-	cbData.texcoords[1] = { 0.0f, 1.0f, 0.0f, 0.0f }; // bottom left
-	cbData.texcoords[2] = { 1.0f, 0.0f, 0.0f, 0.0f }; // top right
-	cbData.texcoords[3] = { 1.0f, 1.0f, 0.0f, 0.0f }; // bottom right
-
-#endif
 	D3D11_SUBRESOURCE_DATA cbInitData;
 	GlobalCB cbData;
 	MakeGlobalCBInitData( &cbData, &cbInitData, screenViewport_.Width, screenViewport_.Height );
@@ -846,6 +827,10 @@ bool Renderer::ResizeBuffers()
 
 void Renderer::SetView( XMFLOAT3 pos, XMFLOAT3 dir, XMFLOAT3 up )
 {
+	viewPosition_ = pos;
+	viewDirection_ = dir;
+	viewUp_ = up;
+
 	XMVECTOR vPos, vDir, vUp;
 	vPos = XMLoadFloat3( &pos );
 	vDir = XMLoadFloat3( &dir );
@@ -1093,11 +1078,13 @@ bool Mesh::Load( const VertexPosNormalTexcoord *vertices, int numVertices, ID3D1
 //********************************
 Overlay::Overlay()
 :
-shader_(),
+textShader_(),
+primitiveShader_(),
 texture_()
 {
 	renderer_ = 0;
-	vb_ = 0;
+	textVB_ = 0;
+	primitiveVB_ = 0;
 //	textureView_ = 0;
 //	sampler_ = 0;
 	constantBuffer_ = 0;
@@ -1113,7 +1100,8 @@ Overlay::~Overlay()
 	RELEASE( constantBuffer_ );
 //	RELEASE( sampler_ );
 //	RELEASE( textureView_ );
-	RELEASE( vb_ );
+	RELEASE( textVB_ );
+	RELEASE( primitiveVB_ );
 }
 
 bool Overlay::Start( Renderer *renderer )
@@ -1121,28 +1109,44 @@ bool Overlay::Start( Renderer *renderer )
 	HRESULT hr;
 
 	renderer_ = renderer;
-	if( !shader_.Load( L"assets/shaders/overlay.fx", renderer_->device_ ) )
+	if( !textShader_.Load( L"assets/shaders/overlay.fx", renderer_->device_ ) )
+		return false;
+	if( !primitiveShader_.Load( L"assets/shaders/primitive.fx", renderer_->device_ ) )
 		return false;
 
-	// create vertex buffer
+	// create vertex buffer for text drawing
 	D3D11_BUFFER_DESC desc;
 	ZeroMemory( &desc, sizeof( desc ) );
 	desc.Usage = D3D11_USAGE_DYNAMIC;
 	desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 	desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	desc.ByteWidth = sizeof( OverlayVertex ) * MAX_OVERLAY_CHARS;
+	desc.ByteWidth = sizeof( OverlayVertex2D ) * MAX_OVERLAY_CHARS;
 
-	hr = renderer_->device_->CreateBuffer( &desc, NULL, &vb_ );
+	hr = renderer_->device_->CreateBuffer( &desc, NULL, &textVB_ );
 	if( FAILED( hr ) )
 	{
 		OutputDebugStringA( "Failed to create overlay vertex buffer!" );
 		return false;
 	}
 
-	// load texture
+	// load text texture
 	if( !texture_.Load( L"assets/textures/droidMono.dds", renderer_->device_ ) )
 	{
 		OutputDebugStringA( "Failed to load Droid Mono texture!" );
+		return false;
+	}
+
+	// create vertex buffer for primitive drawing
+	ZeroMemory( &desc, sizeof( desc ) );
+	desc.Usage = D3D11_USAGE_DYNAMIC;
+	desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	desc.ByteWidth = sizeof( OverlayVertex3D ) * OVERLAY_3DVB_SIZE;
+
+	hr = renderer_->device_->CreateBuffer( &desc, NULL, &primitiveVB_ );
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "Failed to create overlay vertex buffer!" );
 		return false;
 	}
 
@@ -1252,7 +1256,7 @@ void Overlay::DisplayText( int x, int y, const char* text, XMFLOAT4 color )
 	strncpy( shortText, text, textLength );
 	shortText[ textLength ] = '\0';
 
-	OverlayVertex vertices[ MAX_OVERLAY_CHARS * 6 ]; // 6 vertices per sqaure/char
+	OverlayVertex2D vertices[ MAX_OVERLAY_CHARS * 6 ]; // 6 vertices per sqaure/char
 	int charOffsetInLine = 0;
 
 	for( int i = 0; i < textLength; i++ )
@@ -1296,16 +1300,16 @@ void Overlay::DisplayText( int x, int y, const char* text, XMFLOAT4 color )
 	*/
 	// TODO: build a single vertex buffer per frame 
 	D3D11_MAPPED_SUBRESOURCE mapResource;
-	HRESULT hr = renderer_->context_->Map( vb_, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource );
+	HRESULT hr = renderer_->context_->Map( textVB_, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource );
 	if( FAILED( hr ) )
 	{
 		OutputDebugStringA( "Failed to map subresource!");
 		return;
 	}
-	memcpy( mapResource.pData, vertices, sizeof( OverlayVertex ) * textLength * 6 );
-	renderer_->context_->Unmap( vb_, 0 );
+	memcpy( mapResource.pData, vertices, sizeof( OverlayVertex2D ) * textLength * 6 );
+	renderer_->context_->Unmap( textVB_, 0 );
 
-	uint stride = sizeof( OverlayVertex );
+	uint stride = sizeof( OverlayVertex2D );
 	uint offset = 0;
 
 	// update constant buffer
@@ -1323,13 +1327,15 @@ void Overlay::DisplayText( int x, int y, const char* text, XMFLOAT4 color )
 
 	renderer_->SetDepthBufferMode( DB_DISABLED );
 	renderer_->SetBlendMode( BM_ALPHA );
-	renderer_->context_->IASetVertexBuffers( 0, 1, &vb_, &stride, &offset );
+	renderer_->context_->IASetVertexBuffers( 0, 1, &textVB_, &stride, &offset );
 	// renderer_->context_->PSSetShaderResources( 0, 1, &textureView_ );
 	renderer_->SetTexture( texture_, ST_FRAGMENT );
 	renderer_->SetSampler( SAMPLER_POINT );
 	renderer_->context_->PSSetConstantBuffers( 1, 1, &constantBuffer_ );
-	renderer_->SetShader( shader_ );
+	renderer_->SetShader( textShader_ );
+
 	renderer_->context_->Draw( textLength * 6, 0 );
+
 	renderer_->SetBlendMode( BM_DEFAULT );
 	renderer_->SetDepthBufferMode( DB_ENABLED );
 }
@@ -1341,6 +1347,65 @@ float Overlay::GetCharOffset( char c )
 	int index = (int)alpha.find_first_of( c );
 
 	return (float)index * NORMALIZED_CHAR_WIDTH;
+}
+
+void Overlay::DrawLine( XMFLOAT3 A, XMFLOAT3 B, XMFLOAT4 color )
+{
+	OverlayVertex3D vertices[2];
+	vertices[0].pos[0] = A.x;
+	vertices[0].pos[1] = A.y;
+	vertices[0].pos[2] = A.z;
+	vertices[1].pos[0] = B.x;
+	vertices[1].pos[1] = B.y;
+	vertices[1].pos[2] = B.z;
+
+	vertices[0].color[0] = color.x;
+	vertices[0].color[1] = color.y;
+	vertices[0].color[2] = color.z;
+	vertices[0].color[3] = color.w;
+	vertices[1].color[0] = color.x;
+	vertices[1].color[1] = color.y;
+	vertices[1].color[2] = color.z;
+	vertices[1].color[3] = color.w;
+
+	D3D11_MAPPED_SUBRESOURCE mapResource;
+	HRESULT hr = renderer_->context_->Map( primitiveVB_, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource );
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "Failed to map subresource!");
+		return;
+	}
+	memcpy( mapResource.pData, vertices, sizeof( OverlayVertex3D ) * 2 );
+	renderer_->context_->Unmap( primitiveVB_, 0 );
+
+	uint stride = sizeof( OverlayVertex3D );
+	uint offset = 0;
+
+	renderer_->SetDepthBufferMode( DB_READ );
+	renderer_->SetBlendMode( BM_ALPHA );
+	renderer_->context_->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_LINELIST );
+	renderer_->context_->IASetVertexBuffers( 0, 1, &primitiveVB_, &stride, &offset );
+	renderer_->context_->VSSetConstantBuffers( 1, 1, &renderer_->frameConstantBuffer_ );
+	renderer_->SetShader( primitiveShader_ );
+
+	renderer_->context_->Draw( 2, 0 );
+
+	renderer_->context_->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
+	renderer_->SetBlendMode( BM_DEFAULT );
+	renderer_->SetDepthBufferMode( DB_ENABLED );
+}
+
+void Overlay::DrawPoint( XMFLOAT3 P, XMFLOAT4 color )
+{
+	XMVECTOR vPoint = XMLoadFloat3( &P );
+	XMVECTOR vView = XMLoadFloat3( &renderer_->viewPosition_ );
+
+	float dist = XMVectorGetX( XMVector4Length( vPoint - vView ) );
+	float offset = 0.05f * dist;
+
+	DrawLine( { P.x - offset, P.y, P.z }, { P.x + offset, P.y, P.z }, color );
+	DrawLine( { P.x, P.y - offset, P.z }, { P.x, P.y + offset, P.z }, color );
+	DrawLine( { P.x, P.y, P.z - offset }, { P.x, P.y, P.z + offset }, color );
 }
 
 //********************************

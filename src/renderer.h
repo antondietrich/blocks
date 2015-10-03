@@ -208,6 +208,10 @@ private:
 	Texture textures_[ MAX_TEXTURES ];
 	Mesh meshes_[ MAX_MESHES ];
 
+	/* main view */
+	DirectX::XMFLOAT3 viewPosition_;
+	DirectX::XMFLOAT3 viewDirection_;
+	DirectX::XMFLOAT3 viewUp_;
 	DirectX::XMFLOAT4X4 view_;
 	DirectX::XMFLOAT4X4 projection_;
 
@@ -219,7 +223,9 @@ private:
 //******************************
 
 #define MAX_OVERLAY_CHARS 1024
-// measured in pixels
+#define OVERLAY_3DVB_SIZE 512
+
+// text metrics in pixels
 #define TEXT_PADDING 10
 #define LINE_HEIGHT 24
 #define LINE_SPACING 4
@@ -230,10 +236,16 @@ private:
 #define MAX_CHARS_IN_LINE 32
 // #define FONT_CHAR_OFFSET 0.01171875f
 
-struct OverlayVertex
+struct OverlayVertex2D
 {
 	float pos[2];
 	float texcoord[2];
+};
+
+struct OverlayVertex3D
+{
+	float pos[3];
+	float color[4];
 };
 
 struct OverlayShaderCB
@@ -255,15 +267,18 @@ public:
 	void WriteLineUnformatted( const char* text );
 	void DisplayText( int x, int y, const char* text, DirectX::XMFLOAT4 color );
 
+	void DrawLine( DirectX::XMFLOAT3 A, DirectX::XMFLOAT3 B, DirectX::XMFLOAT4 color );
+	void DrawPoint( DirectX::XMFLOAT3 P, DirectX::XMFLOAT4 color );
+
 	float GetCharOffset( char c );
 
 private:
 	Renderer *renderer_;
-	Shader shader_;
-	ID3D11Buffer *vb_;
-	//ID3D11ShaderResourceView *textureView_;
+	Shader textShader_;
+	Shader primitiveShader_;
+	ID3D11Buffer *textVB_;
+	ID3D11Buffer *primitiveVB_;
 	Texture texture_;
-//	ID3D11SamplerState *sampler_;
 	ID3D11Buffer *constantBuffer_;
 
 	uint lineNumber_;

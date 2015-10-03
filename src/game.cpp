@@ -433,6 +433,19 @@ void Game::DoFrame( float dt )
 		ProfileStop();
 	}
 
+	// show lines at chunk borders
+	for( int x = -1; x <= 1; x++  )
+	{
+		for( int z = -1; z <= 1; z++  )
+		{
+			float lineX = (float)( CHUNK_WIDTH * playerChunkPos.x + CHUNK_WIDTH * x);
+			float lineZ = (float)( CHUNK_WIDTH * playerChunkPos.z + CHUNK_WIDTH * z);
+			overlay.DrawLine( {lineX, 0.0f, lineZ}, {lineX, 255.0f, lineZ}, {1.0f, 0.2f, 0.2f, 1.0f} );
+		}
+	}
+
+	overlay.DrawPoint( { 0.0f, 60.0f, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } );
+
 	renderer.End();
 
 	for( int i = 0; i < KEY::COUNT; i++ )
