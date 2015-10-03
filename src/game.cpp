@@ -309,18 +309,16 @@ void Game::DoFrame( float dt )
 	int numDrawnVertices = 0;
 	int chunkMeshesRebuilt = 0;
 
-	// TODO: key state (down, up, press, release)
 	if( input.key[ KEY::F1 ].Pressed ) {
 		gDrawOverlay = !gDrawOverlay;
 	}
 
-
 	// render chunks around player
-	assert( CHUNKS_TO_DRAW <= CHUNK_CACHE_DIM );
+	assert( VIEW_DISTANCE <= CHUNK_CACHE_DIM );
 
-	for( int z = playerChunkPos.z - CHUNKS_TO_DRAW; z <= playerChunkPos.z + CHUNKS_TO_DRAW; z++ )
+	for( int z = playerChunkPos.z - VIEW_DISTANCE; z <= playerChunkPos.z + VIEW_DISTANCE; z++ )
 	{
-		for( int x = playerChunkPos.x - CHUNKS_TO_DRAW; x <= playerChunkPos.x + CHUNKS_TO_DRAW; x++ )
+		for( int x = playerChunkPos.x - VIEW_DISTANCE; x <= playerChunkPos.x + VIEW_DISTANCE; x++ )
 		{
 			ChunkMesh *chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( x, z ) ];
 			if( chunkMesh->vertices && chunkMesh->chunkPos[0] == x && chunkMesh->chunkPos[1] == z )

@@ -170,7 +170,7 @@ void GenerateChunk( Chunk *chunk, int x, int z )
 	{
 		for( int blockX = 0; blockX < CHUNK_WIDTH; blockX++ )
 		{
-			float p0 = PerlinCubic( x * CHUNK_WIDTH + blockX, z * CHUNK_WIDTH + blockZ, 0.5 * CHUNK_WIDTH );
+			float p0 = PerlinCubic( x * CHUNK_WIDTH + blockX, z * CHUNK_WIDTH + blockZ, (int)(0.5f * CHUNK_WIDTH) );
 			float p1 = PerlinCubic( x * CHUNK_WIDTH + blockX, z * CHUNK_WIDTH + blockZ, 2 * CHUNK_WIDTH );
 			float pbiome = PerlinCubic( x * CHUNK_WIDTH + blockX, z * CHUNK_WIDTH + blockZ, 8 * CHUNK_WIDTH );
 
@@ -184,12 +184,12 @@ void GenerateChunk( Chunk *chunk, int x, int z )
 				biomeBlockType = BT_STONE;
 			}
 
-			float mountainsScale1 = pbiome > 0.4f ? 0.0f : ( 0.4f - pbiome ) * 2.5;
+			float mountainsScale1 = pbiome > 0.4f ? 0.0f : ( 0.4f - pbiome ) * 2.5f;
 			mountainsScale1 = sqrt( mountainsScale1 );
 			float mountainsScale2 = pbiome > 0.4f ? 0.2f : 0.2f + ( 0.4f - pbiome ) * 2.5f;
 
 			//int height = (int)( p1 * 30 );
-			int height = p0 * mountainsScale1 * 10 + (int)( p1 * 60 * mountainsScale2 );
+			int height = (int)(p0 * mountainsScale1 * 10) + (int)( p1 * 60 * mountainsScale2 );
 
 			for( int blockY = 0; blockY < CHUNK_HEIGHT; blockY++ )
 			{

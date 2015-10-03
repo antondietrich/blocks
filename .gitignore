@@ -1,6 +1,7 @@
 assets/src
 assets/textures
 build
+screens
 compile.bat
 *.ilk
 *.pdb
