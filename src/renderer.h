@@ -269,6 +269,7 @@ public:
 
 	void DrawLine( DirectX::XMFLOAT3 A, DirectX::XMFLOAT3 B, DirectX::XMFLOAT4 color );
 	void DrawPoint( DirectX::XMFLOAT3 P, DirectX::XMFLOAT4 color );
+	void OulineBlock( int chunkX, int chunkZ, int x, int y, int z );
 
 	float GetCharOffset( char c );
 

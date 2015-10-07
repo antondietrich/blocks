@@ -1408,6 +1408,30 @@ void Overlay::DrawPoint( XMFLOAT3 P, XMFLOAT4 color )
 	DrawLine( { P.x, P.y, P.z - offset }, { P.x, P.y, P.z + offset }, color );
 }
 
+void Overlay::OulineBlock( int chunkX, int chunkZ, int x, int y, int z )
+{
+	float negOffset = -0.00f;
+	float posOffset =  1.00f;
+	XMFLOAT3 min = { chunkX * CHUNK_WIDTH + x + negOffset, y + negOffset, chunkZ * CHUNK_WIDTH + z + negOffset };
+	XMFLOAT3 max = { chunkX * CHUNK_WIDTH + x + posOffset, y + posOffset, chunkZ * CHUNK_WIDTH + z + posOffset };
+
+	DrawLine( { min.x, min.y, min.z }, { max.x, min.y, min.z }, { 1.0f, 1.0f, 1.0f, 1.0f } );
+	DrawLine( { min.x, min.y, min.z }, { min.x, max.y, min.z }, { 1.0f, 1.0f, 1.0f, 1.0f } );
+	DrawLine( { min.x, min.y, min.z }, { min.x, min.y, max.z }, { 1.0f, 1.0f, 1.0f, 1.0f } );
+	DrawLine( { max.x, max.y, max.z }, { min.x, max.y, max.z }, { 1.0f, 1.0f, 1.0f, 1.0f } );
+	DrawLine( { max.x, max.y, max.z }, { max.x, min.y, max.z }, { 1.0f, 1.0f, 1.0f, 1.0f } );
+	DrawLine( { max.x, max.y, max.z }, { max.x, max.y, min.z }, { 1.0f, 1.0f, 1.0f, 1.0f } );
+	
+	DrawLine( { min.x, min.y, max.z }, { max.x, min.y, max.z }, { 1.0f, 1.0f, 1.0f, 1.0f } );
+	DrawLine( { min.x, min.y, max.z }, { min.x, max.y, max.z }, { 1.0f, 1.0f, 1.0f, 1.0f } );
+	DrawLine( { max.x, max.y, min.z }, { min.x, max.y, min.z }, { 1.0f, 1.0f, 1.0f, 1.0f } );
+	DrawLine( { max.x, max.y, min.z }, { max.x, min.y, min.z }, { 1.0f, 1.0f, 1.0f, 1.0f } );
+	
+	DrawLine( { min.x, max.y, min.z }, { min.x, max.y, max.z }, { 1.0f, 1.0f, 1.0f, 1.0f } );
+	DrawLine( { max.x, min.y, max.z }, { max.x, min.y, min.z }, { 1.0f, 1.0f, 1.0f, 1.0f } );
+
+}
+
 //********************************
 // Function definitions
 //********************************

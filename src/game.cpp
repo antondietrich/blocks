@@ -445,6 +445,7 @@ void Game::DoFrame( float dt )
 	}
 
 	overlay.DrawPoint( { 0.0f, 60.0f, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } );
+	overlay.OulineBlock( playerChunkPos.x, playerChunkPos.z, playerBlockPos.x, playerBlockPos.y-1, playerBlockPos.z );
 
 	renderer.End();
 
