@@ -16,9 +16,8 @@ struct Line
 
 struct Segment
 {
-	DirectX::XMFLOAT3 p;
-	DirectX::XMFLOAT3 d;
-	float length;
+	DirectX::XMFLOAT3 A;
+	DirectX::XMFLOAT3 B;
 };
 
 struct AABB
@@ -27,6 +26,11 @@ struct AABB
 	DirectX::XMFLOAT3 max;
 };
 
-}
+bool TestIntersection( Segment, AABB );
+bool TestIntersection( Line, AABB );
+
+float DistanceSq( DirectX::XMFLOAT3 A, DirectX::XMFLOAT3 B );
+
+} // namespace Blocks
 
 #endif // __BLOCKS_COLLISION__

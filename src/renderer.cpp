@@ -619,10 +619,16 @@ void Renderer::Draw( uint vertexCount, uint startVertexOffset )
 //	context_->Unmap( blockVB_, 0 );
 
 	numCachedBlocks_ = 0;
+	
+	uint stride = sizeof( BlockVertex );
+	uint offset = 0;
+	context_->IASetVertexBuffers( 0, 1, &blockVB_, &stride, &offset );
 
 //	uint stride = sizeof( BlockVertex );
 //	uint offset = 0;
 //	context_->IASetVertexBuffers( 0, 1, &blockVB_, &stride, &offset );
+
+	SetShader( shaders_[0] );
 
 	context_->Draw( vertexCount, startVertexOffset );
 
@@ -1395,6 +1401,17 @@ void Overlay::DrawLine( XMFLOAT3 A, XMFLOAT3 B, XMFLOAT4 color )
 	renderer_->SetDepthBufferMode( DB_ENABLED );
 }
 
+void Overlay::DrawLineDir( XMFLOAT3 start, XMFLOAT3 dir, DirectX::XMFLOAT4 color )
+{
+	XMFLOAT3 A = start;
+	XMFLOAT3 B = {
+		start.x + dir.x,
+		start.y + dir.y,
+		start.z + dir.z,
+	};
+	DrawLine( A, B, color );
+}
+
 void Overlay::DrawPoint( XMFLOAT3 P, XMFLOAT4 color )
 {
 	XMVECTOR vPoint = XMLoadFloat3( &P );
@@ -1408,27 +1425,27 @@ void Overlay::DrawPoint( XMFLOAT3 P, XMFLOAT4 color )
 	DrawLine( { P.x, P.y, P.z - offset }, { P.x, P.y, P.z + offset }, color );
 }
 
-void Overlay::OulineBlock( int chunkX, int chunkZ, int x, int y, int z )
+void Overlay::OulineBlock( int chunkX, int chunkZ, int x, int y, int z, XMFLOAT4 color )
 {
 	float negOffset = -0.00f;
 	float posOffset =  1.00f;
 	XMFLOAT3 min = { chunkX * CHUNK_WIDTH + x + negOffset, y + negOffset, chunkZ * CHUNK_WIDTH + z + negOffset };
 	XMFLOAT3 max = { chunkX * CHUNK_WIDTH + x + posOffset, y + posOffset, chunkZ * CHUNK_WIDTH + z + posOffset };
 
-	DrawLine( { min.x, min.y, min.z }, { max.x, min.y, min.z }, { 1.0f, 1.0f, 1.0f, 1.0f } );
-	DrawLine( { min.x, min.y, min.z }, { min.x, max.y, min.z }, { 1.0f, 1.0f, 1.0f, 1.0f } );
-	DrawLine( { min.x, min.y, min.z }, { min.x, min.y, max.z }, { 1.0f, 1.0f, 1.0f, 1.0f } );
-	DrawLine( { max.x, max.y, max.z }, { min.x, max.y, max.z }, { 1.0f, 1.0f, 1.0f, 1.0f } );
-	DrawLine( { max.x, max.y, max.z }, { max.x, min.y, max.z }, { 1.0f, 1.0f, 1.0f, 1.0f } );
-	DrawLine( { max.x, max.y, max.z }, { max.x, max.y, min.z }, { 1.0f, 1.0f, 1.0f, 1.0f } );
+	DrawLine( { min.x, min.y, min.z }, { max.x, min.y, min.z }, color );
+	DrawLine( { min.x, min.y, min.z }, { min.x, max.y, min.z }, color );
+	DrawLine( { min.x, min.y, min.z }, { min.x, min.y, max.z }, color );
+	DrawLine( { max.x, max.y, max.z }, { min.x, max.y, max.z }, color );
+	DrawLine( { max.x, max.y, max.z }, { max.x, min.y, max.z }, color );
+	DrawLine( { max.x, max.y, max.z }, { max.x, max.y, min.z }, color );
 	
-	DrawLine( { min.x, min.y, max.z }, { max.x, min.y, max.z }, { 1.0f, 1.0f, 1.0f, 1.0f } );
-	DrawLine( { min.x, min.y, max.z }, { min.x, max.y, max.z }, { 1.0f, 1.0f, 1.0f, 1.0f } );
-	DrawLine( { max.x, max.y, min.z }, { min.x, max.y, min.z }, { 1.0f, 1.0f, 1.0f, 1.0f } );
-	DrawLine( { max.x, max.y, min.z }, { max.x, min.y, min.z }, { 1.0f, 1.0f, 1.0f, 1.0f } );
+	DrawLine( { min.x, min.y, max.z }, { max.x, min.y, max.z }, color );
+	DrawLine( { min.x, min.y, max.z }, { min.x, max.y, max.z }, color );
+	DrawLine( { max.x, max.y, min.z }, { min.x, max.y, min.z }, color );
+	DrawLine( { max.x, max.y, min.z }, { max.x, min.y, min.z }, color );
 	
-	DrawLine( { min.x, max.y, min.z }, { min.x, max.y, max.z }, { 1.0f, 1.0f, 1.0f, 1.0f } );
-	DrawLine( { max.x, min.y, max.z }, { max.x, min.y, min.z }, { 1.0f, 1.0f, 1.0f, 1.0f } );
+	DrawLine( { min.x, max.y, min.z }, { min.x, max.y, max.z }, color );
+	DrawLine( { max.x, min.y, max.z }, { max.x, min.y, min.z }, color );
 
 }
 

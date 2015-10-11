@@ -268,8 +268,9 @@ public:
 	void DisplayText( int x, int y, const char* text, DirectX::XMFLOAT4 color );
 
 	void DrawLine( DirectX::XMFLOAT3 A, DirectX::XMFLOAT3 B, DirectX::XMFLOAT4 color );
+	void DrawLineDir( DirectX::XMFLOAT3 start, DirectX::XMFLOAT3 dir, DirectX::XMFLOAT4 color );
 	void DrawPoint( DirectX::XMFLOAT3 P, DirectX::XMFLOAT4 color );
-	void OulineBlock( int chunkX, int chunkZ, int x, int y, int z );
+	void OulineBlock( int chunkX, int chunkZ, int x, int y, int z, DirectX::XMFLOAT4 color={ 1.0f, 1.0f, 1.0f, 1.0f });
 
 	float GetCharOffset( char c );
 

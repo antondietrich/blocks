@@ -64,7 +64,14 @@ bool Game::Start( HWND wnd )
 	return true;
 }
 
-XMFLOAT3 playerPos 		= { 0.0f, 120.0f, 0.0f };
+struct CollisionTMP
+{
+	int chunkX;
+	int chunkZ;
+	int x, y, z;
+};
+
+XMFLOAT3 playerPos 		= { 0.0f, 10.0f, 0.0f };
 XMFLOAT3 playerDir 		= { 0.0f,  0.0f, 1.0f };
 XMFLOAT3 playerLook 	= { 0.0f,  0.0f, 1.0f };
 XMFLOAT3 playerRight 	= { 1.0f,  0.0f, 0.0f };
@@ -74,6 +81,7 @@ XMFLOAT3 gravity 		= { 0.0f,  0.0f, 0.0f };
 
 float playerMass = 75.0f;
 float playerHeight = 1.8f;
+float playerReach = 4.0f;
 bool playerAirborne = true;
 
 bool gDrawOverlay = true;
@@ -170,7 +178,7 @@ void Game::DoFrame( float dt )
 
 	if( input.key[ KEY::SPACE ].Down ) {
 		if( 1 || !playerAirborne ) {
-			force += vUp * 100.0 * playerMass * 2.35 / dt;
+			force += vUp * 100.0f * playerMass * 2.35f / dt;
 			playerAirborne = true;
 		}
 	}
@@ -303,6 +311,126 @@ void Game::DoFrame( float dt )
 
 	renderer.SetView( playerEyePos, playerLook, playerUp );
 
+	XMFLOAT3 lookAtTarget;
+	XMFLOAT3 pickDirection;
+	CollisionTMP collisions[256];
+	int numCollisions = 0;
+	Line lineOfSight;
+	// block picking
+	{
+		XMVECTOR vPlayerEyePos = XMLoadFloat3( &playerEyePos );
+		XMVECTOR vTarget = vPlayerEyePos + vLook * playerReach;
+		XMVECTOR vPick = vLook * playerReach;
+		XMStoreFloat3( &lookAtTarget, vTarget );
+		XMStoreFloat3( &pickDirection, vPick );
+		// Segment lineOfSight = { playerEyePos, lookAtTarget };
+		lineOfSight = { playerEyePos, pickDirection };
+
+		//Chunk * chunksAroundPlayer[9];
+//		for( int xOffset = -1; xOffset <= 1; xOffset++ )
+//		{
+//			for( int zOffset = -1; zOffset <= 1; zOffset++ )
+//			{
+//				int chunkX = playerChunkPos.x + xOffset;
+//				int chunkZ = playerChunkPos.z + zOffset;
+
+				//chunksAroundPlayer[i] = &world_->chunks[ ChunkCacheIndexFromChunkPos( chunkX, chunkZ ) ];
+				int chunkX = playerChunkPos.x;
+				int chunkZ = playerChunkPos.z;
+				//Chunk * chunk = &world_->chunks[ ChunkCacheIndexFromChunkPos( chunkX, chunkZ ) ];
+				Chunk * chunk;
+				float lastDistance = 1000.0f;
+				int blockX, blockY, blockZ;
+				int playerReachBlocks = (int)playerReach + 1;
+				for( int blockOffsetX = playerBlockPos.x - playerReachBlocks; blockOffsetX <= playerBlockPos.x + playerReachBlocks; blockOffsetX++ )
+				{
+					if( blockOffsetX < 0 )
+					{
+						blockX = blockOffsetX + CHUNK_WIDTH;
+						chunkX = playerChunkPos.x - 1;
+					}
+					else if( blockOffsetX >= CHUNK_WIDTH )
+					{
+						blockX = blockOffsetX - CHUNK_WIDTH;
+						chunkX = playerChunkPos.x + 1;
+					}
+					else
+					{
+						blockX = blockOffsetX;
+						chunkX = playerChunkPos.x;
+					}
+					for( int blockOffsetY = playerBlockPos.y - playerReachBlocks; blockOffsetY <= playerBlockPos.y + playerReachBlocks; blockOffsetY++ )
+					{
+						if( blockOffsetY < 0 || blockOffsetY >= CHUNK_HEIGHT )
+						{
+							continue;
+						}
+						else
+						{
+							blockY = blockOffsetY;
+						}
+						for( int blockOffsetZ = playerBlockPos.z - playerReachBlocks; blockOffsetZ <= playerBlockPos.z + playerReachBlocks; blockOffsetZ++ )
+						{
+							if( blockOffsetZ < 0 )
+							{
+								blockZ = blockOffsetZ + CHUNK_WIDTH;
+								chunkZ = playerChunkPos.z - 1;
+							}
+							else if( blockOffsetZ >= CHUNK_WIDTH )
+							{
+								blockZ = blockOffsetZ - CHUNK_WIDTH;
+								chunkZ = playerChunkPos.z + 1;
+							}
+							else
+							{
+								blockZ = blockOffsetZ;
+								chunkZ = playerChunkPos.z;
+							}
+							chunk = &world_->chunks[ ChunkCacheIndexFromChunkPos( chunkX, chunkZ ) ];
+							if( GetBlockType( *chunk, { blockX, blockY, blockZ } ) != BT_AIR )
+							{
+								
+								AABB blockBound = { {
+														(float)( chunkX * CHUNK_WIDTH + blockX ),
+														(float)( blockY ),
+														(float)( chunkZ * CHUNK_WIDTH + blockZ ) 
+													},
+													{ 
+														(float)( chunkX * CHUNK_WIDTH + blockX+1.0f ),
+														(float)( blockY+1.0f ),
+														(float)( chunkZ * CHUNK_WIDTH + blockZ+1.0f )
+													} };
+
+								#if 0
+								if( TestIntersection( lineOfSight, blockBound ) )
+								{
+									collisions[ numCollisions ] = { chunkX, chunkZ, blockX, blockY, blockZ };
+									numCollisions++;
+								}
+								#else
+								// Line ray = { playerEyePos, playerLook };
+								if( TestIntersection( lineOfSight, blockBound ) )
+								{
+									float distance = DistanceSq( playerEyePos, { blockBound.min.x + 0.5f, blockBound.min.y + 0.5f, blockBound.min.z + 0.5f } );
+
+									if( distance < lastDistance )
+									{
+										collisions[ 0 ] = { chunkX, chunkZ, blockX, blockY, blockZ };
+										numCollisions = 1;
+										lastDistance = distance;
+									}
+									// collisions[ numCollisions ] = { chunkX, chunkZ, blockX, blockY, blockZ };
+									// ++numCollisions;
+								}
+								#endif
+							}
+						}
+					}
+				}
+//			}
+//		}
+	} // block picking
+
 	// world rendering
 //	int batchVertexCount = 0;
 //	int numDrawnBatches = 0;
@@ -420,7 +548,6 @@ void Game::DoFrame( float dt )
 		overlay.WriteLine( "Chunk pos:  %5i ----- %5i", playerChunkPos.x, playerChunkPos.z );
 		overlay.WriteLine( "Speed:  %5.2f", XMVectorGetX( XMVector4Length( vSpeed ) ) );
 		overlay.Write( "Keys pressed: " );
-
 		for( int i = 0; i < KEY::COUNT; i++ )
 		{
 			if( input.key[i].Down )
@@ -428,7 +555,9 @@ void Game::DoFrame( float dt )
 				overlay.Write( "%s, ", GetKeyName( (KEY)i ) );
 			}
 		}
-		overlay.Write( "" );
+
+		overlay.WriteLine( "" );
+		overlay.Write( "numCollisions: %i", numCollisions );
 
 		ProfileStop();
 	}
@@ -444,8 +573,20 @@ void Game::DoFrame( float dt )
 		}
 	}
 
-	overlay.DrawPoint( { 0.0f, 60.0f, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } );
-	overlay.OulineBlock( playerChunkPos.x, playerChunkPos.z, playerBlockPos.x, playerBlockPos.y-1, playerBlockPos.z );
+	//overlay.OulineBlock( playerChunkPos.x, playerChunkPos.z, playerBlockPos.x, playerBlockPos.y-1, playerBlockPos.z );
+	//overlay.OulineBlock( playerChunkPos.x, playerChunkPos.z, playerEyePos.x, playerEyePos.y, playerEyePos.z, { 0.0f, 1.0f, 1.0f, 1.0f } );
+	//overlay.DrawPoint( lookAtTarget, { 0.0f, 1.0f, 1.0f, 1.0f } );
+
+	for( int i = 0; i < numCollisions; i++ )
+	{
+		overlay.OulineBlock( collisions[i].chunkX,
+								 collisions[i].chunkZ,
+								 collisions[i].x, 
+								 collisions[i].y, 
+								 collisions[i].z );
+	}
+	//overlay.DrawLine( { playerEyePos.x, playerEyePos.y - 1.0f, playerEyePos.z }, lookAtTarget, {1.0f, 0.0f, 1.0f, 1.0f} );
+	//overlay.DrawLineDir( lineOfSight.p, lineOfSight.d, {1.0f, 0.0f, 1.0f, 1.0f} );
 
 	renderer.End();
 
