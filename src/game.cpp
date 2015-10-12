@@ -64,13 +64,6 @@ bool Game::Start( HWND wnd )
 	return true;
 }
 
-struct CollisionTMP
-{
-	int chunkX;
-	int chunkZ;
-	int x, y, z;
-};
-
 XMFLOAT3 playerPos 		= { 0.0f, 10.0f, 0.0f };
 XMFLOAT3 playerDir 		= { 0.0f,  0.0f, 1.0f };
 XMFLOAT3 playerLook 	= { 0.0f,  0.0f, 1.0f };
@@ -313,8 +306,7 @@ void Game::DoFrame( float dt )
 
 	XMFLOAT3 lookAtTarget;
 	XMFLOAT3 pickDirection;
-	CollisionTMP collisions[256];
-	int numCollisions = 0;
+	BlockPosition pickedBlock = { 0 };
 	Line lineOfSight;
 	// block picking
 	{
@@ -415,12 +407,9 @@ void Game::DoFrame( float dt )
 
 									if( distance < lastDistance )
 									{
-										collisions[ 0 ] = { chunkX, chunkZ, blockX, blockY, blockZ };
-										numCollisions = 1;
+										pickedBlock = { chunkX, chunkZ, blockX, blockY, blockZ };
 										lastDistance = distance;
 									}
-									// collisions[ numCollisions ] = { chunkX, chunkZ, blockX, blockY, blockZ };
-									// ++numCollisions;
 								}
 								#endif
 							}
@@ -557,7 +546,6 @@ void Game::DoFrame( float dt )
 		}
 
 		overlay.WriteLine( "" );
-		overlay.Write( "numCollisions: %i", numCollisions );
 
 		ProfileStop();
 	}
@@ -577,14 +565,11 @@ void Game::DoFrame( float dt )
 	//overlay.OulineBlock( playerChunkPos.x, playerChunkPos.z, playerEyePos.x, playerEyePos.y, playerEyePos.z, { 0.0f, 1.0f, 1.0f, 1.0f } );
 	//overlay.DrawPoint( lookAtTarget, { 0.0f, 1.0f, 1.0f, 1.0f } );
 
-	for( int i = 0; i < numCollisions; i++ )
-	{
-		overlay.OulineBlock( collisions[i].chunkX,
-								 collisions[i].chunkZ,
-								 collisions[i].x, 
-								 collisions[i].y, 
-								 collisions[i].z );
-	}
+	overlay.OulineBlock( 	pickedBlock.chunkX,
+							pickedBlock.chunkZ,
+							pickedBlock.x, 
+							pickedBlock.y, 
+							pickedBlock.z );
 	//overlay.DrawLine( { playerEyePos.x, playerEyePos.y - 1.0f, playerEyePos.z }, lookAtTarget, {1.0f, 0.0f, 1.0f, 1.0f} );
 	//overlay.DrawLineDir( lineOfSight.p, lineOfSight.d, {1.0f, 0.0f, 1.0f, 1.0f} );
 

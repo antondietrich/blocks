@@ -54,6 +54,13 @@ enum BLOCK_TYPE
 	BT_WOOD
 };
 
+struct BlockPosition
+{
+	int chunkX;
+	int chunkZ;
+	int x, y, z;
+};
+
 struct BlockVertex
 {
 	uint8 data[4];
