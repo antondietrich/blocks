@@ -20,6 +20,12 @@ struct Segment
 	DirectX::XMFLOAT3 B;
 };
 
+struct Plane
+{
+	DirectX::XMFLOAT3 p;
+	DirectX::XMFLOAT3 n;
+};
+
 struct AABB
 {
 	DirectX::XMFLOAT3 min;
@@ -29,7 +35,12 @@ struct AABB
 bool TestIntersection( Segment, AABB );
 bool TestIntersection( Line, AABB );
 
+DirectX::XMFLOAT3 GetIntersection( Line, AABB );
+
 float DistanceSq( DirectX::XMFLOAT3 A, DirectX::XMFLOAT3 B );
+float LengthSq( DirectX::XMFLOAT3 v );
+float Length( DirectX::XMFLOAT3 v );
+DirectX::XMFLOAT3 Normalize( DirectX::XMFLOAT3 v );
 
 } // namespace Blocks
 

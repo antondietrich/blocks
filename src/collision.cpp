@@ -115,6 +115,82 @@ bool TestIntersection( Line line, AABB bound )
 	return true;
 }
 
+XMFLOAT3 GetIntersection( Line ray, AABB bound )
+{
+	XMVECTOR intersectionDist = XMVectorReplicate( 100.0f );
+
+	XMVECTOR rayN = XMLoadFloat3( &ray.d );
+	XMVECTOR length = XMVector3Length( rayN );
+	rayN = XMVector3Normalize( rayN );
+	XMVECTOR rayP = XMLoadFloat3( &ray.p );
+
+	XMVECTOR boundMin = XMLoadFloat3( &bound.min );
+	XMVECTOR boundMax = XMLoadFloat3( &bound.max );
+
+	XMVECTOR planeN[6];
+	XMVECTOR planeP[6];
+
+	planeN[0] = XMVectorSet( 1.0f, 0.0f, 0.0f, 0.0f );
+	planeP[0] = XMLoadFloat3( &bound.min );
+	planeN[1] = XMVectorSet( 1.0f, 0.0f, 0.0f, 0.0f );
+	planeP[1] = XMLoadFloat3( &bound.max );
+	planeN[2] = XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
+	planeP[2] = XMLoadFloat3( &bound.min );
+	planeN[3] = XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
+	planeP[3] = XMLoadFloat3( &bound.max );
+	planeN[4] = XMVectorSet( 0.0f, 0.0f, 1.0f, 0.0f );
+	planeP[4] = XMLoadFloat3( &bound.min );
+	planeN[5] = XMVectorSet( 0.0f, 0.0f, 1.0f, 0.0f );
+	planeP[5] = XMLoadFloat3( &bound.max );
+
+	for( int i = 0; i < 6; ++i )
+	{
+		XMVECTOR dot = XMVector3Dot( rayN, planeN[ i ] );
+		if( XMVector3Equal( dot, XMVectorZero() ) )
+		{
+			continue;
+		}
+		XMVECTOR numerator = XMVector3Dot( planeP[i] - rayP, planeN[i] );
+		XMVECTOR t = numerator / dot;
+
+		if( XMVector2Less( t, intersectionDist ) )
+		{
+			XMVECTOR vIntersection = rayP + rayN * t; // piecewise multiplication
+			if( XMVector3LessOrEqual( vIntersection, boundMax ) && 
+				XMVector3GreaterOrEqual( vIntersection, boundMin ) )
+			{
+				intersectionDist = t;
+			}
+		}
+	}
+
+	XMVECTOR vIntersection = rayP + rayN * XMVectorGetX( intersectionDist );
+	XMFLOAT3 intersection;
+	XMStoreFloat3( &intersection, vIntersection );
+
+	return intersection;
+}
+
+float LengthSq( XMFLOAT3 v )
+{
+	float result = v.x * v.x + v.y * v.y + v.z * v.z;
+	return result;
+}
+
+float Length( XMFLOAT3 v )
+{
+	float lenSq = LengthSq( v );
+	float result = sqrt( lenSq );
+	return result;
+}
+
+XMFLOAT3 Normalize( XMFLOAT3 v )
+{
+	float len = Length( v );
+	XMFLOAT3 result = { v.x / len, v.y / len, v.z / len };
+	return result;
+}
+
 float DistanceSq( XMFLOAT3 A, XMFLOAT3 B )
 {
 	XMFLOAT3 vec = { B.x - A.x, B.y - A.y, B.z - A.z };
