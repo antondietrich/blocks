@@ -682,17 +682,17 @@ int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkP
 				if( neighbours[BOD_POS][BOD_SAM][BOD_SAM] == BT_AIR )
 				{
 					occlusion[0] = VertexAO( neighbours[BOD_POS][BOD_POS][BOD_SAM],
-											neighbours[BOD_POS][BOD_SAM][BOD_NEG], 
-											neighbours[BOD_POS][BOD_POS][BOD_NEG] );
+											 neighbours[BOD_POS][BOD_SAM][BOD_NEG], 
+											 neighbours[BOD_POS][BOD_POS][BOD_NEG] );
 					occlusion[1] = VertexAO( neighbours[BOD_POS][BOD_NEG][BOD_SAM],
-											neighbours[BOD_POS][BOD_SAM][BOD_NEG], 
-											neighbours[BOD_POS][BOD_NEG][BOD_NEG] );
+											 neighbours[BOD_POS][BOD_SAM][BOD_NEG], 
+											 neighbours[BOD_POS][BOD_NEG][BOD_NEG] );
 					occlusion[2] = VertexAO( neighbours[BOD_POS][BOD_NEG][BOD_SAM],
-											neighbours[BOD_POS][BOD_SAM][BOD_POS], 
-											neighbours[BOD_POS][BOD_NEG][BOD_POS] );
+											 neighbours[BOD_POS][BOD_SAM][BOD_POS], 
+											 neighbours[BOD_POS][BOD_NEG][BOD_POS] );
 					occlusion[3] = VertexAO( neighbours[BOD_POS][BOD_POS][BOD_SAM],
-											neighbours[BOD_POS][BOD_SAM][BOD_POS], 
-											neighbours[BOD_POS][BOD_POS][BOD_POS] );
+											 neighbours[BOD_POS][BOD_SAM][BOD_POS], 
+											 neighbours[BOD_POS][BOD_POS][BOD_POS] );
 					AddFace( gChunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_X, occlusion, blockSpec );
 					vertexIndex += VERTS_PER_FACE;
 				}
@@ -774,13 +774,22 @@ int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkP
 				}
 
 				// Y-
-				occlusion[0] = 0;
-				occlusion[1] = 0;
-				occlusion[2] = 0;
-				occlusion[3] = 0;
 				if( neighbours[BOD_SAM][BOD_NEG][BOD_SAM] == BT_AIR )
 				{
-					// TODO: add downward face
+					occlusion[0] = VertexAO( neighbours[BOD_NEG][BOD_NEG][BOD_SAM],
+											 neighbours[BOD_SAM][BOD_NEG][BOD_NEG],
+											 neighbours[BOD_NEG][BOD_NEG][BOD_NEG] );
+					occlusion[1] = VertexAO( neighbours[BOD_NEG][BOD_NEG][BOD_SAM],
+											 neighbours[BOD_SAM][BOD_NEG][BOD_POS],
+											 neighbours[BOD_NEG][BOD_NEG][BOD_POS] );
+					occlusion[2] = VertexAO( neighbours[BOD_POS][BOD_NEG][BOD_SAM],
+											 neighbours[BOD_SAM][BOD_NEG][BOD_POS],
+											 neighbours[BOD_POS][BOD_NEG][BOD_POS] );
+					occlusion[3] = VertexAO( neighbours[BOD_POS][BOD_NEG][BOD_SAM],
+											 neighbours[BOD_SAM][BOD_NEG][BOD_NEG],
+											 neighbours[BOD_POS][BOD_NEG][BOD_NEG] );
+					AddFace( gChunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_NEG_Y, occlusion, blockSpec );
+					vertexIndex += VERTS_PER_FACE;
 				}
 			}
 		}
