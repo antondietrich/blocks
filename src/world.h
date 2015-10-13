@@ -77,6 +77,7 @@ struct ChunkMesh
 {
 	int chunkPos[2];
 	int size;
+	bool dirty;
 	BlockVertex* vertices;
 };
 
@@ -95,9 +96,11 @@ int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkP
 DirectX::XMINT3 GetPlayerChunkPos( DirectX::XMFLOAT3 playerPos );
 DirectX::XMINT3 GetPlayerBlockPos( DirectX::XMFLOAT3 playerPos );
 BLOCK_TYPE GetBlockType( const Chunk &chunk, DirectX::XMINT3 blockPos );
+BLOCK_TYPE SetBlockType( Chunk *chunk, DirectX::XMINT3 blockPos, BLOCK_TYPE type );
 
 int ChunkCacheIndexFromChunkPos( uint x, uint z );
 int MeshCacheIndexFromChunkPos( uint x, uint z );
+
 
 }
 

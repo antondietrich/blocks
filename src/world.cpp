@@ -348,6 +348,14 @@ BLOCK_TYPE GetBlockType( const Chunk &chunk, XMINT3 blockPos )
 	return chunk.blocks[blockPos.x][blockPos.y][blockPos.z];
 }
 
+BLOCK_TYPE SetBlockType( Chunk *chunk, DirectX::XMINT3 blockPos, BLOCK_TYPE type )
+{
+	BLOCK_TYPE prevBlockType = chunk->blocks[blockPos.x][blockPos.y][blockPos.z];
+	chunk->blocks[blockPos.x][blockPos.y][blockPos.z] = type;
+
+	return prevBlockType;
+}
+
 int ChunkCacheIndexFromChunkPos( uint x, uint z )
 {
 	unsigned int ux = x + INT_MAX;

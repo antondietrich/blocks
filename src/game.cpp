@@ -53,6 +53,7 @@ bool Game::Start( HWND wnd )
 	GenerateWorld( world_ );
 
 	for( int i = 0; i < MESH_CACHE_DIM * MESH_CACHE_DIM; i++ ) {
+		chunkMeshCache[i].dirty = true;
 		chunkMeshCache[i].vertices = 0;
 		chunkMeshCache[i].size = 0;
 		chunkMeshCache[i].chunkPos[0] = 0;
@@ -417,6 +418,34 @@ void Game::DoFrame( float dt )
 
 	} // block picking
 
+	// block place / remove
+	if( blockPicked )
+	{
+		if( input.key[ KEY::LMB ].Pressed )
+		{
+			SetBlockType( &world_->chunks[ ChunkCacheIndexFromChunkPos( pickedBlock.chunkX, pickedBlock.chunkZ ) ],
+											{
+												pickedBlock.x + (int)( intersection.plane.x ),
+												pickedBlock.y + (int)( intersection.plane.y ),
+												pickedBlock.z + (int)( intersection.plane.z ),
+											}, BT_WOOD );
+			ChunkMesh *chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( pickedBlock.chunkX, pickedBlock.chunkZ ) ];
+			chunkMesh->dirty = true;
+		}
+
+		if( input.key[ KEY::RMB ].Pressed )
+		{
+			SetBlockType( &world_->chunks[ ChunkCacheIndexFromChunkPos( pickedBlock.chunkX, pickedBlock.chunkZ ) ],
+											{
+												pickedBlock.x,
+												pickedBlock.y,
+												pickedBlock.z,
+											}, BT_AIR );
+			ChunkMesh *chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( pickedBlock.chunkX, pickedBlock.chunkZ ) ];
+			chunkMesh->dirty = true;
+		}
+	} // block place / remove
+
 	// world rendering
 //	int batchVertexCount = 0;
 //	int numDrawnBatches = 0;
@@ -435,13 +464,14 @@ void Game::DoFrame( float dt )
 		for( int x = playerChunkPos.x - VIEW_DISTANCE; x <= playerChunkPos.x + VIEW_DISTANCE; x++ )
 		{
 			ChunkMesh *chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( x, z ) ];
-			if( chunkMesh->vertices && chunkMesh->chunkPos[0] == x && chunkMesh->chunkPos[1] == z )
+			if( !chunkMesh->dirty && chunkMesh->vertices && chunkMesh->chunkPos[0] == x && chunkMesh->chunkPos[1] == z )
 			{
 				// use chunk mesh
 			}
 			else
 			{
 				// rebuild chunk mesh
+				chunkMesh->dirty = false;
 				chunkMeshesRebuilt++;
 
 				chunkMesh->chunkPos[0] = x;
