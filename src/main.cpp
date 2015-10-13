@@ -229,9 +229,20 @@ bool RegisterRawInputDevices( HWND hwnd )
 	return true;
 }
 
-// Use windows VK codes for now
 void TranslateUserInput( UserInput &userInput, LPARAM lParam )
 {
+	// reset mouse key states
+	userInput.key[ KEY::LMB ].Pressed = false;
+	userInput.key[ KEY::RMB ].Pressed = false;
+	userInput.key[ KEY::MMB ].Pressed = false;
+	userInput.key[ KEY::MB4 ].Pressed = false;
+	userInput.key[ KEY::MB5 ].Pressed = false;
+	userInput.key[ KEY::LMB ].Released = false;
+	userInput.key[ KEY::RMB ].Released = false;
+	userInput.key[ KEY::MMB ].Released = false;
+	userInput.key[ KEY::MB4 ].Released = false;
+	userInput.key[ KEY::MB5 ].Released = false;
+
 	// get the required buffer size
 	UINT size;
 	GetRawInputData( (HRAWINPUT)lParam,
@@ -256,12 +267,70 @@ void TranslateUserInput( UserInput &userInput, LPARAM lParam )
 
 	if( input->header.dwType == RIM_TYPEMOUSE )
 	{
-		// TODO: capture mouse buttons state
 		long x = input->data.mouse.lLastX;
 		long y = input->data.mouse.lLastY;
 
 		userInput.mouse.x += x;
 		userInput.mouse.y += y;
+
+		unsigned short mouseButtons = input->data.mouse.usButtonFlags;
+		// main mouse buttons
+		{
+			if( ( mouseButtons & RI_MOUSE_LEFT_BUTTON_DOWN ) == RI_MOUSE_LEFT_BUTTON_DOWN )
+			{
+				userInput.key[ KEY::LMB ].Pressed = true;
+				userInput.key[ KEY::LMB ].Down = true;
+			}
+			if( ( mouseButtons & RI_MOUSE_LEFT_BUTTON_UP ) == RI_MOUSE_LEFT_BUTTON_UP )
+			{
+				userInput.key[ KEY::LMB ].Released = true;
+				userInput.key[ KEY::LMB ].Down = false;
+			}
+			if( ( mouseButtons & RI_MOUSE_RIGHT_BUTTON_DOWN ) == RI_MOUSE_RIGHT_BUTTON_DOWN )
+			{
+				userInput.key[ KEY::RMB ].Pressed = true;
+				userInput.key[ KEY::RMB ].Down = true;
+			}
+			if( ( mouseButtons & RI_MOUSE_RIGHT_BUTTON_UP ) == RI_MOUSE_RIGHT_BUTTON_UP )
+			{
+				userInput.key[ KEY::RMB ].Released = true;
+				userInput.key[ KEY::RMB ].Down = false;
+			}
+			if( ( mouseButtons & RI_MOUSE_MIDDLE_BUTTON_DOWN ) == RI_MOUSE_MIDDLE_BUTTON_DOWN )
+			{
+				userInput.key[ KEY::MMB ].Pressed = true;
+				userInput.key[ KEY::MMB ].Down = true;
+			}
+			if( ( mouseButtons & RI_MOUSE_MIDDLE_BUTTON_UP ) == RI_MOUSE_MIDDLE_BUTTON_UP )
+			{
+				userInput.key[ KEY::MMB ].Released = true;
+				userInput.key[ KEY::MMB ].Down = false;
+			}
+			
+		}
+		// extra mouse buttons
+		{
+			if( ( mouseButtons & RI_MOUSE_BUTTON_4_DOWN ) == RI_MOUSE_BUTTON_4_DOWN )
+			{
+				userInput.key[ KEY::MB4 ].Pressed = true;
+				userInput.key[ KEY::MB4 ].Down = true;
+			}
+			if( ( mouseButtons & RI_MOUSE_BUTTON_4_UP ) == RI_MOUSE_BUTTON_4_UP )
+			{
+				userInput.key[ KEY::MB4 ].Released = true;
+				userInput.key[ KEY::MB4 ].Down = false;
+			}
+			if( ( mouseButtons & RI_MOUSE_BUTTON_5_DOWN ) == RI_MOUSE_BUTTON_5_DOWN )
+			{
+				userInput.key[ KEY::MB5 ].Pressed = true;
+				userInput.key[ KEY::MB5 ].Down = true;
+			}
+			if( ( mouseButtons & RI_MOUSE_BUTTON_5_UP ) == RI_MOUSE_BUTTON_5_UP )
+			{
+				userInput.key[ KEY::MB5 ].Released = true;
+				userInput.key[ KEY::MB5 ].Down = false;
+			}
+		}
 
 		return;
 	}

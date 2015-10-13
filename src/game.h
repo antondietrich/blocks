@@ -21,15 +21,6 @@ namespace Blocks
 #define VK_NUMPAD_ENTER 0xff
 #define NUM_VKEYS 256
 
-struct UserInput
-{
-	KeyState key[ KEY::COUNT ];
-	struct {
-		long x;
-		long y;
-	} mouse;
-};
-
 #define UPDATE_DELTA_FRAMES 30
 
 class Game

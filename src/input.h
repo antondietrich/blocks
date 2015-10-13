@@ -6,6 +6,7 @@
 namespace Blocks
 {
 
+
 enum /*class*/ KEY : uint8;
 
 struct KeyState
@@ -71,6 +72,15 @@ enum /*class*/ KEY : uint8
 
 
 	COUNT
+};
+
+struct UserInput
+{
+	KeyState key[ KEY::COUNT ];
+	struct {
+		long x;
+		long y;
+	} mouse;
 };
 
 }
