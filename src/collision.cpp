@@ -115,8 +115,10 @@ bool TestIntersection( Line line, AABB bound )
 	return true;
 }
 
-XMFLOAT3 GetIntersection( Line ray, AABB bound )
+RayAABBIntersection GetIntersection( Line ray, AABB bound )
 {
+	RayAABBIntersection result;
+
 	XMVECTOR intersectionDist = XMVectorReplicate( 100.0f );
 
 	XMVECTOR rayN = XMLoadFloat3( &ray.d );
@@ -130,15 +132,15 @@ XMFLOAT3 GetIntersection( Line ray, AABB bound )
 	XMVECTOR planeN[6];
 	XMVECTOR planeP[6];
 
-	planeN[0] = XMVectorSet( 1.0f, 0.0f, 0.0f, 0.0f );
+	planeN[0] = XMVectorSet( -1.0f, 0.0f, 0.0f, 0.0f );
 	planeP[0] = XMLoadFloat3( &bound.min );
 	planeN[1] = XMVectorSet( 1.0f, 0.0f, 0.0f, 0.0f );
 	planeP[1] = XMLoadFloat3( &bound.max );
-	planeN[2] = XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
+	planeN[2] = XMVectorSet( 0.0f, -1.0f, 0.0f, 0.0f );
 	planeP[2] = XMLoadFloat3( &bound.min );
 	planeN[3] = XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
 	planeP[3] = XMLoadFloat3( &bound.max );
-	planeN[4] = XMVectorSet( 0.0f, 0.0f, 1.0f, 0.0f );
+	planeN[4] = XMVectorSet( 0.0f, 0.0f, -1.0f, 0.0f );
 	planeP[4] = XMLoadFloat3( &bound.min );
 	planeN[5] = XMVectorSet( 0.0f, 0.0f, 1.0f, 0.0f );
 	planeP[5] = XMLoadFloat3( &bound.max );
@@ -160,15 +162,16 @@ XMFLOAT3 GetIntersection( Line ray, AABB bound )
 				XMVector3GreaterOrEqual( vIntersection, boundMin ) )
 			{
 				intersectionDist = t;
+				XMStoreFloat3( &result.plane, planeN[i] );
 			}
 		}
 	}
 
 	XMVECTOR vIntersection = rayP + rayN * XMVectorGetX( intersectionDist );
-	XMFLOAT3 intersection;
-	XMStoreFloat3( &intersection, vIntersection );
+//	XMFLOAT3 result.point;
+	XMStoreFloat3( &result.point, vIntersection );
 
-	return intersection;
+	return result;
 }
 
 float LengthSq( XMFLOAT3 v )

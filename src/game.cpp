@@ -307,7 +307,9 @@ void Game::DoFrame( float dt )
 	bool blockPicked = false;
 	XMFLOAT3 lookAtTarget;
 	XMFLOAT3 pickDirection;
-	XMFLOAT3 intersectionPoint = { 0.0f, 0.0f, 0.0f };
+	RayAABBIntersection intersection;
+	intersection.point = { 0.0f, 0.0f, 0.0f };
+	intersection.plane = { 0.0f, 0.0f, 0.0f };
 	BlockPosition pickedBlock = { 0 };
 	Line lineOfSight;
 	// block picking
@@ -411,7 +413,7 @@ void Game::DoFrame( float dt )
 								(float)( pickedBlock.y+1.0f ),
 								(float)( pickedBlock.chunkZ * CHUNK_WIDTH + pickedBlock.z+1.0f )
 							} };
-		intersectionPoint = GetIntersection( lineOfSight, blockBound );
+		intersection = GetIntersection( lineOfSight, blockBound );
 
 	} // block picking
 
@@ -561,13 +563,20 @@ void Game::DoFrame( float dt )
 	//overlay.DrawPoint( lookAtTarget, { 0.0f, 1.0f, 1.0f, 1.0f } );
 	if( blockPicked )
 	{
-		overlay.WriteLine( "Intersection: %5.2f %5.2f %5.2f", intersectionPoint.x, intersectionPoint.y, intersectionPoint.z );
-		overlay.DrawPoint( intersectionPoint, { 0.0f, 1.0f, 1.0f, 1.0f } );
+		overlay.WriteLine( "Intersection: %5.2f %5.2f %5.2f", intersection.point.x, intersection.point.y, intersection.point.z );
+		overlay.DrawPoint( intersection.point, { 0.0f, 1.0f, 1.0f, 1.0f } );
 		overlay.OulineBlock( 	pickedBlock.chunkX,
 								pickedBlock.chunkZ,
 								pickedBlock.x, 
 								pickedBlock.y, 
 								pickedBlock.z );
+
+		overlay.OulineBlock( 	pickedBlock.chunkX,
+								pickedBlock.chunkZ,
+								pickedBlock.x + intersection.plane.x, 
+								pickedBlock.y + intersection.plane.y, 
+								pickedBlock.z + intersection.plane.z,
+								{ 0.0f, 1.0f, 1.0f, 1.0f } );
 	}
 	//overlay.DrawLine( { playerEyePos.x, playerEyePos.y - 1.0f, playerEyePos.z }, lookAtTarget, {1.0f, 0.0f, 1.0f, 1.0f} );
 	//overlay.DrawLineDir( lineOfSight.p, lineOfSight.d, {1.0f, 0.0f, 1.0f, 1.0f} );

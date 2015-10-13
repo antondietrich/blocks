@@ -32,10 +32,16 @@ struct AABB
 	DirectX::XMFLOAT3 max;
 };
 
+struct RayAABBIntersection
+{
+	DirectX::XMFLOAT3 point;
+	DirectX::XMFLOAT3 plane;
+};
+
 bool TestIntersection( Segment, AABB );
 bool TestIntersection( Line, AABB );
 
-DirectX::XMFLOAT3 GetIntersection( Line, AABB );
+RayAABBIntersection GetIntersection( Line, AABB );
 
 float DistanceSq( DirectX::XMFLOAT3 A, DirectX::XMFLOAT3 B );
 float LengthSq( DirectX::XMFLOAT3 v );

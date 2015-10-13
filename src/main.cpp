@@ -195,7 +195,7 @@ bool LoadConfig()
 	Config.screenHeight = 540;
 //	Config.screenWidth = 1920;
 //	Config.screenHeight = 1080;
-	Config.multisampling = 0;
+	Config.multisampling = 2;
 	Config.filtering = 8;
 
 	return true;
