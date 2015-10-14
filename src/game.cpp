@@ -79,9 +79,12 @@ float playerReach = 4.0f;
 bool playerAirborne = true;
 
 bool gDrawOverlay = true;
+uint gMaxChunkMeshesToBuild = 1;
 
 void Game::DoFrame( float dt )
 {
+	gMaxChunkMeshesToBuild = 1;
+	
 	ProfileNewFrame( dt );
 	renderer.Begin();
 
@@ -476,16 +479,19 @@ void Game::DoFrame( float dt )
 			{
 				chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( placedBlock.chunkX + adjOffsetX, placedBlock.chunkZ ) ];
 				chunkMesh->dirty = true;
+				++gMaxChunkMeshesToBuild;
 			}
 			if( adjOffsetZ != 0 )
 			{
 				chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( placedBlock.chunkX, placedBlock.chunkZ + adjOffsetZ ) ];
 				chunkMesh->dirty = true;
+				++gMaxChunkMeshesToBuild;
 			}
 			if( adjOffsetX != 0 && adjOffsetZ != 0 )
 			{
 				chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( placedBlock.chunkX + adjOffsetX, placedBlock.chunkZ + adjOffsetZ ) ];
 				chunkMesh->dirty = true;
+				++gMaxChunkMeshesToBuild;
 			}
 
 		} // LMB Pressed
@@ -518,16 +524,19 @@ void Game::DoFrame( float dt )
 			{
 				chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( pickedBlock.chunkX + adjOffsetX, pickedBlock.chunkZ ) ];
 				chunkMesh->dirty = true;
+				++gMaxChunkMeshesToBuild;
 			}
 			if( adjOffsetZ != 0 )
 			{
 				chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( pickedBlock.chunkX, pickedBlock.chunkZ + adjOffsetZ ) ];
 				chunkMesh->dirty = true;
+				++gMaxChunkMeshesToBuild;
 			}
 			if( adjOffsetX != 0 && adjOffsetZ != 0 )
 			{
 				chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( pickedBlock.chunkX + adjOffsetX, pickedBlock.chunkZ + adjOffsetZ ) ];
 				chunkMesh->dirty = true;
+				++gMaxChunkMeshesToBuild;
 			}
 
 		} // RMB Pressed
@@ -570,7 +579,7 @@ void Game::DoFrame( float dt )
 				}
 
 				// TODO: any reason to break here?
-				if( chunkMeshesRebuilt > 1 ) {
+				if( chunkMeshesRebuilt > gMaxChunkMeshesToBuild ) {
 					break;
 				}
 				
@@ -593,7 +602,7 @@ void Game::DoFrame( float dt )
 			} // else
 
 		} // for chunkX
-		if( chunkMeshesRebuilt > 1 ) {
+		if( chunkMeshesRebuilt > gMaxChunkMeshesToBuild ) {
 			break;
 		}
 	} // for chunkZ
