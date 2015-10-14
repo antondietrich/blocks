@@ -65,13 +65,13 @@ bool Game::Start( HWND wnd )
 	return true;
 }
 
-XMFLOAT3 playerPos 		= { 0.0f, 10.0f, 0.0f };
+XMFLOAT3 playerPos 		= { 0.0f, 60.0f, 0.0f };
 XMFLOAT3 playerDir 		= { 0.0f,  0.0f, 1.0f };
 XMFLOAT3 playerLook 	= { 0.0f,  0.0f, 1.0f };
 XMFLOAT3 playerRight 	= { 1.0f,  0.0f, 0.0f };
 XMFLOAT3 playerUp 		= { 0.0f,  1.0f, 0.0f };
 XMFLOAT3 playerSpeed 	= { 0.0f,  0.0f, 0.0f };
-XMFLOAT3 gravity 		= { 0.0f,  0.0f, 0.0f };
+XMFLOAT3 gravity 		= { 0.0f, -9.8f, 0.0f };
 
 float playerMass = 75.0f;
 float playerHeight = 1.8f;
@@ -130,6 +130,8 @@ void Game::DoFrame( float dt )
 		}
 	}
 
+//	gravity.y = -9.8f;
+
 	// player movement
 	float dTSec = dt / 1000.0f;
 	XMVECTOR vPos, vDir, vLook, vRight, vUp, vSpeed, force, acceleration, drag, vGravity;
@@ -157,29 +159,29 @@ void Game::DoFrame( float dt )
 	if( input.key[ KEY::A ].Down ) {
 		force -= vRight;
 	}
-	if( input.key[ KEY::LCTRL ].Pressed ) {
-		if( fabs( gravity.y - 0.0f ) < 0.000001f )
-		{
-			gravity.y = -9.8f;
-		}
-		else
-		{
-			gravity.y = 0.0f;
-		}
-	}
+//	if( input.key[ KEY::LCTRL ].Pressed ) {
+//		if( fabs( gravity.y - 0.0f ) < 0.000001f )
+//		{
+//			gravity.y = -9.8f;
+//		}
+//		else
+//		{
+//			gravity.y = 0.0f;
+//		}
+//	}
 	
 	force = XMVector4Normalize( force ) * 1500.0f;
 
 	if( input.key[ KEY::SPACE ].Down ) {
-		if( 1 || !playerAirborne ) {
-			force += vUp * 100.0f * playerMass * 2.35f / dt;
+		if( !playerAirborne ) {
+			force += vUp * 2500.0f * playerMass * 2.35f / dt;
 			playerAirborne = true;
 		}
 	}
 
-	if( input.key[ KEY::LSHIFT ].Down ) {
-		force *= 10;
-	}
+//	if( input.key[ KEY::LSHIFT ].Down ) {
+//		force *= 10;
+//	}
 	
 	force += vGravity;
 
@@ -421,17 +423,72 @@ void Game::DoFrame( float dt )
 	// block place / remove
 	if( blockPicked )
 	{
+		int adjOffsetX = 0;
+		int adjOffsetZ = 0;
+		ChunkMesh *chunkMesh = 0;
+
 		if( input.key[ KEY::LMB ].Pressed )
 		{
-			SetBlockType( &world_->chunks[ ChunkCacheIndexFromChunkPos( pickedBlock.chunkX, pickedBlock.chunkZ ) ],
+			BlockPosition placedBlock = pickedBlock;
+			placedBlock.x += (int)( intersection.plane.x );
+			placedBlock.y += (int)( intersection.plane.y );
+			placedBlock.z += (int)( intersection.plane.z );
+			if( placedBlock.x == -1 ) {
+				placedBlock.x = CHUNK_WIDTH - 1;
+				placedBlock.chunkX--;
+			}
+			if( placedBlock.x == CHUNK_WIDTH ) {
+				placedBlock.x = 0;
+				placedBlock.chunkX++;
+			}
+			if( placedBlock.z == -1 ) {
+				placedBlock.z = CHUNK_WIDTH - 1;
+				placedBlock.chunkZ--;
+			}
+			if( placedBlock.z == CHUNK_WIDTH ) {
+				placedBlock.z = 0;
+				placedBlock.chunkZ++;
+			}
+
+			SetBlockType( &world_->chunks[ ChunkCacheIndexFromChunkPos( placedBlock.chunkX, placedBlock.chunkZ ) ],
 											{
-												pickedBlock.x + (int)( intersection.plane.x ),
-												pickedBlock.y + (int)( intersection.plane.y ),
-												pickedBlock.z + (int)( intersection.plane.z ),
+												placedBlock.x,
+												placedBlock.y,
+												placedBlock.z,
 											}, BT_WOOD );
-			ChunkMesh *chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( pickedBlock.chunkX, pickedBlock.chunkZ ) ];
+			chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( placedBlock.chunkX, placedBlock.chunkZ ) ];
 			chunkMesh->dirty = true;
-		}
+			
+			if( placedBlock.x == 0 ) {
+				adjOffsetX = -1;
+			}
+			if( placedBlock.x == CHUNK_WIDTH-1 ) {
+				adjOffsetX = +1;
+			}
+			if( placedBlock.z == 0 ) {
+				adjOffsetZ = -1;
+			}
+			if( placedBlock.z == CHUNK_WIDTH-1 ) {
+				adjOffsetZ = +1;
+			}
+
+			if( adjOffsetX != 0 )
+			{
+				chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( placedBlock.chunkX + adjOffsetX, placedBlock.chunkZ ) ];
+				chunkMesh->dirty = true;
+			}
+			if( adjOffsetZ != 0 )
+			{
+				chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( placedBlock.chunkX, placedBlock.chunkZ + adjOffsetZ ) ];
+				chunkMesh->dirty = true;
+			}
+			if( adjOffsetX != 0 && adjOffsetZ != 0 )
+			{
+				chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( placedBlock.chunkX + adjOffsetX, placedBlock.chunkZ + adjOffsetZ ) ];
+				chunkMesh->dirty = true;
+			}
+
+		} // LMB Pressed
 
 		if( input.key[ KEY::RMB ].Pressed )
 		{
@@ -441,9 +498,39 @@ void Game::DoFrame( float dt )
 												pickedBlock.y,
 												pickedBlock.z,
 											}, BT_AIR );
-			ChunkMesh *chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( pickedBlock.chunkX, pickedBlock.chunkZ ) ];
+			chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( pickedBlock.chunkX, pickedBlock.chunkZ ) ];
 			chunkMesh->dirty = true;
-		}
+
+			if( pickedBlock.x == 0 ) {
+				adjOffsetX = -1;
+			}
+			if( pickedBlock.x == CHUNK_WIDTH-1 ) {
+				adjOffsetX = +1;
+			}
+			if( pickedBlock.z == 0 ) {
+				adjOffsetZ = -1;
+			}
+			if( pickedBlock.z == CHUNK_WIDTH-1 ) {
+				adjOffsetZ = +1;
+			}
+
+			if( adjOffsetX != 0 )
+			{
+				chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( pickedBlock.chunkX + adjOffsetX, pickedBlock.chunkZ ) ];
+				chunkMesh->dirty = true;
+			}
+			if( adjOffsetZ != 0 )
+			{
+				chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( pickedBlock.chunkX, pickedBlock.chunkZ + adjOffsetZ ) ];
+				chunkMesh->dirty = true;
+			}
+			if( adjOffsetX != 0 && adjOffsetZ != 0 )
+			{
+				chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( pickedBlock.chunkX + adjOffsetX, pickedBlock.chunkZ + adjOffsetZ ) ];
+				chunkMesh->dirty = true;
+			}
+
+		} // RMB Pressed
 	} // block place / remove
 
 	// world rendering
@@ -544,6 +631,15 @@ void Game::DoFrame( float dt )
 	}
 	ProfileStop();
 
+	if( blockPicked )
+	{
+		overlay.OulineBlock( 	pickedBlock.chunkX,
+								pickedBlock.chunkZ,
+								pickedBlock.x, 
+								pickedBlock.y, 
+								pickedBlock.z );
+	}
+
 	if( gDrawOverlay )
 	{
 		ProfileStart( "Overlay" );
@@ -575,41 +671,23 @@ void Game::DoFrame( float dt )
 		overlay.WriteLine( "" );
 
 		ProfileStop();
-	}
 
-	// show lines at chunk borders
-	for( int x = -1; x <= 1; x++  )
-	{
-		for( int z = -1; z <= 1; z++  )
+		// show lines at chunk borders
+		for( int x = -1; x <= 1; x++  )
 		{
-			float lineX = (float)( CHUNK_WIDTH * playerChunkPos.x + CHUNK_WIDTH * x);
-			float lineZ = (float)( CHUNK_WIDTH * playerChunkPos.z + CHUNK_WIDTH * z);
-			overlay.DrawLine( {lineX, 0.0f, lineZ}, {lineX, 255.0f, lineZ}, {1.0f, 0.2f, 0.2f, 1.0f} );
+			for( int z = -1; z <= 1; z++  )
+			{
+				float lineX = (float)( CHUNK_WIDTH * playerChunkPos.x + CHUNK_WIDTH * x);
+				float lineZ = (float)( CHUNK_WIDTH * playerChunkPos.z + CHUNK_WIDTH * z);
+				overlay.DrawLine( {lineX, 0.0f, lineZ}, {lineX, 255.0f, lineZ}, {1.0f, 0.2f, 0.2f, 1.0f} );
+			}
+		}
+
+		if( blockPicked )
+		{
+			overlay.DrawPoint( intersection.point, { 0.0f, 1.0f, 1.0f, 1.0f } );
 		}
 	}
-
-	//overlay.OulineBlock( playerChunkPos.x, playerChunkPos.z, playerBlockPos.x, playerBlockPos.y-1, playerBlockPos.z );
-	//overlay.OulineBlock( playerChunkPos.x, playerChunkPos.z, playerEyePos.x, playerEyePos.y, playerEyePos.z, { 0.0f, 1.0f, 1.0f, 1.0f } );
-	//overlay.DrawPoint( lookAtTarget, { 0.0f, 1.0f, 1.0f, 1.0f } );
-	if( blockPicked )
-	{
-		overlay.WriteLine( "Intersection: %5.2f %5.2f %5.2f", intersection.point.x, intersection.point.y, intersection.point.z );
-		overlay.DrawPoint( intersection.point, { 0.0f, 1.0f, 1.0f, 1.0f } );
-		overlay.OulineBlock( 	pickedBlock.chunkX,
-								pickedBlock.chunkZ,
-								pickedBlock.x, 
-								pickedBlock.y, 
-								pickedBlock.z );
-
-		overlay.OulineBlock( 	pickedBlock.chunkX,
-								pickedBlock.chunkZ,
-								pickedBlock.x + intersection.plane.x, 
-								pickedBlock.y + intersection.plane.y, 
-								pickedBlock.z + intersection.plane.z,
-								{ 0.0f, 1.0f, 1.0f, 1.0f } );
-	}
-	//overlay.DrawLine( { playerEyePos.x, playerEyePos.y - 1.0f, playerEyePos.z }, lookAtTarget, {1.0f, 0.0f, 1.0f, 1.0f} );
-	//overlay.DrawLineDir( lineOfSight.p, lineOfSight.d, {1.0f, 0.0f, 1.0f, 1.0f} );
 
 	renderer.End();
 
