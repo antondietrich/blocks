@@ -627,14 +627,15 @@ void Game::DoFrame( float dt )
 //	}
 
 	ProfileStart( "Render" );
+	renderer.SetChunkDrawingState();
 	for( int meshIndex = 0; meshIndex < MESH_CACHE_DIM * MESH_CACHE_DIM; meshIndex++ )
 	{
 		if( chunkMeshCache[ meshIndex ].vertices )
 		{
-			renderer.DrawChunk( chunkMeshCache[ meshIndex ].chunkPos[0] * CHUNK_WIDTH,
-								chunkMeshCache[ meshIndex ].chunkPos[1] * CHUNK_WIDTH,
-								chunkMeshCache[ meshIndex ].vertices,
-								chunkMeshCache[ meshIndex ].size );
+			renderer.DrawChunkMesh( chunkMeshCache[ meshIndex ].chunkPos[0] * CHUNK_WIDTH,
+												chunkMeshCache[ meshIndex ].chunkPos[1] * CHUNK_WIDTH,
+												chunkMeshCache[ meshIndex ].vertices,
+												chunkMeshCache[ meshIndex ].size );
 			numDrawnVertices += chunkMeshCache[ meshIndex ].size;
 		}
 	}

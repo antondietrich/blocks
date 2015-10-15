@@ -150,11 +150,9 @@ public:
 	bool Start( HWND wnd );
 	void Begin();
 	void End();
-	void Draw( uint vertexCount, uint startVertexOffset = 0 );
-	void DrawCube( DirectX::XMFLOAT3 offset );
-	void DrawChunk( int x, int z, BlockVertex *vertices, int numVertices );
 
-	void Flush();
+	void SetChunkDrawingState();
+	void DrawChunkMesh( int x, int z, BlockVertex *vertices, int numVertices );
 
 	/* Window management */
 	void ToggleFullscreen();
@@ -167,6 +165,7 @@ public:
 		return (int)screenViewport_.Height;
 	};
 
+	/* render state */
 	void SetSampler( SAMPLER_TYPE st );
 	void SetBlendMode( BLEND_MODE bm );
 	void SetDepthBufferMode( DEPTH_BUFFER_MODE bm );
@@ -191,17 +190,13 @@ private:
 	ID3D11Buffer *globalConstantBuffer_;
 	ID3D11Buffer *frameConstantBuffer_;
 	ID3D11Buffer *modelConstantBuffer_;
-	//ID3D11SamplerState *linearSampler_;
 
 	ID3D11SamplerState *samplers_[ NUM_SAMPLER_TYPES ];
 	ID3D11BlendState *blendStates_[ NUM_BLEND_MODES ];
 	ID3D11DepthStencilState *depthStencilStates_[ NUM_DEPTH_BUFFER_MODES ];
 
 	ID3D11Buffer *blockVB_;
-//	BlockVertex block_[ VERTS_PER_BLOCK ];
-	// TODO: move this out of stack!!
 	BlockVertex *blockCache_;
-	uint numCachedBlocks_;
 	uint numCachedVerts_;
 	
 	Shader shaders_[ MAX_SHADERS ];

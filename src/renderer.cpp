@@ -12,8 +12,6 @@ void MakeGlobalCBInitData( GlobalCB *cbData, D3D11_SUBRESOURCE_DATA *cbInitData,
 bool Renderer::isInstantiated_ = false;
 
 Renderer::Renderer()
-//:
-//colorShader()
 {
 	assert( !isInstantiated_ );
 	isInstantiated_ = true;
@@ -28,7 +26,6 @@ Renderer::Renderer()
 	globalConstantBuffer_ = 0;
 	frameConstantBuffer_ = 0;
 	modelConstantBuffer_ = 0;
-//	linearSampler_ = 0;
 
 	for( int i = 0; i < NUM_SAMPLER_TYPES; i++ ) {
 		samplers_[i] = 0;
@@ -57,7 +54,6 @@ Renderer::Renderer()
 
 	blockVB_ = 0;
 	blockCache_ = new BlockVertex[ MAX_VERTS_PER_BATCH ];
-	numCachedBlocks_ = 0;
 	numCachedVerts_ = 0;
 
 	viewPosition_ = { 0, 0, 0 };
@@ -85,7 +81,6 @@ Renderer::~Renderer()
 	for( int i = 0; i < NUM_SAMPLER_TYPES; i++ ) {
 		RELEASE( samplers_[i] );
 	}
-//	RELEASE( linearSampler_ );
 	RELEASE( modelConstantBuffer_ );
 	RELEASE( frameConstantBuffer_ );
 	RELEASE( globalConstantBuffer_ );
@@ -231,7 +226,8 @@ bool Renderer::Start( HWND wnd )
 	RELEASE( dxgiDevice );
 		
 
-	// NOTE: as a side-effect, sets the back buffer and the depth buffer (consider making separate functions)
+	// NOTE: as a side-effect, sets the back buffer and the depth buffer; 
+	//  updates the GlobalCB (consider making separate functions)
 	ResizeBuffers();
 
 	if( Config.fullscreen ) {
@@ -277,7 +273,6 @@ bool Renderer::Start( HWND wnd )
 	samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
 	samplerDesc.MinLOD = -FLT_MAX;
 	samplerDesc.MaxLOD = FLT_MAX;
-	// samplerDesc.MaxLOD = 6;
 	hr = device_->CreateSamplerState( &samplerDesc, &samplers_[ SAMPLER_POINT ] );
 	if( FAILED( hr ) ) {
 		OutputDebugStringA( "Failed to create point sampler state!" );
@@ -420,7 +415,6 @@ bool Renderer::Start( HWND wnd )
 	XMVECTOR up = XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
 	XMMATRIX view =  XMMatrixLookToLH( eye, direction, up );
 	XMMATRIX projection = XMMatrixPerspectiveFovLH( XMConvertToRadians( 60.0f ), screenViewport_.Width / screenViewport_.Height, 0.1f, 1000.0f );
-	// XMStoreFloat4x4( &frameCBData.vp, XMMatrixMultiply( view, projection ) );
 	XMStoreFloat4x4( &frameCBData.vp, XMMatrixTranspose( XMMatrixMultiply( view, projection ) ) );
 	XMStoreFloat4x4( &view_, view );
 	XMStoreFloat4x4( &projection_, projection );
@@ -491,72 +485,7 @@ bool Renderer::Start( HWND wnd )
 		return false;
 	}
 
-	//	if( !meshes_[0].Load( vertices, numVertices, device_ ) )
-//	{
-//		OutputDebugStringA( "Failed to load mesh!" );
-//		return false;
-//	}
-
-#if 0
-	int numVertices = VERTS_PER_BLOCK;
-	VertexPosNormalTexcoord cubeVertices[] = 
-	{
-		// face 1 / -Z
-		{ { -0.5f,  0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 0.0f } }, // 0
-		{ { -0.5f, -0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 1.0f } }, // 1
-		{ {  0.5f, -0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 1.0f, 1.0f } }, // 2
-		{ { -0.5f,  0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 0.0f } }, // 0
-		{ {  0.5f, -0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 1.0f, 1.0f } }, // 2
-		{ {  0.5f,  0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 1.0f } }, // 3
-		// face 2 / +X
-		{ {  0.5f,  0.5f, -0.5f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } }, // 3
-		{ {  0.5f, -0.5f, -0.5f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 1.0f } }, // 2
-		{ {  0.5f, -0.5f,  0.5f }, {  1.0f,  0.0f,  0.0f }, { 1.0f, 1.0f } }, // 4
-		{ {  0.5f,  0.5f, -0.5f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } }, // 3
-		{ {  0.5f, -0.5f,  0.5f }, {  1.0f,  0.0f,  0.0f }, { 1.0f, 1.0f } }, // 4
-		{ {  0.5f,  0.5f,  0.5f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 1.0f } }, // 5
-		// face 3 / +Z
-		{ {  0.5f,  0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 0.0f } }, // 5
-		{ {  0.5f, -0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 1.0f } }, // 4
-		{ { -0.5f, -0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 1.0f, 1.0f } }, // 6
-		{ {  0.5f,  0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 0.0f } }, // 5
-		{ { -0.5f, -0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 1.0f, 1.0f } }, // 6
-		{ { -0.5f,  0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 1.0f } }, // 7
-		// face 4 / -X
-		{ { -0.5f,  0.5f,  0.5f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } }, // 7
-		{ { -0.5f, -0.5f,  0.5f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 1.0f } }, // 6
-		{ { -0.5f, -0.5f, -0.5f }, { -1.0f,  0.0f,  0.0f }, { 1.0f, 1.0f } }, // 1
-		{ { -0.5f,  0.5f,  0.5f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } }, // 7
-		{ { -0.5f, -0.5f, -0.5f }, { -1.0f,  0.0f,  0.0f }, { 1.0f, 1.0f } }, // 1
-		{ { -0.5f,  0.5f, -0.5f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 1.0f } }, // 0
-		// face 5 / +Y
-		{ { -0.5f,  0.5f,  0.5f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 0.0f } }, // 7
-		{ { -0.5f,  0.5f, -0.5f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 1.0f } }, // 0
-		{ {  0.5f,  0.5f, -0.5f }, {  0.0f,  1.0f,  0.0f }, { 1.0f, 1.0f } }, // 3
-		{ { -0.5f,  0.5f,  0.5f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 0.0f } }, // 7
-		{ {  0.5f,  0.5f, -0.5f }, {  0.0f,  1.0f,  0.0f }, { 1.0f, 1.0f } }, // 3
-		{ {  0.5f,  0.5f,  0.5f }, {  0.0f,  1.0f,  0.0f }, { 1.0f, 0.0f } }, // 5
-		// face 6 / -Y
-		{ { -0.5f, -0.5f, -0.5f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 0.0f } }, // 1
-		{ { -0.5f, -0.5f,  0.5f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 1.0f } }, // 6
-		{ {  0.5f, -0.5f,  0.5f }, {  0.0f, -1.0f,  0.0f }, { 1.0f, 1.0f } }, // 4
-		{ { -0.5f, -0.5f, -0.5f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 0.0f } }, // 1
-		{ {  0.5f, -0.5f,  0.5f }, {  0.0f, -1.0f,  0.0f }, { 1.0f, 1.0f } }, // 4
-		{ {  0.5f, -0.5f, -0.5f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 1.0f } }, // 2
-	};
-
-	for( int i = 0; i < VERTS_PER_BLOCK; i++ )
-	{
-		block_[i] = cubeVertices[i];
-	}
-
-	if( !meshes_[0].Load( cubeVertices, numVertices, device_ ) ) {
-		OutputDebugStringA( "Failed to load cube vertices!" );
-		return false;
-	}
-#endif
-
-		// vertex buffer to batch blocks
+	// vertex buffer to store chunk meshes
 	D3D11_BUFFER_DESC vertexBufferDesc;
 	ZeroMemory( &vertexBufferDesc, sizeof( vertexBufferDesc ) );
 	vertexBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
@@ -581,10 +510,16 @@ void Renderer::Begin()
 	context_->ClearRenderTargetView( backBufferView_, clearColor );
 	context_->ClearDepthStencilView( depthStencilView_, D3D11_CLEAR_DEPTH, 1.0f, 0 );
 
-
 	context_->VSSetConstantBuffers( 1, 1, &frameConstantBuffer_ );
 	context_->VSSetConstantBuffers( 2, 1, &modelConstantBuffer_ );
 	SetSampler( SAMPLER_ANISOTROPIC );
+
+	numBatches_ = 0;
+	numCachedVerts_ = 0;
+}
+
+void Renderer::SetChunkDrawingState()
+{
 	SetTexture( textures_[6], ST_FRAGMENT, 0 );
 	SetShader( shaders_[0] );
 	SetDepthBufferMode( DB_ENABLED );
@@ -592,66 +527,9 @@ void Renderer::Begin()
 	uint stride = sizeof( BlockVertex );
 	uint offset = 0;
 	context_->IASetVertexBuffers( 0, 1, &blockVB_, &stride, &offset );
-
-	numBatches_ = 0;
-	numCachedVerts_ = 0;
 }
 
-void Renderer::Flush()
-{
-	if( numCachedVerts_ ) {
-		Draw( numCachedVerts_ );
-		numCachedVerts_ = 0;
-	}
-}
-
-void Renderer::Draw( uint vertexCount, uint startVertexOffset )
-{
-//	assert( numCachedBlocks_ * VERTS_PER_BLOCK == numPrimitives );
-//	D3D11_MAPPED_SUBRESOURCE mapResource;
-//	HRESULT hr = context_->Map( blockVB_, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource );
-//	if( FAILED( hr ) )
-//	{
-//		OutputDebugStringA( "Failed to map subresource!");
-//		return;
-//	}
-//	memcpy( mapResource.pData, blockCache_, sizeof( BlockVertex ) * numPrimitives );
-//	context_->Unmap( blockVB_, 0 );
-
-	numCachedBlocks_ = 0;
-	
-	uint stride = sizeof( BlockVertex );
-	uint offset = 0;
-	context_->IASetVertexBuffers( 0, 1, &blockVB_, &stride, &offset );
-
-//	uint stride = sizeof( BlockVertex );
-//	uint offset = 0;
-//	context_->IASetVertexBuffers( 0, 1, &blockVB_, &stride, &offset );
-
-	SetShader( shaders_[0] );
-
-	context_->Draw( vertexCount, startVertexOffset );
-
-	numBatches_++;
-}
-
-void Renderer::DrawCube( XMFLOAT3 offset )
-{
-	ModelCB modelCBData;
-	modelCBData.translate = XMFLOAT4( offset.x, offset.y, offset.z, 0.0f );
-	context_->UpdateSubresource( modelConstantBuffer_, 0, NULL, &modelCBData, sizeof( ModelCB ), 0 );
-
-	context_->VSSetConstantBuffers( 1, 1, &frameConstantBuffer_ );
-	context_->VSSetConstantBuffers( 2, 1, &modelConstantBuffer_ );
-
-
-	SetMesh( meshes_[0] );
-	SetTexture( textures_[0], ST_FRAGMENT );
-	SetShader( shaders_[0] );
-	context_->Draw( 36, 0 );
-}
-
-void Renderer::DrawChunk( int x, int z, BlockVertex *vertices, int numVertices )
+void Renderer::DrawChunkMesh( int x, int z, BlockVertex *vertices, int numVertices )
 {
 	assert( numCachedVerts_ + numVertices < MAX_VERTS_PER_BATCH );
 
@@ -686,7 +564,17 @@ void Renderer::DrawChunk( int x, int z, BlockVertex *vertices, int numVertices )
 	context_->UpdateSubresource( modelConstantBuffer_, 0, NULL, &modelCBData, sizeof( ModelCB ), 0 );
 
 	ProfileStart( "Draw" );
-	Draw( numVertices, numCachedVerts_ );
+
+	uint stride = sizeof( BlockVertex );
+	uint offset = 0;
+	context_->IASetVertexBuffers( 0, 1, &blockVB_, &stride, &offset );
+
+	SetShader( shaders_[0] );
+
+	context_->Draw( numVertices, numCachedVerts_ );
+
+	numBatches_++;
+
 	ProfileStop();
 
 	numCachedVerts_ += numVertices;
@@ -1091,8 +979,6 @@ texture_()
 	renderer_ = 0;
 	textVB_ = 0;
 	primitiveVB_ = 0;
-//	textureView_ = 0;
-//	sampler_ = 0;
 	constantBuffer_ = 0;
 
 	lineNumber_ = 0;
@@ -1104,8 +990,6 @@ texture_()
 Overlay::~Overlay()
 {
 	RELEASE( constantBuffer_ );
-//	RELEASE( sampler_ );
-//	RELEASE( textureView_ );
 	RELEASE( textVB_ );
 	RELEASE( primitiveVB_ );
 }
@@ -1334,7 +1218,6 @@ void Overlay::DisplayText( int x, int y, const char* text, XMFLOAT4 color )
 	renderer_->SetDepthBufferMode( DB_DISABLED );
 	renderer_->SetBlendMode( BM_ALPHA );
 	renderer_->context_->IASetVertexBuffers( 0, 1, &textVB_, &stride, &offset );
-	// renderer_->context_->PSSetShaderResources( 0, 1, &textureView_ );
 	renderer_->SetTexture( texture_, ST_FRAGMENT );
 	renderer_->SetSampler( SAMPLER_POINT );
 	renderer_->context_->PSSetConstantBuffers( 1, 1, &constantBuffer_ );
