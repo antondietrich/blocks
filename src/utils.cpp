@@ -1,5 +1,31 @@
 #include "utils.h"
 
+float Saturate( float f )
+{
+	if( f < 0.0f )
+	{
+		return 0.0f;
+	}
+	if( f > 1.0f )
+	{
+		return 1.0f;
+	}
+	return f;
+}
+
+float Clamp( float f, float min, float max )
+{
+	if( f < min )
+	{
+		return min;
+	}
+	if( f > max )
+	{
+		return max;
+	}
+	return f;
+}
+
 LONGLONG GetTicksPerSecond();
 
 LONGLONG GetTicksPerSecond();

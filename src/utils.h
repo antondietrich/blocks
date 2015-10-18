@@ -13,6 +13,12 @@
 //
 #define RELEASE(p) if(p) { p->Release(); p = 0; }
 
+//
+// Useful math
+//
+float Saturate( float f );
+float Clamp( float f, float min, float max );
+
 
 //
 // Hi-res timer
