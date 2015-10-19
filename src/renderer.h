@@ -7,6 +7,7 @@
 #include <string>
 #include <assert.h>
 
+#include "renderer_def.h"
 #include "DDSTextureLoader.h"
 #include "types.h"
 #include "world.h"
@@ -15,11 +16,6 @@
 
 namespace Blocks
 {
-
-#define VERTEX_SHADER_ENTRY "VSMain"
-#define PIXEL_SHADER_ENTRY "PSMain"
-
-#define BACK_BUFFER_FORMAT DXGI_FORMAT_R8G8B8A8_UNORM
 
 bool LoadShader( wchar_t *filename, const char *entry, const char *shaderModel, ID3DBlob **buffer );
 /* Based on the implementation by @BobbyAnguelov. Thank you! */
@@ -48,6 +44,11 @@ struct GlobalCB {
 
 struct FrameCB {
 	DirectX::XMFLOAT4X4 vp;
+	DirectX::XMFLOAT4 sunDirection;
+	DirectX::XMFLOAT4 sunColor;
+	DirectX::XMFLOAT4 ambientColor;
+	float dayTimeNorm;
+	float padding[3];
 };
 
 struct ModelCB {
@@ -76,12 +77,42 @@ public:
 	Texture();
 	~Texture();
 
-	bool Load( wchar_t* filename, ID3D11Device *device );
+	bool LoadFile( wchar_t* filename, ID3D11Device *device );
 
 private:
 	ID3D11ShaderResourceView *textureView_;
 
 	friend class Renderer;
+};
+
+class RenderTarget
+{
+public:
+	RenderTarget();
+	~RenderTarget();
+
+	bool Init( uint width, uint height, DXGI_FORMAT format, bool shaderAccess, ID3D11Device *device );
+
+	ID3D11RenderTargetView ** GetRTV() { return &renderTargetView_; };
+	ID3D11ShaderResourceView ** GetSRV() { return &shaderResourceView_; };
+private:
+	ID3D11ShaderResourceView *shaderResourceView_;
+	ID3D11RenderTargetView *renderTargetView_;
+};
+
+class DepthBuffer
+{
+public:
+	DepthBuffer();
+	~DepthBuffer();
+
+	bool Init( uint width, uint height, DXGI_FORMAT format, uint msCount, uint msQuality, bool shaderAccess, ID3D11Device *device );
+
+	ID3D11DepthStencilView * GetDSV() { return depthStencilView_; };
+	ID3D11ShaderResourceView ** GetSRV() { return &shaderResourceView_; };
+private:
+	ID3D11ShaderResourceView *shaderResourceView_;
+	ID3D11DepthStencilView *depthStencilView_;
 };
 
 class Mesh
@@ -101,46 +132,6 @@ private:
 // Renderer
 //********************
 
-#define MAX_SHADERS 8
-#define MAX_TEXTURES 8
-#define MAX_MESHES 8
-
-#define VERTS_PER_BLOCK 36
-#define VERTS_PER_FACE 6
-// #define MAX_VERTS_PER_BATCH 9216 * 8 // up to 1024 blocks
-#define MAX_VERTS_PER_BATCH 50000 * 256 * 2
-// #define MAX_VERTS_PER_BATCH MAX_VERTS_PER_CHUNK_MESH
-
-enum SAMPLER_TYPE
-{
-	SAMPLER_POINT,
-	SAMPLER_LINEAR,
-	SAMPLER_ANISOTROPIC,
-	NUM_SAMPLER_TYPES
-};
-
-enum BLEND_MODE
-{
-	BM_DEFAULT,
-	BM_ALPHA,
-	NUM_BLEND_MODES
-};
-
-enum DEPTH_BUFFER_MODE
-{
-	DB_ENABLED,
-	DB_DISABLED,
-	DB_READ,
-	NUM_DEPTH_BUFFER_MODES
-};
-
-enum SHADER_TYPE
-{
-	ST_VERTEX = 1,
-	ST_GEOMETRY = 2,
-	ST_FRAGMENT = 4,
-};
-
 class Renderer
 {
 public:
@@ -154,6 +145,12 @@ public:
 	void SetChunkDrawingState();
 	void DrawChunkMesh( int x, int z, BlockVertex *vertices, int numVertices );
 
+	void ClearTexture( RenderTarget *rt, float r = 1.0f, float g = 0.0f, float b = 1.0f, float a = 1.0f );
+	void ClearTexture( DepthBuffer *db, float d = 1.0f );
+
+	/* Accessors */
+	ID3D11Device * GetDevice() { return device_; };
+
 	/* Window management */
 	void ToggleFullscreen();
 	bool Fullscreen();
@@ -166,14 +163,20 @@ public:
 	};
 
 	/* render state */
+	void SetRenderTarget( RenderTarget *rt, DepthBuffer *db );
+	void SetRasterizer( RASTERIZER_STATE rs );
 	void SetSampler( SAMPLER_TYPE st );
 	void SetBlendMode( BLEND_MODE bm );
 	void SetDepthBufferMode( DEPTH_BUFFER_MODE bm );
 
 	void SetView( DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 dir, DirectX::XMFLOAT3 up );
+	void SetFrameCBufferData( FrameCB data );
 	void SetMesh( const Mesh& mesh );
 	void SetShader( const Shader& shader );
+	void SetShader( uint shaderID );
 	void SetTexture( const Texture& texture, SHADER_TYPE shader, uint slot = 0 );
+	void SetTexture( RenderTarget& texture, SHADER_TYPE shader, uint slot = 0 );
+	void RemoveTexture( SHADER_TYPE shader, uint slot = 0 );
 
 	unsigned int numBatches_;
 private:
@@ -185,12 +188,13 @@ private:
 	IDXGISwapChain *swapChain_;
 	ID3D11RenderTargetView *backBufferView_;
 	ID3D11DepthStencilView *depthStencilView_;
-	ID3D11RasterizerState *defaultRasterizerState_;
+	// ID3D11RasterizerState *defaultRasterizerState_;
 	D3D11_VIEWPORT screenViewport_;
 	ID3D11Buffer *globalConstantBuffer_;
 	ID3D11Buffer *frameConstantBuffer_;
 	ID3D11Buffer *modelConstantBuffer_;
 
+	ID3D11RasterizerState *rasterizerStates_[ NUM_RASTERIZER_STATES ];
 	ID3D11SamplerState *samplers_[ NUM_SAMPLER_TYPES ];
 	ID3D11BlendState *blendStates_[ NUM_BLEND_MODES ];
 	ID3D11DepthStencilState *depthStencilStates_[ NUM_DEPTH_BUFFER_MODES ];

@@ -22,11 +22,15 @@ Renderer::Renderer()
 	swapChain_ = 0;
 	backBufferView_ = 0;
 	depthStencilView_ = 0;
-	defaultRasterizerState_ = 0;
+	// defaultRasterizerState_ = 0;
 	globalConstantBuffer_ = 0;
 	frameConstantBuffer_ = 0;
 	modelConstantBuffer_ = 0;
 
+
+	for( int i = 0; i < NUM_RASTERIZER_STATES; i++ ) {
+		rasterizerStates_[i] = 0;
+	}
 	for( int i = 0; i < NUM_SAMPLER_TYPES; i++ ) {
 		samplers_[i] = 0;
 	}
@@ -81,10 +85,13 @@ Renderer::~Renderer()
 	for( int i = 0; i < NUM_SAMPLER_TYPES; i++ ) {
 		RELEASE( samplers_[i] );
 	}
+	for( int i = 0; i < NUM_RASTERIZER_STATES; i++ ) {
+		RELEASE( rasterizerStates_[i] );
+	}
 	RELEASE( modelConstantBuffer_ );
 	RELEASE( frameConstantBuffer_ );
 	RELEASE( globalConstantBuffer_ );
-	RELEASE( defaultRasterizerState_ );
+//	RELEASE( defaultRasterizerState_ );
 	RELEASE( depthStencilView_ );
 	RELEASE( backBufferView_ );
 	RELEASE( swapChain_ );
@@ -252,14 +259,24 @@ bool Renderer::Start( HWND wnd )
 	}
 	rasterizerStateDesc.AntialiasedLineEnable = TRUE;
 
-	hr =  device_->CreateRasterizerState( &rasterizerStateDesc, &defaultRasterizerState_ );
+	hr =  device_->CreateRasterizerState( &rasterizerStateDesc, &rasterizerStates_[ RS_DEFAULT ] );
 	if( FAILED( hr ) )
 	{
 		OutputDebugStringA( "Failed to create default rasterizer state!" );
 		return false;
 	}
 
-	context_->RSSetState( defaultRasterizerState_ );
+	rasterizerStateDesc.MultisampleEnable = FALSE;
+	rasterizerStateDesc.AntialiasedLineEnable = FALSE;
+	hr =  device_->CreateRasterizerState( &rasterizerStateDesc, &rasterizerStates_[ RS_SHADOWMAP ] );
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "Failed to create shadow map rasterizer state!" );
+		return false;
+	}
+
+
+	context_->RSSetState( rasterizerStates_[ RS_DEFAULT ] );
 
 	// texture samplers
 	D3D11_SAMPLER_DESC samplerDesc;
@@ -431,6 +448,7 @@ bool Renderer::Start( HWND wnd )
 	}
 
 	context_->VSSetConstantBuffers( 1, 1, &frameConstantBuffer_ );
+	context_->PSSetConstantBuffers( 1, 1, &frameConstantBuffer_ );
 
 	// model constant buffer
 	ZeroMemory( &cbDesc, sizeof( cbDesc ) );
@@ -450,37 +468,46 @@ bool Renderer::Start( HWND wnd )
 	context_->VSSetConstantBuffers( 2, 1, &modelConstantBuffer_ );
 
 	// Load textures
-	if( !textures_[0].Load( L"assets/textures/dirt.dds", device_ ) ) {
+	if( !textures_[0].LoadFile( L"assets/textures/dirt.dds", device_ ) ) {
 		OutputDebugStringA( "Failed to load texture!" );
 		return false;
 	}
-	if( !textures_[1].Load( L"assets/textures/grass.dds", device_ ) ) {
+	if( !textures_[1].LoadFile( L"assets/textures/grass.dds", device_ ) ) {
 		OutputDebugStringA( "Failed to load texture!" );
 		return false;
 	}
-	if( !textures_[2].Load( L"assets/textures/test.dds", device_ ) ) {
+	if( !textures_[2].LoadFile( L"assets/textures/test.dds", device_ ) ) {
 		OutputDebugStringA( "Failed to load texture!" );
 		return false;
 	}
-	if( !textures_[3].Load( L"assets/textures/grass2.dds", device_ ) ) {
+	if( !textures_[3].LoadFile( L"assets/textures/grass2.dds", device_ ) ) {
 		OutputDebugStringA( "Failed to load texture!" );
 		return false;
 	}
-	if( !textures_[4].Load( L"assets/textures/rock.dds", device_ ) ) {
+	if( !textures_[4].LoadFile( L"assets/textures/rock.dds", device_ ) ) {
 		OutputDebugStringA( "Failed to load texture!" );
 		return false;
 	}
-	if( !textures_[5].Load( L"assets/textures/wood.dds", device_ ) ) {
+	if( !textures_[5].LoadFile( L"assets/textures/wood.dds", device_ ) ) {
 		OutputDebugStringA( "Failed to load texture!" );
 		return false;
 	}
-	if( !textures_[6].Load( L"assets/textures/atlas01.dds", device_ ) ) {
+	if( !textures_[6].LoadFile( L"assets/textures/atlas01.dds", device_ ) ) {
+		OutputDebugStringA( "Failed to load texture!" );
+		return false;
+	}
+	if( !textures_[7].LoadFile( L"assets/textures/lightColor.dds", device_ ) ) {
 		OutputDebugStringA( "Failed to load texture!" );
 		return false;
 	}
 
+
 	// Load shaders
 	if( !shaders_[0].Load( L"assets/shaders/global.fx", device_ ) ) {
+		OutputDebugStringA( "Failed to load global shader!" );
+		return false;
+	}
+	if( !shaders_[1].Load( L"assets/shaders/shadowmap.fx", device_ ) ) {
 		OutputDebugStringA( "Failed to load global shader!" );
 		return false;
 	}
@@ -521,8 +548,10 @@ void Renderer::Begin()
 void Renderer::SetChunkDrawingState()
 {
 	SetTexture( textures_[6], ST_FRAGMENT, 0 );
+	SetTexture( textures_[7], ST_FRAGMENT, 2 );
 	SetShader( shaders_[0] );
 	SetDepthBufferMode( DB_ENABLED );
+	context_->PSSetConstantBuffers( 1, 1, &frameConstantBuffer_ );
 
 	uint stride = sizeof( BlockVertex );
 	uint offset = 0;
@@ -569,7 +598,7 @@ void Renderer::DrawChunkMesh( int x, int z, BlockVertex *vertices, int numVertic
 	uint offset = 0;
 	context_->IASetVertexBuffers( 0, 1, &blockVB_, &stride, &offset );
 
-	SetShader( shaders_[0] );
+	//SetShader( shaders_[0] );
 
 	context_->Draw( numVertices, numCachedVerts_ );
 
@@ -578,6 +607,16 @@ void Renderer::DrawChunkMesh( int x, int z, BlockVertex *vertices, int numVertic
 	ProfileStop();
 
 	numCachedVerts_ += numVertices;
+}
+
+void Renderer::ClearTexture( RenderTarget *rt, float r, float g, float b, float a )
+{
+	float clearColor[ 4 ] = { r, g, b, a };
+	context_->ClearRenderTargetView( *rt->GetRTV(), clearColor );
+}
+void Renderer::ClearTexture( DepthBuffer *db, float d )
+{
+	context_->ClearDepthStencilView( db->GetDSV(), D3D11_CLEAR_DEPTH, d, 0 );
 }
 
 void Renderer::End()
@@ -645,6 +684,7 @@ bool Renderer::ResizeBuffers()
 	swapChain_->GetDesc( &desc );
 
 	// depth buffer
+#if 1
 	ID3D11Texture2D* depthTexture = 0;
 	D3D11_TEXTURE2D_DESC depthTexDesc;
 	ZeroMemory( &depthTexDesc, sizeof( depthTexDesc ) );
@@ -692,7 +732,17 @@ bool Renderer::ResizeBuffers()
 
 	RELEASE( depthTexture );
 
-	context_->OMSetRenderTargets( 1, &backBufferView_, depthStencilView_ );
+#else
+//	DepthBuffer db;
+	db.Init( desc.BufferDesc.Width, desc.BufferDesc.Height,
+				DXGI_FORMAT_D24_UNORM_S8_UINT,
+				desc.SampleDesc.Count, desc.SampleDesc.Quality,
+				false,
+				device_ );
+#endif
+
+//	context_->OMSetRenderTargets( 1, &backBufferView_, depthStencilView_ );
+	SetRenderTarget( NULL, NULL );
 
 	screenViewport_.Width = (float)desc.BufferDesc.Width;
 	screenViewport_.Height = (float)desc.BufferDesc.Height;
@@ -742,6 +792,36 @@ void Renderer::SetView( XMFLOAT3 pos, XMFLOAT3 dir, XMFLOAT3 up )
 	context_->UpdateSubresource( frameConstantBuffer_, 0, NULL, &frameCBData, sizeof( FrameCB ), 0 );
 }
 
+void Renderer::SetFrameCBufferData( FrameCB data )
+{
+	context_->UpdateSubresource( frameConstantBuffer_, 0, NULL, &data, sizeof( FrameCB ), 0 );
+}
+
+void Renderer::SetRenderTarget( RenderTarget *rt, DepthBuffer *db )
+{
+	if( rt && db )
+	{
+		context_->OMSetRenderTargets( 1, rt->GetRTV(), db->GetDSV() );
+	}
+	else if( rt )
+	{
+		context_->OMSetRenderTargets( 1, rt->GetRTV(), depthStencilView_ );
+	}
+	else if( db )
+	{
+		context_->OMSetRenderTargets( 1, &backBufferView_, db->GetDSV() );
+	}
+	else
+	{
+		context_->OMSetRenderTargets( 1, &backBufferView_, depthStencilView_ );
+	}
+}
+
+void Renderer::SetRasterizer( RASTERIZER_STATE rs )
+{
+	context_->RSSetState( rasterizerStates_[ rs ] );
+}
+
 void Renderer::SetSampler( SAMPLER_TYPE st )
 {
 	uint slot = 0;
@@ -775,6 +855,11 @@ void Renderer::SetShader( const Shader& shader )
 	context_->PSSetShader( shader.pixelShader_, NULL, 0 );
 }
 
+void Renderer::SetShader( uint shaderID )
+{
+	SetShader( shaders_[shaderID] );
+}
+
 void Renderer::SetTexture( const Texture& texture, SHADER_TYPE shader, uint slot )
 {
 	if( ( shader & ST_VERTEX ) == ST_VERTEX ) {
@@ -785,6 +870,33 @@ void Renderer::SetTexture( const Texture& texture, SHADER_TYPE shader, uint slot
 	}
 	if( ( shader & ST_FRAGMENT ) == ST_FRAGMENT ) {
 		context_->PSSetShaderResources( slot, 1, &texture.textureView_ );
+	}
+}
+
+void Renderer::SetTexture( RenderTarget& texture, SHADER_TYPE shader, uint slot )
+{
+	if( ( shader & ST_VERTEX ) == ST_VERTEX ) {
+		context_->VSSetShaderResources( slot, 1, texture.GetSRV() );
+	}
+	if( ( shader & ST_GEOMETRY ) == ST_GEOMETRY ) {
+		context_->GSSetShaderResources( slot, 1, texture.GetSRV() );
+	}
+	if( ( shader & ST_FRAGMENT ) == ST_FRAGMENT ) {
+		context_->PSSetShaderResources( slot, 1, texture.GetSRV() );
+	}
+}
+
+void Renderer::RemoveTexture( SHADER_TYPE shader, uint slot )
+{
+	ID3D11ShaderResourceView *nullSRV = { 0 };
+	if( ( shader & ST_VERTEX ) == ST_VERTEX ) {
+		context_->VSSetShaderResources( slot, 1, &nullSRV );
+	}
+	if( ( shader & ST_GEOMETRY ) == ST_GEOMETRY ) {
+		context_->GSSetShaderResources( slot, 1, &nullSRV );
+	}
+	if( ( shader & ST_FRAGMENT ) == ST_FRAGMENT ) {
+		context_->PSSetShaderResources( slot, 1, &nullSRV );
 	}
 }
 
@@ -917,7 +1029,7 @@ Texture::~Texture()
 	RELEASE( textureView_ );
 }
 
-bool Texture::Load( wchar_t* filename, ID3D11Device *device )
+bool Texture::LoadFile( wchar_t* filename, ID3D11Device *device )
 {
 	HRESULT hr = CreateDDSTextureFromFile( device,
 		                                   filename,
@@ -927,6 +1039,166 @@ bool Texture::Load( wchar_t* filename, ID3D11Device *device )
 	if( FAILED( hr ) ) {
 		OutputDebugStringA( "Failed to load texture!" );
 		return false;
+	}
+
+	return true;
+}
+
+//********************************
+// Render target
+//********************************
+
+RenderTarget::RenderTarget()
+{
+	renderTargetView_ = 0;
+	shaderResourceView_ = 0;
+}
+
+RenderTarget::~RenderTarget()
+{
+	RELEASE( shaderResourceView_ );
+	RELEASE( renderTargetView_ );
+}
+
+bool RenderTarget::Init( uint width, uint height, DXGI_FORMAT format, bool shaderAccess, ID3D11Device *device )
+{
+	HRESULT hr;
+
+	D3D11_TEXTURE2D_DESC texDesc;
+	ZeroMemory( &texDesc, sizeof( texDesc ) );
+	texDesc.Width = width;
+	texDesc.Height = height;
+	texDesc.MipLevels = 1;
+	texDesc.ArraySize = 1;
+	texDesc.Format = format;
+	texDesc.SampleDesc.Count = 1;
+	texDesc.SampleDesc.Quality = 0;
+	texDesc.Usage = D3D11_USAGE_DEFAULT;
+	texDesc.BindFlags = D3D11_BIND_RENDER_TARGET;
+	if( shaderAccess )
+	{
+		texDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+	}
+	texDesc.CPUAccessFlags = 0;
+	texDesc.MiscFlags = 0;
+
+	ID3D11Texture2D *texture = 0;
+	hr = device->CreateTexture2D( &texDesc, NULL, &texture );
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "RenderTarget::Init() failed to create RT texture!" );
+		return false;
+	}
+
+	D3D11_RENDER_TARGET_VIEW_DESC rtvDesc;
+	ZeroMemory( &rtvDesc, sizeof( rtvDesc ) );
+	rtvDesc.Format = format;
+	rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+	rtvDesc.Texture2D.MipSlice = 0;
+
+	hr = device->CreateRenderTargetView( texture, &rtvDesc, &renderTargetView_ );
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "RenderTarget::Init() failed to create render target!" );
+		return false;
+	}
+
+	if( shaderAccess )
+	{
+		D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
+		ZeroMemory( &srvDesc, sizeof( srvDesc ) );
+		srvDesc.Format = format;
+		srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Texture2D.MostDetailedMip = 0;
+		srvDesc.Texture2D.MipLevels = 1;
+
+		hr = device->CreateShaderResourceView( texture, &srvDesc, &shaderResourceView_ );
+		if( FAILED( hr ) )
+		{
+			OutputDebugStringA( "RenderTarget::Init() failed to create shader resource view!" );
+			return false;
+		}
+	}		
+
+	return true;
+}
+
+DepthBuffer::DepthBuffer()
+{
+	shaderResourceView_ = 0;
+	depthStencilView_ = 0;
+}
+DepthBuffer::~DepthBuffer()
+{
+	RELEASE( shaderResourceView_ );
+	RELEASE( depthStencilView_ );
+}
+
+bool DepthBuffer::Init( uint width, uint height, DXGI_FORMAT format, uint msCount, uint msQuality, bool shaderAccess, ID3D11Device *device )
+{
+	HRESULT hr;
+
+	D3D11_TEXTURE2D_DESC texDesc;
+	ZeroMemory( &texDesc, sizeof( texDesc ) );
+	texDesc.Width = width;
+	texDesc.Height = height;
+	texDesc.MipLevels = 1;
+	texDesc.ArraySize = 1;
+	texDesc.Format = format;
+	texDesc.SampleDesc.Count = msCount;
+	texDesc.SampleDesc.Quality = msQuality;
+	texDesc.Usage = D3D11_USAGE_DEFAULT;
+	texDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+	if( shaderAccess )
+	{
+		texDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
+	}
+	texDesc.CPUAccessFlags = 0;
+	texDesc.MiscFlags = 0;
+
+	ID3D11Texture2D *texture = 0;
+	hr = device->CreateTexture2D( &texDesc, NULL, &texture );
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "DepthBuffer::Init() failed to create DB texture!" );
+		return false;
+	}
+
+	D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc;
+	ZeroMemory( &dsvDesc, sizeof( dsvDesc ) );
+	dsvDesc.Format = format;
+	if( msCount > 1 )
+	{
+		dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMS;
+	}
+	else
+	{
+		dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+	}
+	dsvDesc.Texture2D.MipSlice = 0;
+
+	hr = device->CreateDepthStencilView( texture, &dsvDesc, &depthStencilView_ );
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "DepthBuffer::Init() failed to create depth stencil view!" );
+		return false;
+	}
+
+	if( shaderAccess )
+	{
+		D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
+		ZeroMemory( &srvDesc, sizeof( srvDesc ) );
+		srvDesc.Format = format;
+		srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Texture2D.MostDetailedMip = 0;
+		srvDesc.Texture2D.MipLevels = 1;
+
+		hr = device->CreateShaderResourceView( texture, &srvDesc, &shaderResourceView_ );
+		if( FAILED( hr ) )
+		{
+			OutputDebugStringA( "DepthBuffer::Init() failed to create shader resource view!" );
+			return false;
+		}
 	}
 
 	return true;
@@ -1020,7 +1292,7 @@ bool Overlay::Start( Renderer *renderer )
 	}
 
 	// load text texture
-	if( !texture_.Load( L"assets/textures/droidMono.dds", renderer_->device_ ) )
+	if( !texture_.LoadFile( L"assets/textures/droidMono.dds", renderer_->device_ ) )
 	{
 		OutputDebugStringA( "Failed to load Droid Mono texture!" );
 		return false;
