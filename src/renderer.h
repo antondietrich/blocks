@@ -44,11 +44,16 @@ struct GlobalCB {
 
 struct FrameCB {
 	DirectX::XMFLOAT4X4 vp;
+	DirectX::XMFLOAT4X4 lightVP;
 	DirectX::XMFLOAT4 sunDirection;
 	DirectX::XMFLOAT4 sunColor;
 	DirectX::XMFLOAT4 ambientColor;
 	float dayTimeNorm;
 	float padding[3];
+};
+
+struct LightCB {
+	DirectX::XMFLOAT4X4 vp;
 };
 
 struct ModelCB {
@@ -170,7 +175,9 @@ public:
 	void SetDepthBufferMode( DEPTH_BUFFER_MODE bm );
 
 	void SetView( DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 dir, DirectX::XMFLOAT3 up );
-	void SetFrameCBufferData( FrameCB data );
+	void SetViewport( D3D11_VIEWPORT *viewport );
+	void SetFrameCBuffer( FrameCB data );
+	void SetLightCBuffer( LightCB data );
 	void SetMesh( const Mesh& mesh );
 	void SetShader( const Shader& shader );
 	void SetShader( uint shaderID );
@@ -192,6 +199,7 @@ private:
 	D3D11_VIEWPORT screenViewport_;
 	ID3D11Buffer *globalConstantBuffer_;
 	ID3D11Buffer *frameConstantBuffer_;
+	ID3D11Buffer *lightConstantBuffer_;
 	ID3D11Buffer *modelConstantBuffer_;
 
 	ID3D11RasterizerState *rasterizerStates_[ NUM_RASTERIZER_STATES ];

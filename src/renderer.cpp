@@ -25,6 +25,7 @@ Renderer::Renderer()
 	// defaultRasterizerState_ = 0;
 	globalConstantBuffer_ = 0;
 	frameConstantBuffer_ = 0;
+	lightConstantBuffer_ = 0;
 	modelConstantBuffer_ = 0;
 
 
@@ -89,6 +90,7 @@ Renderer::~Renderer()
 		RELEASE( rasterizerStates_[i] );
 	}
 	RELEASE( modelConstantBuffer_ );
+	RELEASE( lightConstantBuffer_ );
 	RELEASE( frameConstantBuffer_ );
 	RELEASE( globalConstantBuffer_ );
 //	RELEASE( defaultRasterizerState_ );
@@ -268,6 +270,7 @@ bool Renderer::Start( HWND wnd )
 
 	rasterizerStateDesc.MultisampleEnable = FALSE;
 	rasterizerStateDesc.AntialiasedLineEnable = FALSE;
+	rasterizerStateDesc.CullMode = D3D11_CULL_FRONT;
 	hr =  device_->CreateRasterizerState( &rasterizerStateDesc, &rasterizerStates_[ RS_SHADOWMAP ] );
 	if( FAILED( hr ) )
 	{
@@ -449,6 +452,17 @@ bool Renderer::Start( HWND wnd )
 
 	context_->VSSetConstantBuffers( 1, 1, &frameConstantBuffer_ );
 	context_->PSSetConstantBuffers( 1, 1, &frameConstantBuffer_ );
+
+	// light constant buffer
+	ZeroMemory( &cbDesc, sizeof( cbDesc ) );
+	cbDesc.ByteWidth = sizeof( LightCB );
+	cbDesc.Usage = D3D11_USAGE_DEFAULT;
+	cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	cbDesc.CPUAccessFlags = 0;
+	cbDesc.MiscFlags = 0;
+	cbDesc.StructureByteStride = 0;
+	
+	hr = device_->CreateBuffer( &cbDesc, NULL, &lightConstantBuffer_ );
 
 	// model constant buffer
 	ZeroMemory( &cbDesc, sizeof( cbDesc ) );
@@ -791,11 +805,30 @@ void Renderer::SetView( XMFLOAT3 pos, XMFLOAT3 dir, XMFLOAT3 up )
 
 	context_->UpdateSubresource( frameConstantBuffer_, 0, NULL, &frameCBData, sizeof( FrameCB ), 0 );
 }
+void Renderer::SetViewport( D3D11_VIEWPORT *viewport )
+{
+	if( !viewport )
+	{
+		context_->RSSetViewports( 1, &screenViewport_ );
+	}
+	else
+	{
+		context_->RSSetViewports( 1, viewport );
+	}
+}
 
-void Renderer::SetFrameCBufferData( FrameCB data )
+void Renderer::SetFrameCBuffer( FrameCB data )
 {
 	context_->UpdateSubresource( frameConstantBuffer_, 0, NULL, &data, sizeof( FrameCB ), 0 );
+	context_->VSSetConstantBuffers( 1, 1, &frameConstantBuffer_ );
 }
+
+void Renderer::SetLightCBuffer( LightCB data )
+{
+	context_->UpdateSubresource( lightConstantBuffer_, 0, NULL, &data, sizeof( LightCB ), 0 );
+	context_->VSSetConstantBuffers( 1, 1, &lightConstantBuffer_ );
+}
+
 
 void Renderer::SetRenderTarget( RenderTarget *rt, DepthBuffer *db )
 {

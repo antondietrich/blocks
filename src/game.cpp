@@ -5,7 +5,66 @@ namespace Blocks
 
 using namespace DirectX;
 
+// player vars
+XMFLOAT3 playerPos 		= { 0.0f, 60.0f, 0.0f };
+XMFLOAT3 playerDir 		= { 0.0f,  0.0f, 1.0f };
+XMFLOAT3 playerLook 	= { 0.0f,  0.0f, 1.0f };
+XMFLOAT3 playerRight 	= { 1.0f,  0.0f, 0.0f };
+XMFLOAT3 playerUp 		= { 0.0f,  1.0f, 0.0f };
+XMFLOAT3 playerSpeed 	= { 0.0f,  0.0f, 0.0f };
+XMFLOAT3 gravity 		= { 0.0f, -9.8f, 0.0f };
+
+XMMATRIX playerView;
+XMMATRIX playerProj;
+
+float playerMass = 75.0f;
+float playerHeight = 1.8f;
+float playerReach = 4.0f;
+bool  playerAirborne = true;
+
 bool Game::isInstantiated_ = false;
+
+
+
+RenderTarget gShadowRT;
+DepthBuffer gShadowDB;
+
+XMFLOAT3 gSunDirection;
+XMFLOAT4 gAmbientColor;
+XMFLOAT4 gSunColor;
+
+
+void GameTime::AdvanceTime( float ms )
+{
+	float deltaSec = ms / 1000.0f;
+	seconds += deltaSec * scale;
+	float secondsPassed = seconds / 60.0f;
+	if( secondsPassed >= 1.0f )
+	{
+		seconds -= (int)secondsPassed * 60.0f;
+		minutes++;
+		if( minutes == 60 )
+		{
+			minutes = 0;
+			hours++;
+			if( hours == 24 )
+			{
+				hours = 0;
+				day++;
+				if( day == 31 )
+				{
+					day = 0;
+					month++;
+					if( month == 13 )
+					{
+						month = 1;
+						year++;
+					}
+				}
+			}
+		}
+	}
+}
 
 Game::Game()
 :
@@ -48,6 +107,8 @@ bool Game::Start( HWND wnd )
 	}
 	input.mouse = {0, 0};
 
+	gameTime_ = { 2015, 1, 1, 10, 0, 0.0f, 60.0f * 60.0f };
+
 	InitWorldGen();
 	world_ = new World();
 	GenerateWorld( world_ );
@@ -60,29 +121,34 @@ bool Game::Start( HWND wnd )
 		chunkMeshCache[i].chunkPos[1] = 0;
 	}
 
-	
+	if( !gShadowRT.Init( 4096, 4096, DXGI_FORMAT_R32_FLOAT, true, renderer.GetDevice() ) )
+	{
+		return false;
+	}
+	if( !gShadowDB.Init( 4096, 4096, DXGI_FORMAT_D32_FLOAT, 1, 0, false, renderer.GetDevice() ) )
+	{
+		return false;
+	}
+
+	gSunDirection = Normalize( { 0.5f, 0.8f, 0.25f } );
+	gAmbientColor = { 0.5f, 0.6f, 0.75f, 1.0f };
+	gSunColor = 	{ 1.0f, 0.9f, 0.8f, 1.0f };
+
+	playerProj = XMMatrixPerspectiveFovLH( XMConvertToRadians( 60.0f ), (float)Config.screenWidth / (float)Config.screenHeight, 0.1f, 1000.0f );
 
 	return true;
 }
-
-XMFLOAT3 playerPos 		= { 0.0f, 60.0f, 0.0f };
-XMFLOAT3 playerDir 		= { 0.0f,  0.0f, 1.0f };
-XMFLOAT3 playerLook 	= { 0.0f,  0.0f, 1.0f };
-XMFLOAT3 playerRight 	= { 1.0f,  0.0f, 0.0f };
-XMFLOAT3 playerUp 		= { 0.0f,  1.0f, 0.0f };
-XMFLOAT3 playerSpeed 	= { 0.0f,  0.0f, 0.0f };
-XMFLOAT3 gravity 		= { 0.0f, -9.8f, 0.0f };
-
-float playerMass = 75.0f;
-float playerHeight = 1.8f;
-float playerReach = 4.0f;
-bool playerAirborne = true;
 
 bool gDrawOverlay = true;
 uint gMaxChunkMeshesToBuild = 1;
 
 void Game::DoFrame( float dt )
 {
+	if( input.key[ KEY::NUM_ADD ].Down )
+	{
+	}
+		gameTime_.AdvanceTime( dt );
+
 	gMaxChunkMeshesToBuild = 1;
 	
 	ProfileNewFrame( dt );
@@ -307,8 +373,9 @@ void Game::DoFrame( float dt )
 
 	XMFLOAT3 playerEyePos = playerPos;
 	playerEyePos.y += playerHeight;
+	XMVECTOR vEyePos = XMLoadFloat3( &playerEyePos );
 
-	renderer.SetView( playerEyePos, playerLook, playerUp );
+	// renderer.SetView( playerEyePos, playerLook, playerUp );
 
 	bool blockPicked = false;
 	XMFLOAT3 lookAtTarget;
@@ -546,13 +613,13 @@ void Game::DoFrame( float dt )
 //	int batchVertexCount = 0;
 //	int numDrawnBatches = 0;
 	int numDrawnVertices = 0;
-	int chunkMeshesRebuilt = 0;
+	uint chunkMeshesRebuilt = 0;
 
 	if( input.key[ KEY::F1 ].Pressed ) {
 		gDrawOverlay = !gDrawOverlay;
 	}
 
-	// render chunks around player
+	// generate chunk meshes around player
 	assert( VIEW_DISTANCE <= CHUNK_CACHE_DIM );
 
 	for( int z = playerChunkPos.z - VIEW_DISTANCE; z <= playerChunkPos.z + VIEW_DISTANCE; z++ )
@@ -627,7 +694,44 @@ void Game::DoFrame( float dt )
 //	}
 
 	ProfileStart( "Render" );
+
+	// draw shadow map
+
+	XMMATRIX lightProj = XMMatrixOrthographicLH(	64.0f,
+													64.0f,
+													-64.0f,
+													64.0f );
+	XMVECTOR lightUp = XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
+	XMVECTOR vSunDirection = -XMLoadFloat3( &gSunDirection );
+	XMMATRIX lightView =  XMMatrixLookToLH( vPos, vSunDirection, lightUp );
+
+	XMMATRIX lightVP = XMMatrixTranspose( XMMatrixMultiply( lightView, lightProj ) );
+
+	LightCB lightCBData;
+	XMStoreFloat4x4( &lightCBData.vp, lightVP );
+
 	renderer.SetChunkDrawingState();
+	renderer.SetDepthBufferMode( DB_DISABLED );
+	renderer.SetRasterizer( RS_SHADOWMAP );
+	renderer.SetShader( 1 );
+	renderer.RemoveTexture( ST_FRAGMENT, 1 );
+
+	renderer.SetLightCBuffer( lightCBData );
+
+	D3D11_VIEWPORT smViewport;
+	smViewport.Width = 4096;
+	smViewport.Height = 4096;
+	smViewport.MinDepth = 0.0f;
+	smViewport.MaxDepth = 1.0f;
+	smViewport.TopLeftX = 0.0f;
+	smViewport.TopLeftY = 0.0f;
+	
+	renderer.SetViewport( &smViewport );
+
+	renderer.ClearTexture( &gShadowRT );
+	renderer.ClearTexture( &gShadowDB );
+
+	renderer.SetRenderTarget( &gShadowRT, &gShadowDB );
 	for( int meshIndex = 0; meshIndex < MESH_CACHE_DIM * MESH_CACHE_DIM; meshIndex++ )
 	{
 		if( chunkMeshCache[ meshIndex ].vertices )
@@ -639,6 +743,71 @@ void Game::DoFrame( float dt )
 			numDrawnVertices += chunkMeshCache[ meshIndex ].size;
 		}
 	}
+
+#if 1
+	// draw to frame buffer
+	// Frame CB
+	renderer.SetChunkDrawingState();
+	{
+		FrameCB cbData;
+		playerProj = XMMatrixPerspectiveFovLH( XMConvertToRadians( 60.0f ), (float)renderer.GetViewportWidth() / (float)renderer.GetViewportHeight(), 0.1f, 1000.0f );
+		playerView =  XMMatrixLookToLH( vEyePos, vLook, vUp );
+		XMMATRIX vp = XMMatrixTranspose( XMMatrixMultiply( playerView, playerProj ) );
+
+		// time of day
+		// t: [ 0, 86400 )
+		float t = gameTime_.hours * 60.0f * 60.0f + 
+					gameTime_.minutes * 60.0f +
+					gameTime_.seconds;
+		t /= 86400.0f;
+
+		XMStoreFloat4x4( &cbData.vp, vp );
+
+		gSunDirection.z = 0.3f;
+		gSunDirection.x = 1.0f * cos( t * XM_PI * 2.0f - XM_PI*0.5f );
+		gSunDirection.y = 1.0f * sin( t * XM_PI * 2.0f - XM_PI*0.5f );
+
+		cbData.sunColor = { gSunColor.x * Saturate( gSunDirection.y ),
+							gSunColor.x * Saturate( gSunDirection.y ),
+							gSunColor.x * Saturate( gSunDirection.y ),
+							1.0f };
+		cbData.ambientColor = { gAmbientColor.x * Clamp( gSunDirection.y, 0.2f, 1.0f ),
+								gAmbientColor.y * Clamp( gSunDirection.y, 0.2f, 1.0f ),
+								gAmbientColor.z * Clamp( gSunDirection.y, 0.2f, 1.0f ),
+								1.0f };
+
+		cbData.sunDirection = XMFLOAT4( gSunDirection.x,
+										gSunDirection.y,
+										gSunDirection.z,
+										0.0f );
+
+		cbData.dayTimeNorm = t;
+
+		cbData.lightVP = lightCBData.vp;
+
+		renderer.SetFrameCBuffer( cbData );
+	}
+
+	renderer.SetViewport( 0 );
+	
+	renderer.SetDepthBufferMode( DB_ENABLED );
+	renderer.SetRasterizer( RS_DEFAULT );
+	renderer.SetShader( 0 );
+	renderer.SetRenderTarget( 0, 0 );
+	renderer.SetTexture( gShadowRT, ST_FRAGMENT, 1 );
+	for( int meshIndex = 0; meshIndex < MESH_CACHE_DIM * MESH_CACHE_DIM; meshIndex++ )
+	{
+		if( chunkMeshCache[ meshIndex ].vertices )
+		{
+			renderer.DrawChunkMesh( chunkMeshCache[ meshIndex ].chunkPos[0] * CHUNK_WIDTH,
+												chunkMeshCache[ meshIndex ].chunkPos[1] * CHUNK_WIDTH,
+												chunkMeshCache[ meshIndex ].vertices,
+												chunkMeshCache[ meshIndex ].size );
+			numDrawnVertices += chunkMeshCache[ meshIndex ].size;
+		}
+	}
+
+#endif
 	ProfileStop();
 
 	if( blockPicked )
@@ -659,6 +828,12 @@ void Game::DoFrame( float dt )
 
 		overlay.Reset();
 		overlay.WriteLine( "Frame time: %5.2f (%i fps)", sum / UPDATE_DELTA_FRAMES, fps);
+		overlay.WriteLine( "Game  time: %i.%i.%i %i:%i:%i", gameTime_.day,
+															gameTime_.month,
+															gameTime_.year,
+															gameTime_.hours,
+															gameTime_.minutes,
+															(int)gameTime_.seconds );
 		overlay.WriteLine( "Chunk buffer size: %i KB", sizeof( BlockVertex ) * MAX_VERTS_PER_BATCH / 1024 );
 //		overlay.WriteLine( "Batches rendered: %i", renderer.numBatches_ );
 //		overlay.WriteLine( "Vertices rendered: %i", numDrawnVertices );

@@ -1,4 +1,6 @@
 Texture2D textureA_ : register( t0 );
+Texture2D shadowmap_ : register( t1 );
+Texture2D lightColor : register( t2 );
 SamplerState sampler_ : register( s0 );
 
 cbuffer GlobalCB : register( b0 )
@@ -11,6 +13,11 @@ cbuffer GlobalCB : register( b0 )
 cbuffer FrameCB : register( b1 )
 {
 	matrix vp;
+	matrix lightVP;
+	float4 sunDir;
+	float4 sunColor;
+	float4 ambientColor;
+	float dayTimeNorm;
 }
 
 cbuffer ModelCB : register( b2 )
@@ -27,9 +34,12 @@ struct VS_Input
 struct PS_Input
 {
 	float4 pos : SV_POSITION;
-	float4 normal : TEXCOORD0;
-	float2 texcoord : TEXCOORD1;
-	float occlusion : TEXCOORD2;
+	float4 lightViewPos : TEXCOORD0;
+//float4 pos : TEXCOORD0;
+//float4 lightViewPos : SV_POSITION;
+	float4 normal : TEXCOORD1;
+	float2 texcoord : TEXCOORD2;
+	float occlusion : TEXCOORD3;
 	// float texID : TEXCOORD3;
 };
 
@@ -55,7 +65,10 @@ PS_Input VSMain( VS_Input input )
 
 //	output.pos = mul( output.pos, world );
 	output.pos += translate;
+	output.lightViewPos = output.pos;
 	output.pos = mul( output.pos, vp );
+
+	output.lightViewPos = mul( output.lightViewPos, lightVP );
 
 	output.normal = normals[ normalIndex ];
 
@@ -70,24 +83,35 @@ PS_Input VSMain( VS_Input input )
 
 float4 PSMain( PS_Input input ) : SV_TARGET
 {
+	float2 tc;// = float2( input.lightViewPos.x, input.lightViewPos.y );
+	tc.x = input.lightViewPos.x / input.lightViewPos.w / 2.0f + 0.5f;
+	tc.y = -input.lightViewPos.y / input.lightViewPos.w / 2.0f + 0.5f;
+
+	// return float4( input.lightViewPos.x, input.lightViewPos.y, 0.0, 1.0 );
+	// return sm;
+
+	// return float4( 1.0f, 1.0f, 1.0f, 1.0f );
+
+	float4 negLightDir = normalize( sunDir );
 	float ao = ( 1.0 - input.occlusion ) * 0.7 + 0.3;
 
-	//return 0.2 * ao * input.texID;
+	float4 sunColorTex = lightColor.Sample( sampler_, float2( dayTimeNorm, 0.25 ) );
+	float4 ambientColorTex = lightColor.Sample( sampler_, float2( dayTimeNorm, 0.75 ) );
 
-	float4 negLightDir = normalize( float4( 0.5f, 0.8f, 0.25f, 0.0f ) );
-	float nDotL = dot( input.normal, negLightDir ) * 0.3 + 0.7;
+	float nDotL = saturate( dot( input.normal, negLightDir ) );
+	
+	if( saturate( tc.x ) == tc.x && saturate( tc.y ) == tc.y )
+	{
+		float sm = shadowmap_.Sample( sampler_, tc );
+		if( input.lightViewPos.z / input.lightViewPos.w > sm )
+		{
+			nDotL = float4( 0.0f, 0.0f, 1.0f, 1.0f );
+		}
+	}
 
-	float4 texSample =  textureA_.Sample( sampler_, input.texcoord );
+	float lighting = nDotL * sunColorTex + ao * ambientColorTex;
+	float4 color = textureA_.Sample( sampler_, input.texcoord );
 
-	//return ao;
-	return ao * texSample * nDotL;
-
-	float4 sun = float4( 1.0f, 1.0f, 0.9f, 1.0f );
-
-//	float ao = saturate( ( 1 - input.occlusion )*( 1 - input.occlusion ) + 0.7 );
-//	float4 lambert = texSample * nDotL * sun;
-//	float4 ambient = texSample + texSample*ao*0.5;// - ao;
-
-//	return saturate( 0.8*ambient + 0.2*lambert);
-	//return saturate( texSample*nDotL + texSample*float4( 0.1f, 0.1f, 0.23f, 1.0f )*2 );
+	return color * nDotL * sunColorTex * 0.5 + color * ao * ambientColorTex * 0.7;
+	return lighting * color;
 }

@@ -23,6 +23,21 @@ namespace Blocks
 
 #define UPDATE_DELTA_FRAMES 30
 
+struct GameTime
+{
+	uint year;
+	uint month; // 1 .. 12
+	uint day; // 1 .. 31
+	uint hours; // 0 .. 23
+	uint minutes; // 0 .. 59
+	float seconds; // 0.0f..59.(9)f
+
+	// game seconds per real-world second
+	float scale;
+
+	void AdvanceTime( float ms );
+};
+
 class Game
 {
 public:
@@ -36,6 +51,8 @@ public:
 	Overlay overlay;
 private:
 	static bool isInstantiated_;
+
+	GameTime gameTime_;
 
 	World *world_;
 
