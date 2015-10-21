@@ -270,7 +270,7 @@ bool Renderer::Start( HWND wnd )
 
 	rasterizerStateDesc.MultisampleEnable = FALSE;
 	rasterizerStateDesc.AntialiasedLineEnable = FALSE;
-	rasterizerStateDesc.CullMode = D3D11_CULL_FRONT;
+	rasterizerStateDesc.CullMode = D3D11_CULL_BACK;
 	hr =  device_->CreateRasterizerState( &rasterizerStateDesc, &rasterizerStates_[ RS_SHADOWMAP ] );
 	if( FAILED( hr ) )
 	{
