@@ -36,6 +36,7 @@ struct GameTime
 	float scale;
 
 	void AdvanceTime( float ms );
+	void DecreaseTime( float ms );
 };
 
 class Game

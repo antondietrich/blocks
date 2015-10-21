@@ -38,10 +38,10 @@ void GameTime::AdvanceTime( float ms )
 {
 	float deltaSec = ms / 1000.0f;
 	seconds += deltaSec * scale;
-	float secondsPassed = seconds / 60.0f;
-	if( secondsPassed >= 1.0f )
+	float minutesPassed = seconds / 60.0f;
+	if( minutesPassed >= 1.0f )
 	{
-		seconds -= (int)secondsPassed * 60.0f;
+		seconds -= (int)minutesPassed * 60.0f;
 		minutes++;
 		if( minutes == 60 )
 		{
@@ -59,6 +59,38 @@ void GameTime::AdvanceTime( float ms )
 					{
 						month = 1;
 						year++;
+					}
+				}
+			}
+		}
+	}
+}
+
+void GameTime::DecreaseTime( float ms )
+{
+	float deltaSec = ms / 1000.0f;
+	seconds -= deltaSec * scale;
+	float minutesPassed = -seconds / 60.0f;
+	if( minutesPassed >= 1.0f )
+	{
+		seconds += (int)minutesPassed * 60.0f;
+		minutes--;
+		if( minutes == -1 )
+		{
+			minutes = 60;
+			hours--;
+			if( hours == -1 )
+			{
+				hours = 23;
+				day--;
+				if( day == 0 )
+				{
+					day = 30;
+					month--;
+					if( month == 0 )
+					{
+						month = 12;
+						year--;
 					}
 				}
 			}
@@ -146,8 +178,12 @@ void Game::DoFrame( float dt )
 {
 	if( input.key[ KEY::NUM_ADD ].Down )
 	{
-	}
 		gameTime_.AdvanceTime( dt );
+	}
+	else if( input.key[ KEY::NUM_SUB ].Down )
+	{
+		gameTime_.DecreaseTime( dt );
+	}
 
 	gMaxChunkMeshesToBuild = 1;
 	
