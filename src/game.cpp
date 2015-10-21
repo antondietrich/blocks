@@ -733,13 +733,14 @@ void Game::DoFrame( float dt )
 
 	// draw shadow map
 
-	XMMATRIX lightProj = XMMatrixOrthographicLH(	64.0f,
-													64.0f,
-													-64.0f,
-													64.0f );
+	XMMATRIX lightProj = XMMatrixOrthographicLH(	32.0f,
+													32.0f,
+													0.0f,
+													32.0f );
 	XMVECTOR lightUp = XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
 	XMVECTOR vSunDirection = -XMLoadFloat3( &gSunDirection );
-	XMMATRIX lightView =  XMMatrixLookToLH( vPos, vSunDirection, lightUp );
+	XMVECTOR lightPos = vPos - 16 * vSunDirection;
+	XMMATRIX lightView =  XMMatrixLookToLH( lightPos, vSunDirection, lightUp );
 
 	XMMATRIX lightVP = XMMatrixTranspose( XMMatrixMultiply( lightView, lightProj ) );
 
@@ -747,7 +748,7 @@ void Game::DoFrame( float dt )
 	XMStoreFloat4x4( &lightCBData.vp, lightVP );
 
 	renderer.SetChunkDrawingState();
-	renderer.SetDepthBufferMode( DB_DISABLED );
+	renderer.SetDepthBufferMode( DB_ENABLED );
 	renderer.SetRasterizer( RS_SHADOWMAP );
 	renderer.SetShader( 1 );
 	renderer.RemoveTexture( ST_FRAGMENT, 1 );

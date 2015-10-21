@@ -100,12 +100,13 @@ float4 PSMain( PS_Input input ) : SV_TARGET
 
 	float nDotL = saturate( dot( input.normal, negLightDir ) );
 	
-	if( saturate( tc.x ) == tc.x && saturate( tc.y ) == tc.y )
+	if( saturate( tc.x ) == tc.x && saturate( tc.y ) == tc.y && saturate( input.lightViewPos.z ) == input.lightViewPos.z )
 	{
+		return float4( 1.0, 0.0, 0.0, 1.0 );
 		float sm = shadowmap_.Sample( sampler_, tc );
 		if( input.lightViewPos.z / input.lightViewPos.w > sm )
 		{
-			nDotL = float4( 0.0f, 0.0f, 1.0f, 1.0f );
+			nDotL = 0;
 		}
 	}
 
@@ -113,5 +114,4 @@ float4 PSMain( PS_Input input ) : SV_TARGET
 	float4 color = textureA_.Sample( sampler_, input.texcoord );
 
 	return color * nDotL * sunColorTex * 0.5 + color * ao * ambientColorTex * 0.7;
-	return lighting * color;
 }
