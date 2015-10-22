@@ -33,6 +33,8 @@ XMFLOAT3 gSunDirection;
 XMFLOAT4 gAmbientColor;
 XMFLOAT4 gSunColor;
 
+#define SM_RESOLUTION 2048
+
 
 void GameTime::AdvanceTime( float ms )
 {
@@ -153,11 +155,11 @@ bool Game::Start( HWND wnd )
 		chunkMeshCache[i].chunkPos[1] = 0;
 	}
 
-	if( !gShadowRT.Init( 4096, 4096, DXGI_FORMAT_R32_FLOAT, true, renderer.GetDevice() ) )
+	if( !gShadowRT.Init( SM_RESOLUTION, SM_RESOLUTION, DXGI_FORMAT_R32_FLOAT, true, renderer.GetDevice() ) )
 	{
 		return false;
 	}
-	if( !gShadowDB.Init( 4096, 4096, DXGI_FORMAT_D32_FLOAT, 1, 0, false, renderer.GetDevice() ) )
+	if( !gShadowDB.Init( SM_RESOLUTION, SM_RESOLUTION, DXGI_FORMAT_D32_FLOAT, 1, 0, false, renderer.GetDevice() ) )
 	{
 		return false;
 	}
@@ -733,13 +735,13 @@ void Game::DoFrame( float dt )
 
 	// draw shadow map
 
-	XMMATRIX lightProj = XMMatrixOrthographicLH(	32.0f,
-													32.0f,
+	XMMATRIX lightProj = XMMatrixOrthographicLH(	8.0f,
+													8.0f,
 													0.0f,
-													32.0f );
+													8.0f );
 	XMVECTOR lightUp = XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
 	XMVECTOR vSunDirection = -XMLoadFloat3( &gSunDirection );
-	XMVECTOR lightPos = vPos - 16 * vSunDirection;
+	XMVECTOR lightPos = vPos - 4 * vSunDirection;
 	XMMATRIX lightView =  XMMatrixLookToLH( lightPos, vSunDirection, lightUp );
 
 	XMMATRIX lightVP = XMMatrixTranspose( XMMatrixMultiply( lightView, lightProj ) );
@@ -750,14 +752,15 @@ void Game::DoFrame( float dt )
 	renderer.SetChunkDrawingState();
 	renderer.SetDepthBufferMode( DB_ENABLED );
 	renderer.SetRasterizer( RS_SHADOWMAP );
+	renderer.SetSampler( SAMPLER_POINT, ST_FRAGMENT, 1 );
 	renderer.SetShader( 1 );
 	renderer.RemoveTexture( ST_FRAGMENT, 1 );
 
 	renderer.SetLightCBuffer( lightCBData );
 
 	D3D11_VIEWPORT smViewport;
-	smViewport.Width = 4096;
-	smViewport.Height = 4096;
+	smViewport.Width = SM_RESOLUTION;
+	smViewport.Height = SM_RESOLUTION;
 	smViewport.MinDepth = 0.0f;
 	smViewport.MaxDepth = 1.0f;
 	smViewport.TopLeftX = 0.0f;

@@ -553,7 +553,7 @@ void Renderer::Begin()
 
 	context_->VSSetConstantBuffers( 1, 1, &frameConstantBuffer_ );
 	context_->VSSetConstantBuffers( 2, 1, &modelConstantBuffer_ );
-	SetSampler( SAMPLER_ANISOTROPIC );
+	SetSampler( SAMPLER_ANISOTROPIC, ST_FRAGMENT );
 
 	numBatches_ = 0;
 	numCachedVerts_ = 0;
@@ -855,11 +855,19 @@ void Renderer::SetRasterizer( RASTERIZER_STATE rs )
 	context_->RSSetState( rasterizerStates_[ rs ] );
 }
 
-void Renderer::SetSampler( SAMPLER_TYPE st )
+void Renderer::SetSampler( SAMPLER_TYPE st, SHADER_TYPE shader, uint slot )
 {
-	uint slot = 0;
 	uint numSamplers = 1;
-	context_->PSSetSamplers( slot, numSamplers, &samplers_[ st ] );
+
+	if( ( shader & ST_VERTEX ) == ST_VERTEX ) {
+		context_->VSSetSamplers( slot, numSamplers, &samplers_[ st ] );
+	}
+	if( ( shader & ST_GEOMETRY ) == ST_GEOMETRY ) {
+		context_->GSSetSamplers( slot, numSamplers, &samplers_[ st ] );
+	}
+	if( ( shader & ST_FRAGMENT ) == ST_FRAGMENT ) {
+		context_->PSSetSamplers( slot, numSamplers, &samplers_[ st ] );
+	}
 }
 
 void Renderer::SetBlendMode( BLEND_MODE bm )
@@ -1524,7 +1532,7 @@ void Overlay::DisplayText( int x, int y, const char* text, XMFLOAT4 color )
 	renderer_->SetBlendMode( BM_ALPHA );
 	renderer_->context_->IASetVertexBuffers( 0, 1, &textVB_, &stride, &offset );
 	renderer_->SetTexture( texture_, ST_FRAGMENT );
-	renderer_->SetSampler( SAMPLER_POINT );
+	renderer_->SetSampler( SAMPLER_POINT, ST_FRAGMENT );
 	renderer_->context_->PSSetConstantBuffers( 1, 1, &constantBuffer_ );
 	renderer_->SetShader( textShader_ );
 

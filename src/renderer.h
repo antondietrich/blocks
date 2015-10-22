@@ -170,7 +170,7 @@ public:
 	/* render state */
 	void SetRenderTarget( RenderTarget *rt, DepthBuffer *db );
 	void SetRasterizer( RASTERIZER_STATE rs );
-	void SetSampler( SAMPLER_TYPE st );
+	void SetSampler( SAMPLER_TYPE st, SHADER_TYPE shader, uint slot = 0 );
 	void SetBlendMode( BLEND_MODE bm );
 	void SetDepthBufferMode( DEPTH_BUFFER_MODE bm );
 
