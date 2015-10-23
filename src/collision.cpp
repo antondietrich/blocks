@@ -122,7 +122,6 @@ RayAABBIntersection GetIntersection( Line ray, AABB bound )
 	XMVECTOR intersectionDist = XMVectorReplicate( 100.0f );
 
 	XMVECTOR rayN = XMLoadFloat3( &ray.d );
-	XMVECTOR length = XMVector3Length( rayN );
 	rayN = XMVector3Normalize( rayN );
 	XMVECTOR rayP = XMLoadFloat3( &ray.p );
 

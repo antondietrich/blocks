@@ -168,6 +168,8 @@ void Profile::Report()
 	OutputDebugStringA( "\n\n" );
 }
 
+#pragma warning( disable : 4706 )
+
 uint8 hash( const uint8 *str )
 {
 	//unsigned long hash = 5381;
@@ -179,3 +181,5 @@ uint8 hash( const uint8 *str )
 
 	return hash;
 }
+
+#pragma warning( default : 4706 )
