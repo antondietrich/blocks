@@ -22,6 +22,11 @@ float playerHeight = 1.8f;
 float playerReach = 4.0f;
 bool  playerAirborne = true;
 
+float gPlayerHFOV = 60.0f;
+float gPlayerNearPlane = 0.1f;
+float gPlayerFarPlane = 1000.0f;
+
+
 bool Game::isInstantiated_ = false;
 
 
@@ -33,7 +38,8 @@ XMFLOAT3 gSunDirection;
 XMFLOAT4 gAmbientColor;
 XMFLOAT4 gSunColor;
 
-#define SM_RESOLUTION 2048
+#define SM_RESOLUTION 512
+#define SM_REGION_DIM 32.0f
 
 
 void GameTime::AdvanceTime( float ms )
@@ -735,13 +741,20 @@ void Game::DoFrame( float dt )
 
 	// draw shadow map
 
-	XMMATRIX lightProj = XMMatrixOrthographicLH(	8.0f,
-													8.0f,
+	XMMATRIX lightProj = XMMatrixOrthographicLH(	SM_REGION_DIM,
+													SM_REGION_DIM,
 													0.0f,
-													8.0f );
+													SM_REGION_DIM );
 	XMVECTOR lightUp = XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
 	XMVECTOR vSunDirection = -XMLoadFloat3( &gSunDirection );
-	XMVECTOR lightPos = vPos - 4 * vSunDirection;
+	XMVECTOR lightPos = vPos - (0.5f*SM_REGION_DIM) * vSunDirection;
+	
+	float metersPerTexel = SM_RESOLUTION / SM_REGION_DIM;
+
+	lightPos /= metersPerTexel;
+	lightPos = XMVectorFloor( lightPos );
+	lightPos *= metersPerTexel;
+
 	XMMATRIX lightView =  XMMatrixLookToLH( lightPos, vSunDirection, lightUp );
 
 	XMMATRIX lightVP = XMMatrixTranspose( XMMatrixMultiply( lightView, lightProj ) );
@@ -790,7 +803,7 @@ void Game::DoFrame( float dt )
 	renderer.SetChunkDrawingState();
 	{
 		FrameCB cbData;
-		playerProj = XMMatrixPerspectiveFovLH( XMConvertToRadians( 60.0f ), (float)renderer.GetViewportWidth() / (float)renderer.GetViewportHeight(), 0.1f, 1000.0f );
+		playerProj = XMMatrixPerspectiveFovLH( XMConvertToRadians( gPlayerHFOV ), (float)renderer.GetViewportWidth() / (float)renderer.GetViewportHeight(), gPlayerNearPlane, gPlayerFarPlane );
 		playerView =  XMMatrixLookToLH( vEyePos, vLook, vUp );
 		XMMATRIX vp = XMMatrixTranspose( XMMatrixMultiply( playerView, playerProj ) );
 

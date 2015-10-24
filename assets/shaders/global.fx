@@ -102,7 +102,9 @@ float4 PSMain( PS_Input input ) : SV_TARGET
 
 	float nDotL = saturate( dot( input.normal, negLightDir ) );
 	
-	if( saturate( tc.x ) == tc.x && saturate( tc.y ) == tc.y && saturate( input.lightViewPos.z ) == input.lightViewPos.z )
+	if( saturate( tc.x ) == tc.x &&
+		saturate( tc.y ) == tc.y &&
+		saturate( input.lightViewPos.z ) == input.lightViewPos.z )
 	{
 		float sm = shadowmap_.Sample( samplerPoint, tc );
 		// return sm;
