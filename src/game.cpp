@@ -203,6 +203,9 @@ void Game::DoFrame( float dt )
 	}
 	if( input.key[ KEY::NUM_5 ].Pressed )
 	{
+		gameTime_.hours = 12;
+		gameTime_.minutes = 0;
+		gameTime_.seconds = 0;
 		gSunElevation = 90.0f;
 	}
 
@@ -758,7 +761,7 @@ void Game::DoFrame( float dt )
 
 	// time of day
 	// t: [ 0, 86400 )
-	float t =	gameTime_.hours * 60.0f * 60.0f + 
+	float t =	gameTime_.hours * 60.0f * 60.0f +
 				gameTime_.minutes * 60.0f +
 				gameTime_.seconds;
 	t /= 86400.0f;
@@ -767,10 +770,10 @@ void Game::DoFrame( float dt )
 	//  0, PI - sun at horizon
 	//  1..PI - day, PI..2PI - night
 	float sunAzimuth = t * XM_PI * 2.0f - XM_PI * 0.5f;
-	float sunElevation = XMConvertToRadians( 90.0f - gSunElevation );
+	float sunElevation = XMConvertToRadians( gSunElevation );
 
-	gSunDirection.y = sin( sunAzimuth ) * cos( sunElevation );
-	gSunDirection.z = sin( sunAzimuth ) * sin( sunElevation );
+	gSunDirection.y = sin( sunAzimuth ) * cos( XM_PIDIV2 - sunElevation );
+	gSunDirection.z = sin( sunAzimuth ) * sin( XM_PIDIV2 - sunElevation );
 	gSunDirection.x = cos( sunAzimuth );
 
 	XMMATRIX lightProj = XMMatrixOrthographicLH(	SM_REGION_DIM,
@@ -779,9 +782,9 @@ void Game::DoFrame( float dt )
 													SM_REGION_DIM );
 
 	XMVECTOR vSunDirection = -XMVector4Normalize( XMLoadFloat3( &gSunDirection ) );
-	XMVECTOR lightRight = XMVectorSet( 0.0f, 0.0f, -1.0f, 0.0f );
-	// XMVECTOR lightUp = XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
-	XMVECTOR lightUp = XMVector3Cross( vSunDirection, lightRight );
+	XMVECTOR lightUp = XMVector4Normalize( XMVectorSet( 0.0f, cos( sunElevation ), -sin( sunElevation ), 0.0f ) );
+	// XMVECTOR lightUp = XMVector4Normalize( XMVector3Cross( vSunDirection, lightRight ) );
+	// lightUp = XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
 
 	XMVECTOR vLightPos = vPos - (0.5f*SM_REGION_DIM) * vSunDirection;
 	
