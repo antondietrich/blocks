@@ -49,17 +49,20 @@ PS_Input VSMain( VS_Input input )
 
 float PSMain( PS_Input input ) : SV_TARGET
 {
-	// return ShowTexel( input.pos );
+	return ShowTexel( input.pos );
 	return input.pos.z;
 }
 
+//
+// Produces a checkered map to inspect shadow map texel size
+//
 float ShowTexel( float4 fragmentPos )
 {
 	int2 pixelPos;
-	pixelPos.x = fragmentPos.x / fragmentPos.w / 2  + 0.5;
-	pixelPos.y = fragmentPos.y / fragmentPos.w / 2  + 0.5;
+	pixelPos.x = (fragmentPos.x / fragmentPos.w) / 2  + 0.5;
+	pixelPos.y = (fragmentPos.y / fragmentPos.w) / 2  + 0.5;
 
-	if( pixelPos.x % 2 == 0 && pixelPos.y % 2 == 0)
+	if( pixelPos.x % 2 == 0 != pixelPos.y % 2 )
 	{
 		return 1.0;
 	}

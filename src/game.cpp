@@ -37,6 +37,7 @@ DepthBuffer gShadowDB;
 XMFLOAT3 gSunDirection;
 XMFLOAT4 gAmbientColor;
 XMFLOAT4 gSunColor;
+float gSunElevation = 90.0f;
 
 #define SM_RESOLUTION 512
 #define SM_REGION_DIM 32.0f
@@ -147,7 +148,7 @@ bool Game::Start( HWND wnd )
 	}
 	input.mouse = {0, 0};
 
-	gameTime_ = { 2015, 1, 1, 10, 0, 0.0f, 60.0f * 60.0f };
+	gameTime_ = { 2015, 1, 1, 12, 0, 0.0f, 60.0f * 60.0f };
 
 	InitWorldGen();
 	world_ = new World();
@@ -184,14 +185,28 @@ uint gMaxChunkMeshesToBuild = 1;
 
 void Game::DoFrame( float dt )
 {
-	if( input.key[ KEY::NUM_ADD ].Down )
+	if( input.key[ KEY::NUM_6 ].Down )
 	{
 		gameTime_.AdvanceTime( dt );
 	}
-	else if( input.key[ KEY::NUM_SUB ].Down )
+	else if( input.key[ KEY::NUM_4 ].Down )
 	{
 		gameTime_.DecreaseTime( dt );
 	}
+	if( input.key[ KEY::NUM_8 ].Down )
+	{
+		gSunElevation += 1.0f;
+	}
+	if( input.key[ KEY::NUM_2 ].Down )
+	{
+		gSunElevation -= 1.0f;
+	}
+	if( input.key[ KEY::NUM_5 ].Pressed )
+	{
+		gSunElevation = 90.0f;
+	}
+
+	gSunElevation = Clamp( gSunElevation, 0.0f, 90.0f );
 
 	gMaxChunkMeshesToBuild = 1;
 	
@@ -741,21 +756,44 @@ void Game::DoFrame( float dt )
 
 	// draw shadow map
 
+	// time of day
+	// t: [ 0, 86400 )
+	float t =	gameTime_.hours * 60.0f * 60.0f + 
+				gameTime_.minutes * 60.0f +
+				gameTime_.seconds;
+	t /= 86400.0f;
+
+	// sun zenith angle, 0..2PI
+	//  0, PI - sun at horizon
+	//  1..PI - day, PI..2PI - night
+	float sunAzimuth = t * XM_PI * 2.0f - XM_PI * 0.5f;
+	float sunElevation = XMConvertToRadians( 90.0f - gSunElevation );
+
+	gSunDirection.y = sin( sunAzimuth ) * cos( sunElevation );
+	gSunDirection.z = sin( sunAzimuth ) * sin( sunElevation );
+	gSunDirection.x = cos( sunAzimuth );
+
 	XMMATRIX lightProj = XMMatrixOrthographicLH(	SM_REGION_DIM,
 													SM_REGION_DIM,
 													0.0f,
 													SM_REGION_DIM );
-	XMVECTOR lightUp = XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
-	XMVECTOR vSunDirection = -XMLoadFloat3( &gSunDirection );
-	XMVECTOR lightPos = vPos - (0.5f*SM_REGION_DIM) * vSunDirection;
+
+	XMVECTOR vSunDirection = -XMVector4Normalize( XMLoadFloat3( &gSunDirection ) );
+	XMVECTOR lightRight = XMVectorSet( 0.0f, 0.0f, -1.0f, 0.0f );
+	// XMVECTOR lightUp = XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
+	XMVECTOR lightUp = XMVector3Cross( vSunDirection, lightRight );
+
+	XMVECTOR vLightPos = vPos - (0.5f*SM_REGION_DIM) * vSunDirection;
 	
-	float metersPerTexel = SM_RESOLUTION / SM_REGION_DIM;
+	float metersPerTexel =  SM_REGION_DIM / ( SM_RESOLUTION * 0.5 );
+	//float nearPlaneWidth = 2 * gPlayerNearPlane * tan( XMConvertToRadians( gPlayerHFOV / 2.0f ) );
+	//float metersPerTexel = renderer.GetViewportWidth() / nearPlaneWidth;
 
-	lightPos /= metersPerTexel;
-	lightPos = XMVectorFloor( lightPos );
-	lightPos *= metersPerTexel;
+//	vLightPos /= metersPerTexel;
+//	vLightPos = XMVectorFloor( vLightPos );
+//	vLightPos *= metersPerTexel;
 
-	XMMATRIX lightView =  XMMatrixLookToLH( lightPos, vSunDirection, lightUp );
+	XMMATRIX lightView =  XMMatrixLookToLH( vLightPos, vSunDirection, lightUp );
 
 	XMMATRIX lightVP = XMMatrixTranspose( XMMatrixMultiply( lightView, lightProj ) );
 
@@ -807,18 +845,7 @@ void Game::DoFrame( float dt )
 		playerView =  XMMatrixLookToLH( vEyePos, vLook, vUp );
 		XMMATRIX vp = XMMatrixTranspose( XMMatrixMultiply( playerView, playerProj ) );
 
-		// time of day
-		// t: [ 0, 86400 )
-		float t = gameTime_.hours * 60.0f * 60.0f + 
-					gameTime_.minutes * 60.0f +
-					gameTime_.seconds;
-		t /= 86400.0f;
-
 		XMStoreFloat4x4( &cbData.vp, vp );
-
-		gSunDirection.z = 0.3f;
-		gSunDirection.x = 1.0f * cos( t * XM_PI * 2.0f - XM_PI*0.5f );
-		gSunDirection.y = 1.0f * sin( t * XM_PI * 2.0f - XM_PI*0.5f );
 
 		cbData.sunColor = { gSunColor.x * Saturate( gSunDirection.y ),
 							gSunColor.x * Saturate( gSunDirection.y ),
@@ -925,6 +952,10 @@ void Game::DoFrame( float dt )
 		{
 			overlay.DrawPoint( intersection.point, { 0.0f, 1.0f, 1.0f, 1.0f } );
 		}
+
+		XMFLOAT3 lightPos;
+		XMStoreFloat3( &lightPos, vLightPos );
+		overlay.DrawPoint( lightPos, { 1.0f, 0.0f, 0.0f, 1.0f } );
 	}
 
 	renderer.End();
