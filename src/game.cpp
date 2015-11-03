@@ -40,7 +40,7 @@ XMFLOAT4 gSunColor;
 float gSunElevation = 90.0f;
 
 #define SM_RESOLUTION 512
-#define SM_REGION_DIM 32.0f
+#define SM_REGION_DIM 16.0f
 
 
 void GameTime::AdvanceTime( float ms )
@@ -783,21 +783,25 @@ void Game::DoFrame( float dt )
 
 	XMVECTOR vSunDirection = -XMVector4Normalize( XMLoadFloat3( &gSunDirection ) );
 	XMVECTOR lightUp = XMVector4Normalize( XMVectorSet( 0.0f, cos( sunElevation ), -sin( sunElevation ), 0.0f ) );
-	// XMVECTOR lightUp = XMVector4Normalize( XMVector3Cross( vSunDirection, lightRight ) );
-	// lightUp = XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
+	XMVECTOR lightRight = XMVector4Normalize( XMVector3Cross( lightUp, vSunDirection ) );
+
+	XMMATRIX worldToLight = XMMatrixTranspose( XMMATRIX(
+		lightRight,
+		lightUp,
+		vSunDirection,
+		XMVectorSet( 0.0f, 0.0f, 0.0f, 1.0f ) ) );
+	XMMATRIX lightToWorld = XMMatrixTranspose( worldToLight );
+
+	float texelsPerMeter = SM_RESOLUTION / SM_REGION_DIM;
 
 	XMVECTOR vLightPos = vPos - (0.5f*SM_REGION_DIM) * vSunDirection;
-	
-	float metersPerTexel =  SM_REGION_DIM / ( SM_RESOLUTION * 0.5 );
-	//float nearPlaneWidth = 2 * gPlayerNearPlane * tan( XMConvertToRadians( gPlayerHFOV / 2.0f ) );
-	//float metersPerTexel = renderer.GetViewportWidth() / nearPlaneWidth;
-
-//	vLightPos /= metersPerTexel;
-//	vLightPos = XMVectorFloor( vLightPos );
-//	vLightPos *= metersPerTexel;
+	vLightPos = XMVector4Transform( vLightPos, worldToLight );
+	vLightPos *= texelsPerMeter;
+	vLightPos = XMVectorRound( vLightPos );
+	vLightPos /= texelsPerMeter;
+	vLightPos = XMVector4Transform( vLightPos, lightToWorld );
 
 	XMMATRIX lightView =  XMMatrixLookToLH( vLightPos, vSunDirection, lightUp );
-
 	XMMATRIX lightVP = XMMatrixTranspose( XMMatrixMultiply( lightView, lightProj ) );
 
 	LightCB lightCBData;
@@ -958,7 +962,7 @@ void Game::DoFrame( float dt )
 
 		XMFLOAT3 lightPos;
 		XMStoreFloat3( &lightPos, vLightPos );
-		overlay.DrawPoint( lightPos, { 1.0f, 0.0f, 0.0f, 1.0f } );
+		overlay.DrawPoint( lightPos, { 1.0f, 0.0f, 1.0f, 1.0f } );
 	}
 
 	renderer.End();
