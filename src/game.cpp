@@ -22,7 +22,7 @@ float playerHeight = 1.8f;
 float playerReach = 4.0f;
 bool  playerAirborne = true;
 
-float gPlayerHFOV = 60.0f;
+float gPlayerHFOV = 80.0f;
 float gPlayerNearPlane = 0.1f;
 float gPlayerFarPlane = 1000.0f;
 
@@ -149,7 +149,7 @@ bool Game::Start( HWND wnd )
 	}
 	input.mouse = {0, 0};
 
-	gameTime_ = { 2015, 1, 1, 12, 0, 0.0f, 60.0f * 60.0f };
+	gameTime_ = { 2015, 1, 1, 12, 0, 0.0f, 60.f };
 
 	InitWorldGen();
 	world_ = new World();
@@ -218,6 +218,15 @@ void Game::DoFrame( float dt )
 	if( timeLive )
 	{
 		gameTime_.AdvanceTime( dt );
+	}
+
+	if( input.key[ KEY::NUM_ADD ].Down )
+	{
+		gPlayerHFOV += 0.5f;
+	}
+	if( input.key[ KEY::NUM_SUB ].Down )
+	{
+		gPlayerHFOV -= 0.5f;
 	}
 
 	gSunElevation = Clamp( gSunElevation, 0.0f, 90.0f );
@@ -859,7 +868,9 @@ void Game::DoFrame( float dt )
 	renderer.SetChunkDrawingState();
 	{
 		FrameCB cbData;
-		playerProj = XMMatrixPerspectiveFovLH( XMConvertToRadians( gPlayerHFOV ), (float)renderer.GetViewportWidth() / (float)renderer.GetViewportHeight(), gPlayerNearPlane, gPlayerFarPlane );
+		float screenAspect = (float)renderer.GetViewportWidth() / (float)renderer.GetViewportHeight();
+		float verticalFOV = XMConvertToRadians( gPlayerHFOV / screenAspect );
+		playerProj = XMMatrixPerspectiveFovLH( verticalFOV, screenAspect, gPlayerNearPlane, gPlayerFarPlane );
 		playerView =  XMMatrixLookToLH( vEyePos, vLook, vUp );
 		XMMATRIX vp = XMMatrixTranspose( XMMatrixMultiply( playerView, playerProj ) );
 
@@ -942,6 +953,7 @@ void Game::DoFrame( float dt )
 		overlay.WriteLine( "Player pos: %5.2f %5.2f %5.2f", playerPos.x, playerPos.y, playerPos.z );
 		overlay.WriteLine( "Chunk pos:  %5i ----- %5i", playerChunkPos.x, playerChunkPos.z );
 		overlay.WriteLine( "Speed:  %5.2f", XMVectorGetX( XMVector4Length( vSpeed ) ) );
+		overlay.WriteLine( "FOV:  %5.2f", gPlayerHFOV );
 		overlay.Write( "Keys pressed: " );
 		for( int i = 0; i < KEY::COUNT; i++ )
 		{
