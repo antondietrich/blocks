@@ -83,6 +83,8 @@ PS_Input VSMain( VS_Input input )
 	return output;
 }
 
+bool IsPointInsideProjectedVolume( float3 P );
+
 float4 PSMain( PS_Input input ) : SV_TARGET
 {
 	float2 tc;// = float2( input.lightViewPos.x, input.lightViewPos.y );
@@ -102,14 +104,26 @@ float4 PSMain( PS_Input input ) : SV_TARGET
 
 	float nDotL = saturate( dot( input.normal, negLightDir ) );
 	
-	if( saturate( tc.x ) == tc.x &&
-		saturate( tc.y ) == tc.y &&
-		saturate( input.lightViewPos.z ) == input.lightViewPos.z )
+	if( IsPointInsideProjectedVolume( input.lightViewPos ) )
 	{
-		float sm = shadowmap_.Sample( samplerPoint, tc );
-		// return sm;
-		if( input.lightViewPos.z / input.lightViewPos.w - 0.001 > sm )
+		float maxBias = 0.001;
+		float slope = dot( input.normal, negLightDir );
+		if( slope < 0 )
 		{
+			slope = 0;
+		}
+		else
+		{
+			slope = 1 - slope;
+		}
+
+		float bias = maxBias * slope + 0.00001;
+
+		float sm = shadowmap_.Sample( samplerPoint, tc );
+
+		if( input.lightViewPos.z / input.lightViewPos.w - bias > sm )
+		{
+//			return float4( 0.0, 0.0, 1.0, 1.0 );
 			nDotL = 0;
 		}
 	}
@@ -118,4 +132,11 @@ float4 PSMain( PS_Input input ) : SV_TARGET
 	float4 color = textureA_.Sample( samplerFiltered, input.texcoord );
 
 	return color * nDotL * sunColorTex * 0.5 + color * ao * ambientColorTex * 0.7;
+}
+
+bool IsPointInsideProjectedVolume( float3 P )
+{
+	return saturate( abs( P.x ) ) == abs( P.x ) && 
+	       saturate( abs( P.y ) ) == abs( P.y ) &&
+	       saturate( P.z ) 		  == P.z;
 }

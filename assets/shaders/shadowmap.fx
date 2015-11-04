@@ -49,7 +49,7 @@ PS_Input VSMain( VS_Input input )
 
 float PSMain( PS_Input input ) : SV_TARGET
 {
-	return ShowTexel( input.pos );
+	// return ShowTexel( input.pos );
 	return input.pos.z;
 }
 
