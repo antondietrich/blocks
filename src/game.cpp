@@ -41,6 +41,7 @@ float gSunElevation = 90.0f;
 
 #define SM_RESOLUTION 512
 #define SM_REGION_DIM 16.0f
+#define SM_REGION_HALF_DEPTH ( VIEW_DISTANCE * CHUNK_WIDTH )
 
 
 void GameTime::AdvanceTime( float ms )
@@ -185,6 +186,7 @@ uint gMaxChunkMeshesToBuild = 1;
 
 void Game::DoFrame( float dt )
 {
+	static bool timeLive = true;
 	if( input.key[ KEY::NUM_6 ].Down )
 	{
 		gameTime_.AdvanceTime( dt );
@@ -207,6 +209,15 @@ void Game::DoFrame( float dt )
 		gameTime_.minutes = 0;
 		gameTime_.seconds = 0;
 		gSunElevation = 90.0f;
+	}
+	if( input.key[ KEY::NUM_0 ].Pressed )
+	{
+		timeLive = !timeLive;
+	}
+
+	if( timeLive )
+	{
+		gameTime_.AdvanceTime( dt );
 	}
 
 	gSunElevation = Clamp( gSunElevation, 0.0f, 90.0f );
@@ -778,7 +789,7 @@ void Game::DoFrame( float dt )
 
 	XMMATRIX lightProj = XMMatrixOrthographicLH(	SM_REGION_DIM,
 													SM_REGION_DIM,
-													0.0f,
+													-SM_REGION_HALF_DEPTH,
 													SM_REGION_DIM );
 
 	XMVECTOR vSunDirection = -XMVector4Normalize( XMLoadFloat3( &gSunDirection ) );
@@ -794,7 +805,7 @@ void Game::DoFrame( float dt )
 
 	float texelsPerMeter = SM_RESOLUTION / SM_REGION_DIM;
 
-	XMVECTOR vLightPos = vPos - (0.5f*SM_REGION_DIM) * vSunDirection;
+	XMVECTOR vLightPos = vPos;// - (0.5f*SM_REGION_DIM) * vSunDirection;
 	vLightPos = XMVector4Transform( vLightPos, worldToLight );
 	vLightPos *= texelsPerMeter;
 	vLightPos = XMVectorRound( vLightPos );
