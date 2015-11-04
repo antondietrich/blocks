@@ -39,8 +39,8 @@ XMFLOAT4 gAmbientColor;
 XMFLOAT4 gSunColor;
 float gSunElevation = 90.0f;
 
-#define SM_RESOLUTION 512
-#define SM_REGION_DIM 16.0f
+#define SM_RESOLUTION 4096
+#define SM_REGION_DIM 128.0f
 #define SM_REGION_HALF_DEPTH ( VIEW_DISTANCE * CHUNK_WIDTH )
 
 
