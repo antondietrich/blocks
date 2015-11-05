@@ -24,7 +24,7 @@ bool  playerAirborne = true;
 
 float gPlayerHFOV = 80.0f;
 float gPlayerNearPlane = 0.1f;
-float gPlayerFarPlane = 1000.0f;
+float gPlayerFarPlane = 10.0f;
 
 
 bool Game::isInstantiated_ = false;
@@ -866,36 +866,84 @@ void Game::DoFrame( float dt )
 	// draw to frame buffer
 	// Frame CB
 	renderer.SetChunkDrawingState();
-	{
-		FrameCB cbData;
-		float screenAspect = (float)renderer.GetViewportWidth() / (float)renderer.GetViewportHeight();
-		float verticalFOV = XMConvertToRadians( gPlayerHFOV / screenAspect );
-		playerProj = XMMatrixPerspectiveFovLH( verticalFOV, screenAspect, gPlayerNearPlane, gPlayerFarPlane );
-		playerView =  XMMatrixLookToLH( vEyePos, vLook, vUp );
-		XMMATRIX vp = XMMatrixTranspose( XMMatrixMultiply( playerView, playerProj ) );
 
-		XMStoreFloat4x4( &cbData.vp, vp );
+	FrameCB cbData;
+	float screenAspect = (float)renderer.GetViewportWidth() / (float)renderer.GetViewportHeight();
+	float verticalFOV = XMConvertToRadians( gPlayerHFOV / screenAspect );
 
-		cbData.sunColor = { gSunColor.x * Saturate( gSunDirection.y ),
-							gSunColor.x * Saturate( gSunDirection.y ),
-							gSunColor.x * Saturate( gSunDirection.y ),
-							1.0f };
-		cbData.ambientColor = { gAmbientColor.x * Clamp( gSunDirection.y, 0.2f, 1.0f ),
-								gAmbientColor.y * Clamp( gSunDirection.y, 0.2f, 1.0f ),
-								gAmbientColor.z * Clamp( gSunDirection.y, 0.2f, 1.0f ),
-								1.0f };
+	// frustum
+	Frustum playerFrustum;
+	float halfWidth = gPlayerNearPlane * tan( XMConvertToRadians( gPlayerHFOV )*0.5f );
+	float halfHeight = gPlayerNearPlane * tan( verticalFOV*0.5f );
 
-		cbData.sunDirection = XMFLOAT4( gSunDirection.x,
-										gSunDirection.y,
-										gSunDirection.z,
-										0.0f );
+	XMFLOAT3 frustumA;
+	XMFLOAT3 frustumB;
+	XMFLOAT3 frustumC;
+	XMFLOAT3 frustumD;
+	XMFLOAT3 frustumE;
+	XMFLOAT3 frustumF;
+	XMFLOAT3 frustumG;
+	XMFLOAT3 frustumH;
 
-		cbData.dayTimeNorm = t;
+	XMVECTOR vLookUp = XMVector3Cross( vLook, vRight );
+	
+	XMStoreFloat3( &frustumA, vEyePos + vLook*gPlayerNearPlane - vRight*halfWidth - vLookUp*halfHeight );
+	XMStoreFloat3( &frustumB, vEyePos + vLook*gPlayerNearPlane + vRight*halfWidth - vLookUp*halfHeight );
+	XMStoreFloat3( &frustumC, vEyePos + vLook*gPlayerNearPlane + vRight*halfWidth + vLookUp*halfHeight );
+	XMStoreFloat3( &frustumD, vEyePos + vLook*gPlayerNearPlane - vRight*halfWidth + vLookUp*halfHeight );
+	
+	halfWidth = gPlayerFarPlane * tan( XMConvertToRadians( gPlayerHFOV )*0.5f );
+	halfHeight = gPlayerFarPlane * tan( verticalFOV*0.5f );
 
-		cbData.lightVP = lightCBData.vp;
+	XMStoreFloat3( &frustumE, vEyePos + vLook*gPlayerFarPlane - vRight*halfWidth - vLookUp*halfHeight );
+	XMStoreFloat3( &frustumF, vEyePos + vLook*gPlayerFarPlane + vRight*halfWidth - vLookUp*halfHeight );
+	XMStoreFloat3( &frustumG, vEyePos + vLook*gPlayerFarPlane + vRight*halfWidth + vLookUp*halfHeight );
+	XMStoreFloat3( &frustumH, vEyePos + vLook*gPlayerFarPlane - vRight*halfWidth + vLookUp*halfHeight );
 
-		renderer.SetFrameCBuffer( cbData );
+	playerFrustum = { frustumA, frustumB, frustumC, frustumD, frustumE, frustumF, frustumG, frustumH };
+
+	playerProj = XMMatrixPerspectiveFovLH( verticalFOV, screenAspect, gPlayerNearPlane, gPlayerFarPlane );
+	playerView =  XMMatrixLookToLH( vEyePos, vLook, vUp );
+	XMMATRIX vp = XMMatrixTranspose( XMMatrixMultiply( playerView, playerProj ) );
+
+	XMMATRIX debugTopView = XMMatrixLookToLH( vEyePos + vUp*100.0f, -vUp, vLook );
+	// XMMATRIX debugTopProjection = XMMatrixPerspectiveFovLH( XM_PI / 4, screenAspect, 0.01f, 150.0f );
+	XMMATRIX debugTopProjection = XMMatrixOrthographicLH( 100.0f * screenAspect, 100.0f, 1.0f, 150.0f );
+	XMMATRIX debugVP = XMMatrixTranspose( XMMatrixMultiply( debugTopView, debugTopProjection ) );
+
+	static bool useDebugProjection = false;
+	if( input.key[ KEY::TAB ].Pressed ) {
+		useDebugProjection = !useDebugProjection;
 	}
+	if( useDebugProjection )
+	{
+		XMStoreFloat4x4( &cbData.vp, debugVP );
+	}
+	else
+	{
+		XMStoreFloat4x4( &cbData.vp, vp );
+	}
+
+	cbData.sunColor = { gSunColor.x * Saturate( gSunDirection.y ),
+						gSunColor.x * Saturate( gSunDirection.y ),
+						gSunColor.x * Saturate( gSunDirection.y ),
+						1.0f };
+	cbData.ambientColor = { gAmbientColor.x * Clamp( gSunDirection.y, 0.2f, 1.0f ),
+							gAmbientColor.y * Clamp( gSunDirection.y, 0.2f, 1.0f ),
+							gAmbientColor.z * Clamp( gSunDirection.y, 0.2f, 1.0f ),
+							1.0f };
+
+	cbData.sunDirection = XMFLOAT4( gSunDirection.x,
+									gSunDirection.y,
+									gSunDirection.z,
+									0.0f );
+
+	cbData.dayTimeNorm = t;
+
+	cbData.lightVP = lightCBData.vp;
+
+	renderer.SetFrameCBuffer( cbData );
+
 
 	renderer.SetViewport( 0 );
 	
@@ -977,6 +1025,24 @@ void Game::DoFrame( float dt )
 				overlay.DrawLine( {lineX, 0.0f, lineZ}, {lineX, 255.0f, lineZ}, {1.0f, 0.2f, 0.2f, 1.0f} );
 			}
 		}
+
+		// Draw frustum
+		{		
+			overlay.DrawLine( frustumA, frustumB, { 0.0f, 0.5f, 1.0f, 1.0f } );
+			overlay.DrawLine( frustumB, frustumC, { 0.0f, 0.5f, 1.0f, 1.0f } );
+			overlay.DrawLine( frustumC, frustumD, { 0.0f, 0.5f, 1.0f, 1.0f } );
+			overlay.DrawLine( frustumD, frustumA, { 0.0f, 0.5f, 1.0f, 1.0f } );
+
+			overlay.DrawLine( frustumE, frustumF, { 0.0f, 0.5f, 1.0f, 1.0f } );
+			overlay.DrawLine( frustumF, frustumG, { 0.0f, 0.5f, 1.0f, 1.0f } );
+			overlay.DrawLine( frustumG, frustumH, { 0.0f, 0.5f, 1.0f, 1.0f } );
+			overlay.DrawLine( frustumH, frustumE, { 0.0f, 0.5f, 1.0f, 1.0f } );
+
+			overlay.DrawLine( frustumA, frustumE, { 1.0f, 0.5f, 0.0f, 1.0f } );
+			overlay.DrawLine( frustumB, frustumF, { 1.0f, 0.5f, 0.0f, 1.0f } );
+			overlay.DrawLine( frustumC, frustumG, { 1.0f, 0.5f, 0.0f, 1.0f } );
+			overlay.DrawLine( frustumD, frustumH, { 1.0f, 0.5f, 0.0f, 1.0f } );
+		} // End Draw frustum
 
 		if( blockPicked )
 		{

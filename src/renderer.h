@@ -133,6 +133,11 @@ private:
 	friend class Renderer;
 };
 
+struct Frustum
+{
+	DirectX::XMFLOAT3 corners[8];
+};
+
 //********************
 // Renderer
 //********************
@@ -230,7 +235,7 @@ private:
 //******************************
 
 #define MAX_OVERLAY_CHARS 1024
-#define OVERLAY_3DVB_SIZE 512
+#define OVERLAY_3DVB_SIZE 1024
 
 // text metrics in pixels
 #define TEXT_PADDING 10
