@@ -5,6 +5,22 @@ namespace Blocks
 
 using namespace DirectX;
 
+Plane::Plane( DirectX::XMFLOAT3 p0, DirectX::XMFLOAT3 p1, DirectX::XMFLOAT3 p2 )
+{
+	XMVECTOR vp0 = XMLoadFloat3( &p0 );
+	XMVECTOR vp1 = XMLoadFloat3( &p1 );
+	XMVECTOR vp2 = XMLoadFloat3( &p2 );
+
+	XMVECTOR v0 = vp1 - vp0;
+	XMVECTOR v1 = vp2 - vp0;
+
+	XMVECTOR vn = XMVector3Normalize( XMVector3Cross( v0, v1 ) );
+	XMVECTOR vd = XMVector3Dot( -vn, vp0 );
+
+	XMStoreFloat3( &n, vn );
+	d = XMVectorGetX( vd );
+}
+
 bool TestIntersection( Segment seg, AABB bound )
 {
 	if( seg.B.x > bound.min.x &&
@@ -115,6 +131,44 @@ bool TestIntersection( Line line, AABB bound )
 	return true;
 }
 
+// TODO: https://fgiesen.wordpress.com/2010/10/17/view-frustum-culling/
+INTERSECTION TestIntersection( Plane p, AABB bound )
+{
+	XMFLOAT3 points[8];
+	points[0] = { bound.min.x, bound.min.y, bound.min.z };
+	points[1] = { bound.min.x, bound.min.y, bound.max.z };
+	points[2] = { bound.min.x, bound.max.y, bound.min.z };
+	points[3] = { bound.min.x, bound.max.y, bound.max.z };
+	points[4] = { bound.max.x, bound.min.y, bound.min.z };
+	points[5] = { bound.max.x, bound.min.y, bound.max.z };
+	points[6] = { bound.max.x, bound.max.y, bound.min.z };
+	points[7] = { bound.max.x, bound.max.y, bound.min.z };
+
+	int result = 0;
+
+	for( int i = 0; i < 8; i++ )
+	{
+		if( Distance( points[i], p ) >= 0 )
+		{
+			result++;
+		}
+		else if( Distance( points[i], p ) < 0 )
+		{
+			result--;
+		}
+	}
+
+	if( result == 8 )
+	{
+		return INSIDE;
+	}
+	if( result == -8 )
+	{
+		return OUTSIDE;
+	}
+	return INTERSECTS;
+}
+
 RayAABBIntersection GetIntersection( Line ray, AABB bound )
 {
 	RayAABBIntersection result;
@@ -157,7 +211,7 @@ RayAABBIntersection GetIntersection( Line ray, AABB bound )
 		if( XMVector2Less( t, intersectionDist ) )
 		{
 			XMVECTOR vIntersection = rayP + rayN * t; // piecewise multiplication
-			if( XMVector3LessOrEqual( vIntersection, boundMax ) && 
+			if( XMVector3LessOrEqual( vIntersection, boundMax ) &&
 				XMVector3GreaterOrEqual( vIntersection, boundMin ) )
 			{
 				intersectionDist = t;
@@ -198,6 +252,12 @@ float DistanceSq( XMFLOAT3 A, XMFLOAT3 B )
 	XMFLOAT3 vec = { B.x - A.x, B.y - A.y, B.z - A.z };
 	float result = vec.x * vec.x + vec.y * vec.y + vec.z * vec.z;
 	return result;
+}
+
+float Distance( DirectX::XMFLOAT3 A, Plane P )
+{
+	float distance = P.n.x*A.x + P.n.y*A.y + P.n.z*A.z + P.d;
+	return distance;
 }
 
 

@@ -6,6 +6,13 @@
 namespace Blocks
 {
 
+enum INTERSECTION
+{
+	OUTSIDE = 0,
+	INTERSECTS = 1,
+	INSIDE = 1
+};
+
 // Collision primitives
 
 struct Line
@@ -22,8 +29,10 @@ struct Segment
 
 struct Plane
 {
-	DirectX::XMFLOAT3 p;
+	Plane() {};
+	Plane( DirectX::XMFLOAT3 p0, DirectX::XMFLOAT3 p1, DirectX::XMFLOAT3 p2 );
 	DirectX::XMFLOAT3 n;
+	float d;
 };
 
 struct AABB
@@ -40,6 +49,7 @@ struct RayAABBIntersection
 
 bool TestIntersection( Segment, AABB );
 bool TestIntersection( Line, AABB );
+INTERSECTION TestIntersection( Plane, AABB );
 
 RayAABBIntersection GetIntersection( Line, AABB );
 
@@ -47,6 +57,7 @@ float DistanceSq( DirectX::XMFLOAT3 A, DirectX::XMFLOAT3 B );
 float LengthSq( DirectX::XMFLOAT3 v );
 float Length( DirectX::XMFLOAT3 v );
 DirectX::XMFLOAT3 Normalize( DirectX::XMFLOAT3 v );
+float Distance( DirectX::XMFLOAT3 A, Plane P );
 
 } // namespace Blocks
 
