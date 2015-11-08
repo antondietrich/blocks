@@ -24,7 +24,7 @@ bool  playerAirborne = true;
 
 float gPlayerHFOV = 80.0f;
 float gPlayerNearPlane = 0.1f;
-float gPlayerFarPlane = 10.0f;
+float gPlayerFarPlane = 30.0f;
 
 
 bool Game::isInstantiated_ = false;
@@ -232,7 +232,7 @@ void Game::DoFrame( float dt )
 	gSunElevation = Clamp( gSunElevation, 0.0f, 90.0f );
 
 	gMaxChunkMeshesToBuild = 1;
-	
+
 	ProfileNewFrame( dt );
 	renderer.Begin();
 
@@ -241,7 +241,7 @@ void Game::DoFrame( float dt )
 	static float capturedDelta[ UPDATE_DELTA_FRAMES ];
 	static char deltaStr[ 8 ];
 
-	capturedDelta[ deltaFramesElapsed % UPDATE_DELTA_FRAMES ] = dt;	
+	capturedDelta[ deltaFramesElapsed % UPDATE_DELTA_FRAMES ] = dt;
 	deltaFramesElapsed++;
 
 	static float sum = 0;
@@ -320,7 +320,7 @@ void Game::DoFrame( float dt )
 //			gravity.y = 0.0f;
 //		}
 //	}
-	
+
 	force = XMVector4Normalize( force ) * 1500.0f;
 
 	if( input.key[ KEY::SPACE ].Down ) {
@@ -333,7 +333,7 @@ void Game::DoFrame( float dt )
 //	if( input.key[ KEY::LSHIFT ].Down ) {
 //		force *= 10;
 //	}
-	
+
 	force += vGravity;
 
 	drag = 3.5f * vSpeed;
@@ -530,13 +530,13 @@ void Game::DoFrame( float dt )
 					chunk = &world_->chunks[ ChunkCacheIndexFromChunkPos( chunkX, chunkZ ) ];
 					if( GetBlockType( *chunk, { blockX, blockY, blockZ } ) != BT_AIR )
 					{
-						
+
 						AABB blockBound = { {
 												(float)( chunkX * CHUNK_WIDTH + blockX ),
 												(float)( blockY ),
-												(float)( chunkZ * CHUNK_WIDTH + blockZ ) 
+												(float)( chunkZ * CHUNK_WIDTH + blockZ )
 											},
-											{ 
+											{
 												(float)( chunkX * CHUNK_WIDTH + blockX+1.0f ),
 												(float)( blockY+1.0f ),
 												(float)( chunkZ * CHUNK_WIDTH + blockZ+1.0f )
@@ -561,9 +561,9 @@ void Game::DoFrame( float dt )
 		AABB blockBound = { {
 								(float)( pickedBlock.chunkX * CHUNK_WIDTH + pickedBlock.x ),
 								(float)( pickedBlock.y ),
-								(float)( pickedBlock.chunkZ * CHUNK_WIDTH + pickedBlock.z ) 
+								(float)( pickedBlock.chunkZ * CHUNK_WIDTH + pickedBlock.z )
 							},
-							{ 
+							{
 								(float)( pickedBlock.chunkX * CHUNK_WIDTH + pickedBlock.x+1.0f ),
 								(float)( pickedBlock.y+1.0f ),
 								(float)( pickedBlock.chunkZ * CHUNK_WIDTH + pickedBlock.z+1.0f )
@@ -610,7 +610,7 @@ void Game::DoFrame( float dt )
 											}, BT_WOOD );
 			chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( placedBlock.chunkX, placedBlock.chunkZ ) ];
 			chunkMesh->dirty = true;
-			
+
 			if( placedBlock.x == 0 ) {
 				adjOffsetX = -1;
 			}
@@ -731,7 +731,7 @@ void Game::DoFrame( float dt )
 				if( chunkMeshesRebuilt > gMaxChunkMeshesToBuild ) {
 					break;
 				}
-				
+
 				Chunk* chunk = &world_->chunks[ ChunkCacheIndexFromChunkPos( x, z ) ];
 
 				Chunk* chunkPosX = &world_->chunks[ ChunkCacheIndexFromChunkPos( x+1, z ) ];
@@ -747,7 +747,7 @@ void Game::DoFrame( float dt )
 				GenerateChunkMesh( chunkMesh, chunkNegXPosZ,	chunkPosZ,	chunkPosXPosZ,
 											  chunkNegX,		chunk,		chunkPosX,
 											  chunkNegXNegZ,	chunkNegZ,	chunkPosXNegZ );
-				
+
 			} // else
 
 		} // for chunkX
@@ -843,7 +843,7 @@ void Game::DoFrame( float dt )
 	smViewport.MaxDepth = 1.0f;
 	smViewport.TopLeftX = 0.0f;
 	smViewport.TopLeftY = 0.0f;
-	
+
 	renderer.SetViewport( &smViewport );
 
 	renderer.ClearTexture( &gShadowRT );
@@ -886,12 +886,12 @@ void Game::DoFrame( float dt )
 	XMFLOAT3 frustumH;
 
 	XMVECTOR vLookUp = XMVector3Cross( vLook, vRight );
-	
+
 	XMStoreFloat3( &frustumA, vEyePos + vLook*gPlayerNearPlane - vRight*halfWidth - vLookUp*halfHeight );
 	XMStoreFloat3( &frustumB, vEyePos + vLook*gPlayerNearPlane + vRight*halfWidth - vLookUp*halfHeight );
 	XMStoreFloat3( &frustumC, vEyePos + vLook*gPlayerNearPlane + vRight*halfWidth + vLookUp*halfHeight );
 	XMStoreFloat3( &frustumD, vEyePos + vLook*gPlayerNearPlane - vRight*halfWidth + vLookUp*halfHeight );
-	
+
 	halfWidth = gPlayerFarPlane * tan( XMConvertToRadians( gPlayerHFOV )*0.5f );
 	halfHeight = gPlayerFarPlane * tan( verticalFOV*0.5f );
 
@@ -946,21 +946,60 @@ void Game::DoFrame( float dt )
 
 
 	renderer.SetViewport( 0 );
-	
+
 	renderer.SetDepthBufferMode( DB_ENABLED );
 	renderer.SetRasterizer( RS_DEFAULT );
 	renderer.SetShader( 0 );
 	renderer.SetRenderTarget( 0, 0 );
 	renderer.SetTexture( gShadowRT, ST_FRAGMENT, 1 );
+
+	int numChunksToDraw = 0;
+	int numChunksDrawn = 0;
+	Plane frustumPlanes[6];
 	for( int meshIndex = 0; meshIndex < MESH_CACHE_DIM * MESH_CACHE_DIM; meshIndex++ )
 	{
 		if( chunkMeshCache[ meshIndex ].vertices )
 		{
-			renderer.DrawChunkMesh( chunkMeshCache[ meshIndex ].chunkPos[0] * CHUNK_WIDTH,
-												chunkMeshCache[ meshIndex ].chunkPos[1] * CHUNK_WIDTH,
-												chunkMeshCache[ meshIndex ].vertices,
-												chunkMeshCache[ meshIndex ].size );
-			numDrawnVertices += chunkMeshCache[ meshIndex ].size;
+			numChunksToDraw++;
+
+			frustumPlanes[0] = Plane( playerFrustum.corners[ 0 ], playerFrustum.corners[ 3 ], playerFrustum.corners[ 4 ] );
+			frustumPlanes[1] = Plane( playerFrustum.corners[ 0 ], playerFrustum.corners[ 4 ], playerFrustum.corners[ 1 ] );
+			frustumPlanes[2] = Plane( playerFrustum.corners[ 1 ], playerFrustum.corners[ 5 ], playerFrustum.corners[ 2 ] );
+			frustumPlanes[3] = Plane( playerFrustum.corners[ 2 ], playerFrustum.corners[ 6 ], playerFrustum.corners[ 3 ] );
+			frustumPlanes[4] = Plane( playerFrustum.corners[ 0 ], playerFrustum.corners[ 1 ], playerFrustum.corners[ 3 ] );
+			frustumPlanes[5] = Plane( playerFrustum.corners[ 5 ], playerFrustum.corners[ 4 ], playerFrustum.corners[ 6 ] );
+
+			bool culled = false;
+
+			AABB chunkBound;
+			chunkBound.min = {
+				float( chunkMeshCache[ meshIndex ].chunkPos[0] * CHUNK_WIDTH ),
+				0,
+				float( chunkMeshCache[ meshIndex ].chunkPos[1] * CHUNK_WIDTH ) };
+			chunkBound.max = {
+				chunkBound.min.x + CHUNK_WIDTH,
+				CHUNK_HEIGHT,
+				chunkBound.min.z + CHUNK_WIDTH };
+
+			for( int planeIndex = 0; planeIndex < 6; planeIndex++ )
+			{
+				if( TestIntersection( frustumPlanes[ planeIndex ], chunkBound ) == OUTSIDE )
+				{
+					culled = true;
+					break;
+				}
+			}
+
+			if( !culled )
+			{
+				renderer.DrawChunkMesh( chunkMeshCache[ meshIndex ].chunkPos[0] * CHUNK_WIDTH,
+													chunkMeshCache[ meshIndex ].chunkPos[1] * CHUNK_WIDTH,
+													chunkMeshCache[ meshIndex ].vertices,
+													chunkMeshCache[ meshIndex ].size );
+				numDrawnVertices += chunkMeshCache[ meshIndex ].size;
+				numChunksDrawn++;
+			}
+
 		}
 	}
 
@@ -971,8 +1010,8 @@ void Game::DoFrame( float dt )
 	{
 		overlay.OulineBlock( 	pickedBlock.chunkX,
 								pickedBlock.chunkZ,
-								pickedBlock.x, 
-								pickedBlock.y, 
+								pickedBlock.x,
+								pickedBlock.y,
 								pickedBlock.z );
 	}
 
@@ -1012,6 +1051,10 @@ void Game::DoFrame( float dt )
 		}
 
 		overlay.WriteLine( "" );
+		overlay.WriteLine( "Drawing %i / %i chunks (%i culled)", numChunksDrawn,
+																 numChunksToDraw,
+																 numChunksToDraw - numChunksDrawn );
+
 
 		ProfileStop();
 
@@ -1027,21 +1070,21 @@ void Game::DoFrame( float dt )
 		}
 
 		// Draw frustum
-		{		
-			overlay.DrawLine( frustumA, frustumB, { 0.0f, 0.5f, 1.0f, 1.0f } );
-			overlay.DrawLine( frustumB, frustumC, { 0.0f, 0.5f, 1.0f, 1.0f } );
-			overlay.DrawLine( frustumC, frustumD, { 0.0f, 0.5f, 1.0f, 1.0f } );
-			overlay.DrawLine( frustumD, frustumA, { 0.0f, 0.5f, 1.0f, 1.0f } );
+		{
+			overlay.DrawLine( playerFrustum.corners[0], playerFrustum.corners[1], { 0.0f, 0.5f, 1.0f, 1.0f } );
+			overlay.DrawLine( playerFrustum.corners[1], playerFrustum.corners[2], { 0.0f, 0.5f, 1.0f, 1.0f } );
+			overlay.DrawLine( playerFrustum.corners[2], playerFrustum.corners[3], { 0.0f, 0.5f, 1.0f, 1.0f } );
+			overlay.DrawLine( playerFrustum.corners[3], playerFrustum.corners[0], { 0.0f, 0.5f, 1.0f, 1.0f } );
 
-			overlay.DrawLine( frustumE, frustumF, { 0.0f, 0.5f, 1.0f, 1.0f } );
-			overlay.DrawLine( frustumF, frustumG, { 0.0f, 0.5f, 1.0f, 1.0f } );
-			overlay.DrawLine( frustumG, frustumH, { 0.0f, 0.5f, 1.0f, 1.0f } );
-			overlay.DrawLine( frustumH, frustumE, { 0.0f, 0.5f, 1.0f, 1.0f } );
+			overlay.DrawLine( playerFrustum.corners[4], playerFrustum.corners[5], { 0.0f, 0.5f, 1.0f, 1.0f } );
+			overlay.DrawLine( playerFrustum.corners[5], playerFrustum.corners[6], { 0.0f, 0.5f, 1.0f, 1.0f } );
+			overlay.DrawLine( playerFrustum.corners[6], playerFrustum.corners[7], { 0.0f, 0.5f, 1.0f, 1.0f } );
+			overlay.DrawLine( playerFrustum.corners[7], playerFrustum.corners[4], { 0.0f, 0.5f, 1.0f, 1.0f } );
 
-			overlay.DrawLine( frustumA, frustumE, { 1.0f, 0.5f, 0.0f, 1.0f } );
-			overlay.DrawLine( frustumB, frustumF, { 1.0f, 0.5f, 0.0f, 1.0f } );
-			overlay.DrawLine( frustumC, frustumG, { 1.0f, 0.5f, 0.0f, 1.0f } );
-			overlay.DrawLine( frustumD, frustumH, { 1.0f, 0.5f, 0.0f, 1.0f } );
+			overlay.DrawLine( playerFrustum.corners[0], playerFrustum.corners[4], { 1.0f, 0.5f, 0.0f, 1.0f } );
+			overlay.DrawLine( playerFrustum.corners[1], playerFrustum.corners[5], { 1.0f, 0.5f, 0.0f, 1.0f } );
+			overlay.DrawLine( playerFrustum.corners[2], playerFrustum.corners[6], { 1.0f, 0.5f, 0.0f, 1.0f } );
+			overlay.DrawLine( playerFrustum.corners[3], playerFrustum.corners[7], { 1.0f, 0.5f, 0.0f, 1.0f } );
 		} // End Draw frustum
 
 		if( blockPicked )
