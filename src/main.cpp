@@ -61,7 +61,7 @@ int __stdcall wWinMain( HINSTANCE thisInstance, HINSTANCE prevInstance, LPWSTR c
 	}
 	AdjustWindowRect( &clientRect, WS_OVERLAPPEDWINDOW, FALSE );
 
-	HWND window = CreateWindow( "BlocksWindowClass", "Blocks", WS_OVERLAPPEDWINDOW, 
+	HWND window = CreateWindow( "BlocksWindowClass", "Blocks", WS_OVERLAPPEDWINDOW,
 								clientRect.left, clientRect.top, clientRect.right - clientRect.left, clientRect.bottom - clientRect.top,
 								NULL, NULL, thisInstance, NULL );
 	if( !window ) {
@@ -197,6 +197,7 @@ bool LoadConfig()
 //	Config.screenHeight = 1080;
 	Config.multisampling = 2;
 	Config.filtering = 8;
+	Config.viewDistanceChunks = 6;
 
 	return true;
 }
@@ -204,8 +205,8 @@ bool LoadConfig()
 /*
 NOTE:
 To get the list of raw input devices on the system,
-an application calls GetRawInputDeviceList. 
-Using the hDevice from this call, an application calls 
+an application calls GetRawInputDeviceList.
+Using the hDevice from this call, an application calls
 GetRawInputDeviceInfo to get the device information.
 */
 
@@ -306,7 +307,7 @@ void TranslateUserInput( UserInput &userInput, LPARAM lParam )
 				userInput.key[ KEY::MMB ].Released = true;
 				userInput.key[ KEY::MMB ].Down = false;
 			}
-			
+
 		}
 		// extra mouse buttons
 		{

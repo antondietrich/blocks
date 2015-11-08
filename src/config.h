@@ -11,6 +11,7 @@ struct ConfigType {
 	int screenHeight;
 	int multisampling;
 	unsigned int filtering;
+	unsigned int viewDistanceChunks;
 };
 extern ConfigType Config;
 

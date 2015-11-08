@@ -298,17 +298,16 @@ void GenerateChunk( Chunk *chunk, int x, int z )
 }
 #endif
 
-void GenerateWorld( World *world )
+void PrefillChunkCache( Chunk * cache, uint cacheDim )
 {
-	for( int z = 0; z < CHUNK_CACHE_DIM; z++ )
+	for( int z = 0; z < cacheDim; z++ )
 	{
-		for( int x = 0; x < CHUNK_CACHE_DIM; x++ )
+		for( int x = 0; x < cacheDim; x++ )
 		{
-			GenerateChunk( &world->chunks[ z * CHUNK_CACHE_DIM + x ], x, z );
+			GenerateChunk( &cache[ z * cacheDim + x ], x, z );
 		}
 	}
 }
-
 
 XMINT3 GetPlayerChunkPos( XMFLOAT3 playerPos )
 {
@@ -356,23 +355,23 @@ BLOCK_TYPE SetBlockType( Chunk *chunk, DirectX::XMINT3 blockPos, BLOCK_TYPE type
 	return prevBlockType;
 }
 
-int ChunkCacheIndexFromChunkPos( uint x, uint z )
+int ChunkCacheIndexFromChunkPos( uint x, uint z, uint cacheDim )
 {
 	unsigned int ux = x + INT_MAX;
 	unsigned int uz = z + INT_MAX;
-	int cacheX = ux % CHUNK_CACHE_DIM;
-	int cacheZ = uz % CHUNK_CACHE_DIM;
-	int cacheIndex = cacheZ * CHUNK_CACHE_DIM + cacheX;
+	int cacheX = ux % cacheDim;
+	int cacheZ = uz % cacheDim;
+	int cacheIndex = cacheZ * cacheDim + cacheX;
 	return cacheIndex;
 }
 
-int MeshCacheIndexFromChunkPos( uint x, uint z )
+int MeshCacheIndexFromChunkPos( uint x, uint z, uint cacheDim )
 {
 	unsigned int ux = x + INT_MAX;
 	unsigned int uz = z + INT_MAX;
-	int cacheX = ux % MESH_CACHE_DIM;
-	int cacheZ = uz % MESH_CACHE_DIM;
-	int cacheIndex = cacheZ * MESH_CACHE_DIM + cacheX;
+	int cacheX = ux % cacheDim;
+	int cacheZ = uz % cacheDim;
+	int cacheIndex = cacheZ * cacheDim + cacheX;
 	return cacheIndex;
 }
 

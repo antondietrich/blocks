@@ -29,11 +29,11 @@
 namespace Blocks
 {
 
-#define VIEW_DISTANCE 6
-#define MESH_CACHE_DIM (VIEW_DISTANCE * 2 + 1)
-
-#define CHUNK_CACHE_HALF_DIM (VIEW_DISTANCE + 2)
-#define CHUNK_CACHE_DIM (CHUNK_CACHE_HALF_DIM * 2 + 1)
+//#define VIEW_DISTANCE 6
+//#define MESH_CACHE_DIM (VIEW_DISTANCE * 2 + 1)
+//
+//#define CHUNK_CACHE_HALF_DIM (VIEW_DISTANCE + 2)
+//#define CHUNK_CACHE_DIM (CHUNK_CACHE_HALF_DIM * 2 + 1)
 
 #define CHUNK_WIDTH 32
 #define CHUNK_HEIGHT 255
@@ -81,14 +81,15 @@ struct ChunkMesh
 	BlockVertex* vertices;
 };
 
-struct World
-{
-	Chunk chunks[CHUNK_CACHE_DIM * CHUNK_CACHE_DIM];
-};
-	
+//struct World
+//{
+//	Chunk chunks[CHUNK_CACHE_DIM * CHUNK_CACHE_DIM];
+//};
+
 void InitWorldGen();
+//void GenerateWorld( World *world );
+void PrefillChunkCache( Chunk * cache, uint cacheDim );
 void GenerateChunk( Chunk *chunk, int x, int z );
-void GenerateWorld( World *world );
 int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkPosZ, Chunk* chunkPosXPosZ,
 											 Chunk* chunkNegX, Chunk* chunk, Chunk* chunkPosX,
 											 Chunk* chunkNegXNegZ, Chunk* chunkNegZ, Chunk* chunkPosXNegZ );
@@ -98,8 +99,8 @@ DirectX::XMINT3 GetPlayerBlockPos( DirectX::XMFLOAT3 playerPos );
 BLOCK_TYPE GetBlockType( const Chunk &chunk, DirectX::XMINT3 blockPos );
 BLOCK_TYPE SetBlockType( Chunk *chunk, DirectX::XMINT3 blockPos, BLOCK_TYPE type );
 
-int ChunkCacheIndexFromChunkPos( uint x, uint z );
-int MeshCacheIndexFromChunkPos( uint x, uint z );
+int ChunkCacheIndexFromChunkPos( uint x, uint z, uint cacheDim );
+int MeshCacheIndexFromChunkPos( uint x, uint z, uint cacheDim );
 
 
 }

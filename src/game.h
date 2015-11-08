@@ -54,11 +54,8 @@ private:
 	static bool isInstantiated_;
 
 	GameTime gameTime_;
-
-	World *world_;
-
 };
-	
+
 }
 
 #endif // __BLOCKS_GAME__

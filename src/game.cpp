@@ -24,12 +24,18 @@ bool  playerAirborne = true;
 
 float gPlayerHFOV = 80.0f;
 float gPlayerNearPlane = 0.1f;
-float gPlayerFarPlane = 30.0f;
+float gPlayerFarPlane = 1.0f;
 
 
 bool Game::isInstantiated_ = false;
 
-
+// caches
+int gChunkCacheHalfDim = 0;
+int gChunkCacheDim = 0;
+int gChunkMeshCacheHalfDim = 0;
+int gChunkMeshCacheDim = 0;
+Chunk * gChunkCache; // [ CHUNK_CACHE_DIM * CHUNK_CACHE_DIM ]
+ChunkMesh * gChunkMeshCache;
 
 RenderTarget gShadowRT;
 DepthBuffer gShadowDB;
@@ -40,9 +46,8 @@ XMFLOAT4 gSunColor;
 float gSunElevation = 90.0f;
 
 #define SM_RESOLUTION 4096
-#define SM_REGION_DIM 128.0f
-#define SM_REGION_HALF_DEPTH ( VIEW_DISTANCE * CHUNK_WIDTH )
-
+//#define SM_REGION_DIM 128.0f
+//#define SM_REGION_HALF_DEPTH ( VIEW_DISTANCE * CHUNK_WIDTH )
 
 void GameTime::AdvanceTime( float ms )
 {
@@ -114,22 +119,12 @@ renderer()
 {
 	assert( !isInstantiated_ );
 	isInstantiated_ = true;
-
-	world_ = 0;
-	//chunkVertexBuffer_ = 0;
 }
 
 Game::~Game()
 {
-	if( world_ ) {
-		delete world_;
-	}
-//	if( chunkVertexBuffer_ ) {
-//		delete[] chunkVertexBuffer_;
-//	}
-}
 
-ChunkMesh chunkMeshCache[ MESH_CACHE_DIM * MESH_CACHE_DIM ];
+}
 
 bool Game::Start( HWND wnd )
 {
@@ -151,16 +146,25 @@ bool Game::Start( HWND wnd )
 
 	gameTime_ = { 2015, 1, 1, 12, 0, 0.0f, 60.f };
 
-	InitWorldGen();
-	world_ = new World();
-	GenerateWorld( world_ );
+	gPlayerFarPlane = float(Config.viewDistanceChunks * CHUNK_WIDTH);
 
-	for( int i = 0; i < MESH_CACHE_DIM * MESH_CACHE_DIM; i++ ) {
-		chunkMeshCache[i].dirty = true;
-		chunkMeshCache[i].vertices = 0;
-		chunkMeshCache[i].size = 0;
-		chunkMeshCache[i].chunkPos[0] = 0;
-		chunkMeshCache[i].chunkPos[1] = 0;
+	gChunkCacheHalfDim = Config.viewDistanceChunks + 1;
+	gChunkCacheDim = gChunkCacheHalfDim * 2 + 1;
+	gChunkMeshCacheHalfDim = Config.viewDistanceChunks;
+	gChunkMeshCacheDim = gChunkMeshCacheHalfDim * 2 + 1;
+
+	gChunkCache = new Chunk[ gChunkCacheDim * gChunkCacheDim ];
+	gChunkMeshCache = new ChunkMesh[ gChunkMeshCacheDim * gChunkMeshCacheDim ];
+
+	InitWorldGen();
+	PrefillChunkCache( gChunkCache, gChunkCacheDim );
+
+	for( int i = 0; i < gChunkMeshCacheDim * gChunkMeshCacheDim; i++ ) {
+		gChunkMeshCache[i].dirty = true;
+		gChunkMeshCache[i].vertices = 0;
+		gChunkMeshCache[i].size = 0;
+		gChunkMeshCache[i].chunkPos[0] = 0;
+		gChunkMeshCache[i].chunkPos[1] = 0;
 	}
 
 	if( !gShadowRT.Init( SM_RESOLUTION, SM_RESOLUTION, DXGI_FORMAT_R32_FLOAT, true, renderer.GetDevice() ) )
@@ -261,12 +265,12 @@ void Game::DoFrame( float dt )
 
 	// Generate chunks around player
 	int chunksGenerated = 0;
-	for( int z = playerChunkPos.z - CHUNK_CACHE_HALF_DIM; z <= playerChunkPos.z + CHUNK_CACHE_HALF_DIM; z++ )
+	for( int z = playerChunkPos.z - gChunkCacheHalfDim; z <= playerChunkPos.z + gChunkCacheHalfDim; z++ )
 	{
-		for( int x = playerChunkPos.x - CHUNK_CACHE_HALF_DIM; x <= playerChunkPos.x + CHUNK_CACHE_HALF_DIM; x++ )
+		for( int x = playerChunkPos.x - gChunkCacheHalfDim; x <= playerChunkPos.x + gChunkCacheHalfDim; x++ )
 		{
-			int index = ChunkCacheIndexFromChunkPos( x, z );
-			Chunk *chunk = &world_->chunks[ index ];
+			int index = ChunkCacheIndexFromChunkPos( x, z, gChunkCacheDim );
+			Chunk *chunk = &gChunkCache[ index ];
 
 			if( chunk->pos[0] == x && chunk->pos[1] == z )
 			{
@@ -396,14 +400,14 @@ void Game::DoFrame( float dt )
 	XMINT3 targetBlockPosY = GetPlayerBlockPos( targetPosY );
 	XMINT3 targetBlockPosZ = GetPlayerBlockPos( targetPosZ );
 
-	BLOCK_TYPE targetBlockTypeX = GetBlockType( world_->chunks[ ChunkCacheIndexFromChunkPos(targetChunkPosX.x, targetChunkPosX.z) ], targetBlockPosX );
+	BLOCK_TYPE targetBlockTypeX = GetBlockType( gChunkCache[ ChunkCacheIndexFromChunkPos(targetChunkPosX.x, targetChunkPosX.z, gChunkCacheDim) ], targetBlockPosX );
 	if( targetBlockTypeX != BT_AIR )
 	{
 		playerDeltaX = 0.0f;
 		vSpeed = XMVectorSetX( vSpeed, 0.0f );
 	}
 
-	BLOCK_TYPE targetBlockTypeY = GetBlockType( world_->chunks[ ChunkCacheIndexFromChunkPos(targetChunkPosY.x, targetChunkPosY.z) ], targetBlockPosY );
+	BLOCK_TYPE targetBlockTypeY = GetBlockType( gChunkCache[ ChunkCacheIndexFromChunkPos(targetChunkPosY.x, targetChunkPosY.z, gChunkCacheDim) ], targetBlockPosY );
 	if( targetBlockTypeY != BT_AIR && playerSpeed.y < 0.0f )
 	{
 		playerDeltaY = 0.0f;
@@ -412,7 +416,7 @@ void Game::DoFrame( float dt )
 		acceleration = XMVectorSetY( acceleration, -9.8f );
 	}
 
-	BLOCK_TYPE targetBlockTypeZ = GetBlockType( world_->chunks[ ChunkCacheIndexFromChunkPos(targetChunkPosZ.x, targetChunkPosZ.z) ], targetBlockPosZ );
+	BLOCK_TYPE targetBlockTypeZ = GetBlockType( gChunkCache[ ChunkCacheIndexFromChunkPos(targetChunkPosZ.x, targetChunkPosZ.z, gChunkCacheDim) ], targetBlockPosZ );
 	if( targetBlockTypeZ != BT_AIR )
 	{
 		playerDeltaZ = 0.0f;
@@ -527,7 +531,7 @@ void Game::DoFrame( float dt )
 						blockZ = blockOffsetZ;
 						chunkZ = playerChunkPos.z;
 					}
-					chunk = &world_->chunks[ ChunkCacheIndexFromChunkPos( chunkX, chunkZ ) ];
+					chunk = &gChunkCache[ ChunkCacheIndexFromChunkPos( chunkX, chunkZ, gChunkCacheDim) ];
 					if( GetBlockType( *chunk, { blockX, blockY, blockZ } ) != BT_AIR )
 					{
 
@@ -602,13 +606,13 @@ void Game::DoFrame( float dt )
 				placedBlock.chunkZ++;
 			}
 
-			SetBlockType( &world_->chunks[ ChunkCacheIndexFromChunkPos( placedBlock.chunkX, placedBlock.chunkZ ) ],
+			SetBlockType( &gChunkCache[ ChunkCacheIndexFromChunkPos( placedBlock.chunkX, placedBlock.chunkZ, gChunkCacheDim ) ],
 											{
 												placedBlock.x,
 												placedBlock.y,
 												placedBlock.z,
 											}, BT_WOOD );
-			chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( placedBlock.chunkX, placedBlock.chunkZ ) ];
+			chunkMesh = &gChunkMeshCache[ MeshCacheIndexFromChunkPos( placedBlock.chunkX, placedBlock.chunkZ, gChunkMeshCacheDim ) ];
 			chunkMesh->dirty = true;
 
 			if( placedBlock.x == 0 ) {
@@ -626,19 +630,19 @@ void Game::DoFrame( float dt )
 
 			if( adjOffsetX != 0 )
 			{
-				chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( placedBlock.chunkX + adjOffsetX, placedBlock.chunkZ ) ];
+				chunkMesh = &gChunkMeshCache[ MeshCacheIndexFromChunkPos( placedBlock.chunkX + adjOffsetX, placedBlock.chunkZ, gChunkMeshCacheDim ) ];
 				chunkMesh->dirty = true;
 				++gMaxChunkMeshesToBuild;
 			}
 			if( adjOffsetZ != 0 )
 			{
-				chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( placedBlock.chunkX, placedBlock.chunkZ + adjOffsetZ ) ];
+				chunkMesh = &gChunkMeshCache[ MeshCacheIndexFromChunkPos( placedBlock.chunkX, placedBlock.chunkZ + adjOffsetZ, gChunkMeshCacheDim ) ];
 				chunkMesh->dirty = true;
 				++gMaxChunkMeshesToBuild;
 			}
 			if( adjOffsetX != 0 && adjOffsetZ != 0 )
 			{
-				chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( placedBlock.chunkX + adjOffsetX, placedBlock.chunkZ + adjOffsetZ ) ];
+				chunkMesh = &gChunkMeshCache[ MeshCacheIndexFromChunkPos( placedBlock.chunkX + adjOffsetX, placedBlock.chunkZ + adjOffsetZ, gChunkMeshCacheDim ) ];
 				chunkMesh->dirty = true;
 				++gMaxChunkMeshesToBuild;
 			}
@@ -647,13 +651,13 @@ void Game::DoFrame( float dt )
 
 		if( input.key[ KEY::RMB ].Pressed )
 		{
-			SetBlockType( &world_->chunks[ ChunkCacheIndexFromChunkPos( pickedBlock.chunkX, pickedBlock.chunkZ ) ],
+			SetBlockType( &gChunkCache[ ChunkCacheIndexFromChunkPos( pickedBlock.chunkX, pickedBlock.chunkZ, gChunkCacheDim ) ],
 											{
 												pickedBlock.x,
 												pickedBlock.y,
 												pickedBlock.z,
 											}, BT_AIR );
-			chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( pickedBlock.chunkX, pickedBlock.chunkZ ) ];
+			chunkMesh = &gChunkMeshCache[ MeshCacheIndexFromChunkPos( pickedBlock.chunkX, pickedBlock.chunkZ, gChunkMeshCacheDim ) ];
 			chunkMesh->dirty = true;
 
 			if( pickedBlock.x == 0 ) {
@@ -671,19 +675,19 @@ void Game::DoFrame( float dt )
 
 			if( adjOffsetX != 0 )
 			{
-				chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( pickedBlock.chunkX + adjOffsetX, pickedBlock.chunkZ ) ];
+				chunkMesh = &gChunkMeshCache[ MeshCacheIndexFromChunkPos( pickedBlock.chunkX + adjOffsetX, pickedBlock.chunkZ, gChunkMeshCacheDim ) ];
 				chunkMesh->dirty = true;
 				++gMaxChunkMeshesToBuild;
 			}
 			if( adjOffsetZ != 0 )
 			{
-				chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( pickedBlock.chunkX, pickedBlock.chunkZ + adjOffsetZ ) ];
+				chunkMesh = &gChunkMeshCache[ MeshCacheIndexFromChunkPos( pickedBlock.chunkX, pickedBlock.chunkZ + adjOffsetZ, gChunkMeshCacheDim ) ];
 				chunkMesh->dirty = true;
 				++gMaxChunkMeshesToBuild;
 			}
 			if( adjOffsetX != 0 && adjOffsetZ != 0 )
 			{
-				chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( pickedBlock.chunkX + adjOffsetX, pickedBlock.chunkZ + adjOffsetZ ) ];
+				chunkMesh = &gChunkMeshCache[ MeshCacheIndexFromChunkPos( pickedBlock.chunkX + adjOffsetX, pickedBlock.chunkZ + adjOffsetZ, gChunkMeshCacheDim ) ];
 				chunkMesh->dirty = true;
 				++gMaxChunkMeshesToBuild;
 			}
@@ -701,14 +705,11 @@ void Game::DoFrame( float dt )
 		gDrawOverlay = !gDrawOverlay;
 	}
 
-	// generate chunk meshes around player
-	assert( VIEW_DISTANCE <= CHUNK_CACHE_DIM );
-
-	for( int z = playerChunkPos.z - VIEW_DISTANCE; z <= playerChunkPos.z + VIEW_DISTANCE; z++ )
+	for( int z = playerChunkPos.z - gChunkMeshCacheHalfDim; z <= playerChunkPos.z + gChunkMeshCacheHalfDim; z++ )
 	{
-		for( int x = playerChunkPos.x - VIEW_DISTANCE; x <= playerChunkPos.x + VIEW_DISTANCE; x++ )
+		for( int x = playerChunkPos.x - gChunkMeshCacheHalfDim; x <= playerChunkPos.x + gChunkMeshCacheHalfDim; x++ )
 		{
-			ChunkMesh *chunkMesh = &chunkMeshCache[ MeshCacheIndexFromChunkPos( x, z ) ];
+			ChunkMesh *chunkMesh = &gChunkMeshCache[ MeshCacheIndexFromChunkPos( x, z, gChunkMeshCacheDim ) ];
 			if( !chunkMesh->dirty && chunkMesh->vertices && chunkMesh->chunkPos[0] == x && chunkMesh->chunkPos[1] == z )
 			{
 				// use chunk mesh
@@ -732,17 +733,17 @@ void Game::DoFrame( float dt )
 					break;
 				}
 
-				Chunk* chunk = &world_->chunks[ ChunkCacheIndexFromChunkPos( x, z ) ];
+				Chunk* chunk = &gChunkCache[ ChunkCacheIndexFromChunkPos( x, z, gChunkCacheDim ) ];
 
-				Chunk* chunkPosX = &world_->chunks[ ChunkCacheIndexFromChunkPos( x+1, z ) ];
-				Chunk* chunkNegX = &world_->chunks[ ChunkCacheIndexFromChunkPos( x-1, z ) ];
-				Chunk* chunkPosZ = &world_->chunks[ ChunkCacheIndexFromChunkPos( x, z+1 ) ];
-				Chunk* chunkNegZ = &world_->chunks[ ChunkCacheIndexFromChunkPos( x, z-1 ) ];
+				Chunk* chunkPosX = &gChunkCache[ ChunkCacheIndexFromChunkPos( x+1, z, gChunkCacheDim ) ];
+				Chunk* chunkNegX = &gChunkCache[ ChunkCacheIndexFromChunkPos( x-1, z, gChunkCacheDim ) ];
+				Chunk* chunkPosZ = &gChunkCache[ ChunkCacheIndexFromChunkPos( x, z+1, gChunkCacheDim ) ];
+				Chunk* chunkNegZ = &gChunkCache[ ChunkCacheIndexFromChunkPos( x, z-1, gChunkCacheDim ) ];
 
-				Chunk* chunkPosXPosZ = &world_->chunks[ ChunkCacheIndexFromChunkPos( x+1, z+1 ) ];
-				Chunk* chunkNegXPosZ = &world_->chunks[ ChunkCacheIndexFromChunkPos( x-1, z+1 ) ];
-				Chunk* chunkPosXNegZ = &world_->chunks[ ChunkCacheIndexFromChunkPos( x+1, z-1 ) ];
-				Chunk* chunkNegXNegZ = &world_->chunks[ ChunkCacheIndexFromChunkPos( x-1, z-1 ) ];
+				Chunk* chunkPosXPosZ = &gChunkCache[ ChunkCacheIndexFromChunkPos( x+1, z+1, gChunkCacheDim ) ];
+				Chunk* chunkNegXPosZ = &gChunkCache[ ChunkCacheIndexFromChunkPos( x-1, z+1, gChunkCacheDim ) ];
+				Chunk* chunkPosXNegZ = &gChunkCache[ ChunkCacheIndexFromChunkPos( x+1, z-1, gChunkCacheDim ) ];
+				Chunk* chunkNegXNegZ = &gChunkCache[ ChunkCacheIndexFromChunkPos( x-1, z-1, gChunkCacheDim ) ];
 
 				GenerateChunkMesh( chunkMesh, chunkNegXPosZ,	chunkPosZ,	chunkPosXPosZ,
 											  chunkNegX,		chunk,		chunkPosX,
@@ -796,10 +797,12 @@ void Game::DoFrame( float dt )
 	gSunDirection.z = sin( sunAzimuth ) * sin( XM_PIDIV2 - sunElevation );
 	gSunDirection.x = cos( sunAzimuth );
 
-	XMMATRIX lightProj = XMMatrixOrthographicLH(	SM_REGION_DIM,
-													SM_REGION_DIM,
-													-SM_REGION_HALF_DEPTH,
-													SM_REGION_DIM );
+	float smRegionDim = (float)gChunkMeshCacheDim * CHUNK_WIDTH;
+
+	XMMATRIX lightProj = XMMatrixOrthographicLH(	smRegionDim*0.5f,
+													smRegionDim*0.5f,
+													-smRegionDim*0.5f,
+													smRegionDim*0.5f );
 
 	XMVECTOR vSunDirection = -XMVector4Normalize( XMLoadFloat3( &gSunDirection ) );
 	XMVECTOR lightUp = XMVector4Normalize( XMVectorSet( 0.0f, cos( sunElevation ), -sin( sunElevation ), 0.0f ) );
@@ -812,7 +815,7 @@ void Game::DoFrame( float dt )
 		XMVectorSet( 0.0f, 0.0f, 0.0f, 1.0f ) ) );
 	XMMATRIX lightToWorld = XMMatrixTranspose( worldToLight );
 
-	float texelsPerMeter = SM_RESOLUTION / SM_REGION_DIM;
+	float texelsPerMeter = SM_RESOLUTION / smRegionDim;
 
 	XMVECTOR vLightPos = vPos;// - (0.5f*SM_REGION_DIM) * vSunDirection;
 	vLightPos = XMVector4Transform( vLightPos, worldToLight );
@@ -850,15 +853,15 @@ void Game::DoFrame( float dt )
 	renderer.ClearTexture( &gShadowDB );
 
 	renderer.SetRenderTarget( &gShadowRT, &gShadowDB );
-	for( int meshIndex = 0; meshIndex < MESH_CACHE_DIM * MESH_CACHE_DIM; meshIndex++ )
+	for( int meshIndex = 0; meshIndex < gChunkMeshCacheDim * gChunkMeshCacheDim; meshIndex++ )
 	{
-		if( chunkMeshCache[ meshIndex ].vertices )
+		if( gChunkMeshCache[ meshIndex ].vertices )
 		{
-			renderer.DrawChunkMesh( chunkMeshCache[ meshIndex ].chunkPos[0] * CHUNK_WIDTH,
-												chunkMeshCache[ meshIndex ].chunkPos[1] * CHUNK_WIDTH,
-												chunkMeshCache[ meshIndex ].vertices,
-												chunkMeshCache[ meshIndex ].size );
-			numDrawnVertices += chunkMeshCache[ meshIndex ].size;
+			renderer.DrawChunkMesh( gChunkMeshCache[ meshIndex ].chunkPos[0] * CHUNK_WIDTH,
+												gChunkMeshCache[ meshIndex ].chunkPos[1] * CHUNK_WIDTH,
+												gChunkMeshCache[ meshIndex ].vertices,
+												gChunkMeshCache[ meshIndex ].size );
+			numDrawnVertices += gChunkMeshCache[ meshIndex ].size;
 		}
 	}
 
@@ -956,9 +959,9 @@ void Game::DoFrame( float dt )
 	int numChunksToDraw = 0;
 	int numChunksDrawn = 0;
 	Plane frustumPlanes[6];
-	for( int meshIndex = 0; meshIndex < MESH_CACHE_DIM * MESH_CACHE_DIM; meshIndex++ )
+	for( int meshIndex = 0; meshIndex < gChunkMeshCacheDim * gChunkMeshCacheDim; meshIndex++ )
 	{
-		if( chunkMeshCache[ meshIndex ].vertices )
+		if( gChunkMeshCache[ meshIndex ].vertices )
 		{
 			numChunksToDraw++;
 
@@ -973,9 +976,9 @@ void Game::DoFrame( float dt )
 
 			AABB chunkBound;
 			chunkBound.min = {
-				float( chunkMeshCache[ meshIndex ].chunkPos[0] * CHUNK_WIDTH ),
+				float( gChunkMeshCache[ meshIndex ].chunkPos[0] * CHUNK_WIDTH ),
 				0,
-				float( chunkMeshCache[ meshIndex ].chunkPos[1] * CHUNK_WIDTH ) };
+				float( gChunkMeshCache[ meshIndex ].chunkPos[1] * CHUNK_WIDTH ) };
 			chunkBound.max = {
 				chunkBound.min.x + CHUNK_WIDTH,
 				CHUNK_HEIGHT,
@@ -992,11 +995,11 @@ void Game::DoFrame( float dt )
 
 			if( !culled )
 			{
-				renderer.DrawChunkMesh( chunkMeshCache[ meshIndex ].chunkPos[0] * CHUNK_WIDTH,
-													chunkMeshCache[ meshIndex ].chunkPos[1] * CHUNK_WIDTH,
-													chunkMeshCache[ meshIndex ].vertices,
-													chunkMeshCache[ meshIndex ].size );
-				numDrawnVertices += chunkMeshCache[ meshIndex ].size;
+				renderer.DrawChunkMesh( gChunkMeshCache[ meshIndex ].chunkPos[0] * CHUNK_WIDTH,
+													gChunkMeshCache[ meshIndex ].chunkPos[1] * CHUNK_WIDTH,
+													gChunkMeshCache[ meshIndex ].vertices,
+													gChunkMeshCache[ meshIndex ].size );
+				numDrawnVertices += gChunkMeshCache[ meshIndex ].size;
 				numChunksDrawn++;
 			}
 
