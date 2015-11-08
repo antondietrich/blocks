@@ -1,8 +1,8 @@
 # blocks
 Making a minecraft-style procedurally generated game in C++ with DirectX. The goal is to implement all the voxel-based goodies (large procedural world, interesting terrain generation, building, fluid mechanics etc.), make it visually appealing and have a delightful and fruitful experience along the way.
 
-## Latest screenshot (October 20, 2015)
-![Latest screenshot](http://s5.postimg.org/hp7yes2rb/screen_20_10_15.jpg, "Latest screenshot")
+## Latest screenshot (November 8, 2015)
+![Latest screenshot](http://s5.postimg.org/f72uf3rav/screen_08_11_15.jpg, "Latest screenshot")
 
 ## Roadmap
 
