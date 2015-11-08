@@ -9,7 +9,7 @@ using namespace DirectX;
 //
 // returns a random float in the 0.0 - 1.0 range
 //
-float Noise1( int x )			 
+float Noise1( int x )
 {
     x = (x<<13) ^ x;
     float noise = 1.0f - ( (x * (x * x * 15731 + 789221) + 1376312589) & 0x7fffffff) / 1073741824.0f;
@@ -99,7 +99,7 @@ float PerlinLinear( int x, int y, int scale )
 	float r1 = Noise2D( x1, y0 );
 	float r2 = Noise2D( x0, y1 );
 	float r3 = Noise2D( x1, y1 );
-	
+
 	float tX = (float)( x - x0 ) / scale;
 	float tY = (float)( y - y0 ) / scale;
 
@@ -254,11 +254,11 @@ void GenerateChunk( Chunk *chunk, int x, int z )
 {
 	ChunkHeightField heightfield1 = {};
 	ChunkHeightField heightfield2 = {};
-	
+
 	GenerateChunkHeightField( &heightfield1, chunk, x, z, 8, 10 );
 	GenerateChunkHeightField( &heightfield2, chunk, x, z, 2, 60 );
 	// GenerateChunkHeightField( &heightfield2, chunk, x, z, 8, 20 );
-	
+
 	ChunkHeightField biomeField = {};
 	GenerateChunkHeightField( &biomeField, chunk, x, z, 8, 100 );
 
@@ -509,7 +509,7 @@ void GetNeighbouringBlocks( BLOCK_TYPE neighbours[][BOD_COUNT][BOD_COUNT],
 				}
 			}
 		} // else
-	} // for yOffset 
+	} // for yOffset
 }
 
 //cbData.normals[0] = {  0.0f,  0.0f, -1.0f, 0.0f }; // -Z
@@ -528,7 +528,7 @@ void GetNeighbouringBlocks( BLOCK_TYPE neighbours[][BOD_COUNT][BOD_COUNT],
 #define SET_TEXCOORD( texcoordIndex ) ( (texcoordIndex) & 0x1F );
 #define SET_NORMAL( normalIndex ) ( (normalIndex) << 5) & 0xE0 );
 
-BlockVertex standardBlock[] = 
+BlockVertex standardBlock[] =
 {
 	// face 1 / -Z
 	{ 0, 1, 0, PACK_NORMAL_AND_TEXCOORD( 0, 0 ) }, // 0
@@ -646,7 +646,7 @@ int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkP
 
 				// get neighbouring blocks
 				BLOCK_TYPE neighbours[BOD_COUNT][BOD_COUNT][BOD_COUNT];
-				GetNeighbouringBlocks( neighbours, 
+				GetNeighbouringBlocks( neighbours,
 									   blockX, blockY, blockZ,
 									   chunkNegXPosZ,	chunkPosZ,	chunkPosXPosZ,
 									   chunkNegX,		chunk,		chunkPosX,
@@ -682,16 +682,16 @@ int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkP
 				if( neighbours[BOD_POS][BOD_SAM][BOD_SAM] == BT_AIR )
 				{
 					occlusion[0] = VertexAO( neighbours[BOD_POS][BOD_POS][BOD_SAM],
-											 neighbours[BOD_POS][BOD_SAM][BOD_NEG], 
+											 neighbours[BOD_POS][BOD_SAM][BOD_NEG],
 											 neighbours[BOD_POS][BOD_POS][BOD_NEG] );
 					occlusion[1] = VertexAO( neighbours[BOD_POS][BOD_NEG][BOD_SAM],
-											 neighbours[BOD_POS][BOD_SAM][BOD_NEG], 
+											 neighbours[BOD_POS][BOD_SAM][BOD_NEG],
 											 neighbours[BOD_POS][BOD_NEG][BOD_NEG] );
 					occlusion[2] = VertexAO( neighbours[BOD_POS][BOD_NEG][BOD_SAM],
-											 neighbours[BOD_POS][BOD_SAM][BOD_POS], 
+											 neighbours[BOD_POS][BOD_SAM][BOD_POS],
 											 neighbours[BOD_POS][BOD_NEG][BOD_POS] );
 					occlusion[3] = VertexAO( neighbours[BOD_POS][BOD_POS][BOD_SAM],
-											 neighbours[BOD_POS][BOD_SAM][BOD_POS], 
+											 neighbours[BOD_POS][BOD_SAM][BOD_POS],
 											 neighbours[BOD_POS][BOD_POS][BOD_POS] );
 					AddFace( gChunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_X, occlusion, blockSpec );
 					vertexIndex += VERTS_PER_FACE;
