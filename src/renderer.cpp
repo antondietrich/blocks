@@ -134,7 +134,7 @@ bool Renderer::Start( HWND wnd )
 	uint driverType = 0;
 	for( driverType = 0; driverType < totalDriverTypes; ++driverType )
 	{
-		hr = D3D11CreateDevice( NULL, driverTypes[driverType], NULL, deviceFlags, featureLevels, 
+		hr = D3D11CreateDevice( NULL, driverTypes[driverType], NULL, deviceFlags, featureLevels,
 								totalFeatureLevels, D3D11_SDK_VERSION, &device_, NULL, &context_ );
 		if( SUCCEEDED( hr ) )
 		{
@@ -146,7 +146,7 @@ bool Renderer::Start( HWND wnd )
 		OutputDebugStringA( "Failed to create DirectX device!" );
 		return false;
 	}
-	
+
 	// Swap chain
 	DXGI_SWAP_CHAIN_DESC swapChainDesc;
 	ZeroMemory( &swapChainDesc, sizeof( swapChainDesc ) );
@@ -198,7 +198,7 @@ bool Renderer::Start( HWND wnd )
 		OutputDebugStringA( "Failed to retrieve IDXGIDevice!" );
 		return false;
 	}
-	      
+
 	IDXGIAdapter *dxgiAdapter = 0;
 	hr = dxgiDevice->GetParent(__uuidof(IDXGIAdapter), (void **)&dxgiAdapter);
 	if( FAILED( hr ) )
@@ -233,9 +233,9 @@ bool Renderer::Start( HWND wnd )
 	RELEASE( dxgiFactory );
 	RELEASE( dxgiAdapter );
 	RELEASE( dxgiDevice );
-		
 
-	// NOTE: as a side-effect, sets the back buffer and the depth buffer; 
+
+	// NOTE: as a side-effect, sets the back buffer and the depth buffer;
 	//  updates the GlobalCB (consider making separate functions)
 	ResizeBuffers();
 
@@ -461,7 +461,7 @@ bool Renderer::Start( HWND wnd )
 	cbDesc.CPUAccessFlags = 0;
 	cbDesc.MiscFlags = 0;
 	cbDesc.StructureByteStride = 0;
-	
+
 	hr = device_->CreateBuffer( &cbDesc, NULL, &lightConstantBuffer_ );
 
 	// model constant buffer
@@ -561,8 +561,14 @@ void Renderer::Begin()
 
 void Renderer::SetChunkDrawingState()
 {
-	SetTexture( textures_[6], ST_FRAGMENT, 0 );
-	SetTexture( textures_[7], ST_FRAGMENT, 2 );
+	//SetTexture( textures_[3], ST_FRAGMENT, 0 );
+
+	SetTexture( textures_[3], ST_FRAGMENT, 0 );
+	SetTexture( textures_[0], ST_FRAGMENT, 1 );
+	SetTexture( textures_[4], ST_FRAGMENT, 2 );
+	SetTexture( textures_[5], ST_FRAGMENT, 3 );
+
+	SetTexture( textures_[7], ST_FRAGMENT, 5 );
 	SetShader( shaders_[0] );
 	SetDepthBufferMode( DB_ENABLED );
 	context_->PSSetConstantBuffers( 1, 1, &frameConstantBuffer_ );
@@ -904,7 +910,7 @@ void Renderer::SetShader( uint shaderID )
 void Renderer::SetTexture( const Texture& texture, SHADER_TYPE shader, uint slot )
 {
 	if( ( shader & ST_VERTEX ) == ST_VERTEX ) {
-		context_->VSSetShaderResources( slot, 1, &texture.textureView_ );	
+		context_->VSSetShaderResources( slot, 1, &texture.textureView_ );
 	}
 	if( ( shader & ST_GEOMETRY ) == ST_GEOMETRY ) {
 		context_->GSSetShaderResources( slot, 1, &texture.textureView_ );
@@ -957,30 +963,14 @@ void MakeGlobalCBInitData( GlobalCB *cbData, D3D11_SUBRESOURCE_DATA *cbInitData,
 	cbData->normals[4] = {  0.0f,  1.0f,  0.0f, 0.0f }; // +Y
 	cbData->normals[5] = {  0.0f, -1.0f,  0.0f, 0.0f }; // -Y
 
-	cbData->texcoords[0] = { 2.0f / 512.0f, 		2.0f / 512.0f, 0.0f, 0.0f }; // top left
-	cbData->texcoords[1] = { 2.0f / 512.0f,		254.0f / 512.0f, 0.0f, 0.0f }; // bottom left
-	cbData->texcoords[2] = { 254.0f / 512.0f, 	2.0f / 512.0f, 0.0f, 0.0f }; // top right
-	cbData->texcoords[3] = { 254.0f / 512.0f, 	254.0f / 512.0f, 0.0f, 0.0f }; // bottom right
-
-	cbData->texcoords[4] = { ( 2.0f + 254.0f ) / 512.0f, 	2.0f / 512.0f, 0.0f, 0.0f }; // top left
-	cbData->texcoords[5] = { ( 2.0f + 254.0f ) / 512.0f,		254.0f / 512.0f, 0.0f, 0.0f }; // bottom left
-	cbData->texcoords[6] = { ( 254.0f + 254.0f ) / 512.0f, 	2.0f / 512.0f, 0.0f, 0.0f }; // top right
-	cbData->texcoords[7] = { ( 254.0f + 254.0f ) / 512.0f, 	254.0f / 512.0f, 0.0f, 0.0f }; // bottom right
-
-	cbData->texcoords[8] = { 2.0f / 512.0f,	 	( 2.0f + 254.0f ) / 512.0f, 0.0f, 0.0f }; // top left
-	cbData->texcoords[9] = { 2.0f / 512.0f,		( 254.0f + 254.0f ) / 512.0f, 0.0f, 0.0f }; // bottom left
-	cbData->texcoords[10] = { 254.0f / 512.0f, 	( 2.0f + 254.0f ) / 512.0f, 0.0f, 0.0f }; // top right
-	cbData->texcoords[11] = { 254.0f / 512.0f, 	( 254.0f + 254.0f ) / 512.0f, 0.0f, 0.0f }; // bottom right
-
-	cbData->texcoords[12] = { ( 2.0f + 254.0f ) / 512.0f,	 	( 2.0f + 254.0f ) / 512.0f, 0.0f, 0.0f }; // top left
-	cbData->texcoords[13] = { ( 2.0f + 254.0f ) / 512.0f,		( 254.0f + 254.0f ) / 512.0f, 0.0f, 0.0f }; // bottom left
-	cbData->texcoords[14] = { ( 254.0f + 254.0f ) / 512.0f, 	( 2.0f + 254.0f ) / 512.0f, 0.0f, 0.0f }; // top right
-	cbData->texcoords[15] = { ( 254.0f + 254.0f ) / 512.0f, 	( 254.0f + 254.0f ) / 512.0f, 0.0f, 0.0f }; // bottom right
+	cbData->texcoords[0] = { 0.0f, 0.0f, 0.0f, 0.0f }; // top left
+	cbData->texcoords[1] = { 0.0f, 1.0f, 0.0f, 0.0f }; // bottom left
+	cbData->texcoords[2] = { 1.0f, 0.0f, 0.0f, 0.0f }; // top right
+	cbData->texcoords[3] = { 1.0f, 1.0f, 0.0f, 0.0f }; // bottom right
 
 	cbInitData->pSysMem = cbData;
 	cbInitData->SysMemPitch = sizeof( GlobalCB );
 	cbInitData->SysMemSlicePitch = 0;
-
 }
 
 
@@ -1024,7 +1014,7 @@ bool Shader::Load( wchar_t* filename, ID3D11Device *device )
 		return false;
 	}
 
-	// input layout	
+	// input layout
 	hr = CreateInputLayoutFromShaderBytecode( vShaderBytecode, device, &inputLayout_ );
 	if( FAILED( hr ) )
 	{
@@ -1159,7 +1149,7 @@ bool RenderTarget::Init( uint width, uint height, DXGI_FORMAT format, bool shade
 			OutputDebugStringA( "RenderTarget::Init() failed to create shader resource view!" );
 			return false;
 		}
-	}		
+	}
 
 	return true;
 }
@@ -1487,21 +1477,21 @@ void Overlay::DisplayText( int x, int y, const char* text, XMFLOAT4 color )
 		vertices[i * 6 + 3] = { { (float)( x + CHAR_WIDTH * ( charOffsetInLine + 0 ) ), (float)( y + 0 ) 			 }, { texcoord, 0.0f } };
 		vertices[i * 6 + 4] = { { (float)( x + CHAR_WIDTH * ( charOffsetInLine + 1 ) ), (float)( y + LINE_HEIGHT ) }, { texcoord + NORMALIZED_CHAR_WIDTH, 1.0f } };
 		vertices[i * 6 + 5] = { { (float)( x + CHAR_WIDTH * ( charOffsetInLine + 1 ) ), (float)( y + 0 ) 			 }, { texcoord + NORMALIZED_CHAR_WIDTH, 0.0f } };
-	
+
 		charOffsetInLine++;
 	}
 
 	/*
 	NOTE:
-	A common use of these two flags involves filling dynamic index/vertex buffers with geometry 
-	that can be seen from the camera's current position. The first time that data is entered 
-	into the buffer on a given frame, Map is called with D3D11_MAP_WRITE_DISCARD; 
+	A common use of these two flags involves filling dynamic index/vertex buffers with geometry
+	that can be seen from the camera's current position. The first time that data is entered
+	into the buffer on a given frame, Map is called with D3D11_MAP_WRITE_DISCARD;
 	doing so invalidates the previous contents of the buffer. The buffer is then filled with all available data.
-	Subsequent writes to the buffer within the same frame should use D3D11_MAP_WRITE_NO_OVERWRITE. 
-	This will enable the CPU to access a resource that is potentially being used by the GPU as long 
+	Subsequent writes to the buffer within the same frame should use D3D11_MAP_WRITE_NO_OVERWRITE.
+	This will enable the CPU to access a resource that is potentially being used by the GPU as long
 	as the restrictions described previously are respected.
 	*/
-	// TODO: build a single vertex buffer per frame 
+	// TODO: build a single vertex buffer per frame
 	D3D11_MAPPED_SUBRESOURCE mapResource;
 	HRESULT hr = renderer_->context_->Map( textVB_, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource );
 	if( FAILED( hr ) )
@@ -1517,7 +1507,7 @@ void Overlay::DisplayText( int x, int y, const char* text, XMFLOAT4 color )
 
 	// update constant buffer
 	if( color.x != currentColor_.x ||
-		color.y != currentColor_.y || 
+		color.y != currentColor_.y ||
 		color.z != currentColor_.z ||
 		color.w != currentColor_.w )
 	{
@@ -1634,12 +1624,12 @@ void Overlay::OulineBlock( int chunkX, int chunkZ, int x, int y, int z, XMFLOAT4
 	DrawLine( { max.x, max.y, max.z }, { min.x, max.y, max.z }, color );
 	DrawLine( { max.x, max.y, max.z }, { max.x, min.y, max.z }, color );
 	DrawLine( { max.x, max.y, max.z }, { max.x, max.y, min.z }, color );
-	
+
 	DrawLine( { min.x, min.y, max.z }, { max.x, min.y, max.z }, color );
 	DrawLine( { min.x, min.y, max.z }, { min.x, max.y, max.z }, color );
 	DrawLine( { max.x, max.y, min.z }, { min.x, max.y, min.z }, color );
 	DrawLine( { max.x, max.y, min.z }, { max.x, min.y, min.z }, color );
-	
+
 	DrawLine( { min.x, max.y, min.z }, { min.x, max.y, max.z }, color );
 	DrawLine( { max.x, min.y, max.z }, { max.x, min.y, min.z }, color );
 

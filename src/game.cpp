@@ -954,7 +954,7 @@ void Game::DoFrame( float dt )
 	renderer.SetRasterizer( RS_DEFAULT );
 	renderer.SetShader( 0 );
 	renderer.SetRenderTarget( 0, 0 );
-	renderer.SetTexture( gShadowRT, ST_FRAGMENT, 1 );
+	renderer.SetTexture( gShadowRT, ST_FRAGMENT, 4 );
 
 	int numChunksToDraw = 0;
 	int numChunksDrawn = 0;

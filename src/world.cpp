@@ -523,8 +523,9 @@ void GetNeighbouringBlocks( BLOCK_TYPE neighbours[][BOD_COUNT][BOD_COUNT],
 //cbData.texcoords[2] = { 1.0f, 0.0f, 0.0f, 0.0f }; // top right
 //cbData.texcoords[3] = { 1.0f, 1.0f, 0.0f, 0.0f }; // bottom right
 
-#define PACK_NORMAL_AND_TEXCOORD( normalIndex, texcoordIndex ) ((normalIndex) << 5) | (texcoordIndex) | 0
-#define SET_TEXCOORD( texcoordIndex ) ( (texcoordIndex) & 0x1F );
+#define PACK_NORMAL_AND_TEXCOORD( normalIndex, texcoordIndex ) (((normalIndex) << 5) | (texcoordIndex << 3) | 0)
+#define PACK_OCCLUSION_AND_TEXID( occlusion, texID ) (uint8)(( (occlusion) << 6 ) | (texID) | 0)
+#define SET_TEXCOORD( texcoordIndex ) ( (texcoordIndex << 3) & 0x1F );
 #define SET_NORMAL( normalIndex ) ( (normalIndex) << 5) & 0xE0 );
 
 BlockVertex standardBlock[] =
@@ -563,44 +564,44 @@ BlockVertex standardBlock[] =
 
 struct BlockTypeSpec
 {
-	int textureCoordsArrayOffset;
+	int textureID;
 	BlockVertex *vertices;
 };
 
-BlockTypeSpec grassBlockSpec = { 0, standardBlock };
-BlockTypeSpec dirtBlockSpec = { 4, standardBlock };
-BlockTypeSpec stoneBlockSpec = { 8, standardBlock };
-BlockTypeSpec woodBlockSpec = { 12, standardBlock };
+BlockTypeSpec grassBlockSpec	= { 0, standardBlock };
+BlockTypeSpec dirtBlockSpec		= { 1, standardBlock };
+BlockTypeSpec stoneBlockSpec	= { 2, standardBlock };
+BlockTypeSpec woodBlockSpec		= { 3, standardBlock };
 
 void AddFace( BlockVertex *vertexBuffer, int startVertexIndex, uint8 blockX, uint8 blockY, uint8 blockZ, FACE_INDEX faceIndex, uint8 occluded[4], BlockTypeSpec blockType )
 {
 	vertexBuffer[ startVertexIndex + 0 ] = blockType.vertices[ faceIndex + 0];
-		vertexBuffer[ startVertexIndex + 0 ].data[0] += blockX;
-		vertexBuffer[ startVertexIndex + 0 ].data[1] += blockY;
-		vertexBuffer[ startVertexIndex + 0 ].data[2] += blockZ;
-		vertexBuffer[ startVertexIndex + 0 ].data[3] |= SET_TEXCOORD( 0 + blockType.textureCoordsArrayOffset );
-		vertexBuffer[ startVertexIndex + 0 ].texID = occluded[0];
+		vertexBuffer[ startVertexIndex + 0 ].data1[0] += blockX;
+		vertexBuffer[ startVertexIndex + 0 ].data1[1] += blockY;
+		vertexBuffer[ startVertexIndex + 0 ].data1[2] += blockZ;
+		// vertexBuffer[ startVertexIndex + 0 ].data[3] |= SET_TEXCOORD( 0 + blockType.textureCoordsArrayOffset );
+		vertexBuffer[ startVertexIndex + 0 ].data2[0] = PACK_OCCLUSION_AND_TEXID( occluded[0], blockType.textureID );
 
 	vertexBuffer[ startVertexIndex + 1 ] = blockType.vertices[ faceIndex + 1];
-		vertexBuffer[ startVertexIndex + 1 ].data[0] += blockX;
-		vertexBuffer[ startVertexIndex + 1 ].data[1] += blockY;
-		vertexBuffer[ startVertexIndex + 1 ].data[2] += blockZ;
-		vertexBuffer[ startVertexIndex + 1 ].data[3] |= SET_TEXCOORD( 1 + blockType.textureCoordsArrayOffset );
-		vertexBuffer[ startVertexIndex + 1 ].texID = occluded[1];
+		vertexBuffer[ startVertexIndex + 1 ].data1[0] += blockX;
+		vertexBuffer[ startVertexIndex + 1 ].data1[1] += blockY;
+		vertexBuffer[ startVertexIndex + 1 ].data1[2] += blockZ;
+		// vertexBuffer[ startVertexIndex + 1 ].data[3] |= SET_TEXCOORD( 1 + blockType.textureCoordsArrayOffset );
+		vertexBuffer[ startVertexIndex + 1 ].data2[0] = PACK_OCCLUSION_AND_TEXID( occluded[1], blockType.textureID );
 
 	vertexBuffer[ startVertexIndex + 4 ] = blockType.vertices[ faceIndex + 2];
-		vertexBuffer[ startVertexIndex + 4 ].data[0] += blockX;
-		vertexBuffer[ startVertexIndex + 4 ].data[1] += blockY;
-		vertexBuffer[ startVertexIndex + 4 ].data[2] += blockZ;
-		vertexBuffer[ startVertexIndex + 4 ].data[3] |= SET_TEXCOORD( 3 + blockType.textureCoordsArrayOffset );
-		vertexBuffer[ startVertexIndex + 4 ].texID = occluded[2];
+		vertexBuffer[ startVertexIndex + 4 ].data1[0] += blockX;
+		vertexBuffer[ startVertexIndex + 4 ].data1[1] += blockY;
+		vertexBuffer[ startVertexIndex + 4 ].data1[2] += blockZ;
+		// vertexBuffer[ startVertexIndex + 4 ].data[3] |= SET_TEXCOORD( 3 + blockType.textureCoordsArrayOffset );
+		vertexBuffer[ startVertexIndex + 4 ].data2[0] = PACK_OCCLUSION_AND_TEXID( occluded[2], blockType.textureID );
 
 	vertexBuffer[ startVertexIndex + 5 ] = blockType.vertices[ faceIndex + 3];
-		vertexBuffer[ startVertexIndex + 5 ].data[0] += blockX;
-		vertexBuffer[ startVertexIndex + 5 ].data[1] += blockY;
-		vertexBuffer[ startVertexIndex + 5 ].data[2] += blockZ;
-		vertexBuffer[ startVertexIndex + 5 ].data[3] |= SET_TEXCOORD( 2 + blockType.textureCoordsArrayOffset );
-		vertexBuffer[ startVertexIndex + 5 ].texID = occluded[3];
+		vertexBuffer[ startVertexIndex + 5 ].data1[0] += blockX;
+		vertexBuffer[ startVertexIndex + 5 ].data1[1] += blockY;
+		vertexBuffer[ startVertexIndex + 5 ].data1[2] += blockZ;
+		// vertexBuffer[ startVertexIndex + 5 ].data[3] |= SET_TEXCOORD( 2 + blockType.textureCoordsArrayOffset );
+		vertexBuffer[ startVertexIndex + 5 ].data2[0] = PACK_OCCLUSION_AND_TEXID( occluded[3], blockType.textureID );
 
 	if( occluded[0] + occluded[2] <= occluded[1] + occluded[3] ) // normal quad
 	{
