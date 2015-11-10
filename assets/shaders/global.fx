@@ -1,6 +1,7 @@
-Texture2D textureA_ : register( t0 );
-Texture2D shadowmap_ : register( t1 );
-Texture2D lightColor : register( t2 );
+//Texture2DArray blockTexture : register( t0 );
+Texture2D blockTexture[4] : register( t0 );
+Texture2D shadowmap_ : register( t4 );
+Texture2D lightColor : register( t5 );
 
 SamplerState samplerFiltered : register( s0 );
 SamplerState samplerPoint : register( s1 );
@@ -9,7 +10,9 @@ cbuffer GlobalCB : register( b0 )
 {
 	matrix screenToNDC;
 	float4 normals[6];
-	float4 texcoords[16];
+	float4 texcoords[4];
+	float viewDistance;
+	float padding[3];
 }
 
 cbuffer FrameCB : register( b1 )
@@ -29,36 +32,37 @@ cbuffer ModelCB : register( b2 )
 
 struct VS_Input
 {
-	uint pos : POSITION;
-	uint texID : TEXCOORD0;
+	uint data1 : POSITION;
+	uint data2 : TEXCOORD0;
 };
 
 struct PS_Input
 {
 	float4 pos : SV_POSITION;
 	float4 lightViewPos : TEXCOORD0;
-//float4 pos : TEXCOORD0;
-//float4 lightViewPos : SV_POSITION;
 	float4 normal : TEXCOORD1;
 	float2 texcoord : TEXCOORD2;
 	float occlusion : TEXCOORD3;
-	// float texID : TEXCOORD3;
+	int texID : TEXCOORD4;
+	float2 linearDepth : TEXCOORD5;
 };
 
 PS_Input VSMain( VS_Input input )
 {
 	// unpack position, normal texcoord
 	float3 unpackedPos;
-	unpackedPos.x = ( input.pos & 0x000000ff );
-	unpackedPos.y = ( input.pos & 0x0000ff00 ) >> 8;
-	unpackedPos.z = ( input.pos & 0x00ff0000 ) >> 16;
+	unpackedPos.x = ( input.data1 & 0x000000ff );
+	unpackedPos.y = ( input.data1 & 0x0000ff00 ) >> 8;
+	unpackedPos.z = ( input.data1 & 0x00ff0000 ) >> 16;
 
-	int temp = ( input.pos & 0xff000000 ) >> 24;
+	int temp = ( input.data1 & 0xff000000 ) >> 24;
 	int normalIndex = ( temp & 0xe0 ) >> 5; 	// 11100000
-	int texcoordIndex = ( temp & 0x1F ); 	// 00011111
+	int texcoordIndex = ( temp & 0x18 ) >> 3; 	// 00011000
 	// int occluded = ( temp & 0x06 ) >> 1;		// 00000100
 
-	int occluded = input.texID;
+	temp = (input.data2 & 0x000000ff );
+	int occluded = (temp & 0xc0) >> 6;
+	int texID = temp & 0x3f;
 
 	PS_Input output;
 
@@ -78,7 +82,10 @@ PS_Input VSMain( VS_Input input )
 
 	output.occlusion = occluded / 3.0; //input.ao;// / 3.0;
 
-	// output.texID = input.texID;
+	output.texID = texID;
+
+	output.linearDepth.x = output.pos.w / viewDistance;
+	output.linearDepth.y = 1.0 - unpackedPos.y / 128;
 
 	return output;
 }
@@ -91,11 +98,6 @@ float4 PSMain( PS_Input input ) : SV_TARGET
 	tc.x = input.lightViewPos.x / input.lightViewPos.w / 2.0f + 0.5f;
 	tc.y = -input.lightViewPos.y / input.lightViewPos.w / 2.0f + 0.5f;
 
-	// return float4( input.lightViewPos.x, input.lightViewPos.y, 0.0, 1.0 );
-	// return sm;
-
-	// return float4( 1.0f, 1.0f, 1.0f, 1.0f );
-
 	float4 negLightDir = normalize( sunDir );
 	float ao = ( 1.0 - input.occlusion ) * 0.7 + 0.3;
 
@@ -103,7 +105,7 @@ float4 PSMain( PS_Input input ) : SV_TARGET
 	float4 ambientColorTex = lightColor.Sample( samplerFiltered, float2( dayTimeNorm, 0.75 ) );
 
 	float nDotL = saturate( dot( input.normal, negLightDir ) );
-	
+
 	if( IsPointInsideProjectedVolume( input.lightViewPos ) )
 	{
 		float maxBias = 0.001;
@@ -129,14 +131,29 @@ float4 PSMain( PS_Input input ) : SV_TARGET
 	}
 
 	float lighting = nDotL * sunColorTex + ao * ambientColorTex;
-	float4 color = textureA_.Sample( samplerFiltered, input.texcoord );
+	float3 texcoord;
+	texcoord.xy = input.texcoord;
+	texcoord.z = 0.0;
 
-	return color * nDotL * sunColorTex * 0.5 + color * ao * ambientColorTex * 0.7;
+	float4 color[4];
+	color[0] = blockTexture[0].Sample( samplerFiltered, input.texcoord );
+	color[1] = blockTexture[1].Sample( samplerFiltered, input.texcoord );
+	color[2] = blockTexture[2].Sample( samplerFiltered, input.texcoord );
+	color[3] = blockTexture[3].Sample( samplerFiltered, input.texcoord );
+
+	float4 fogColor = float4( 0.5f, 0.5f, 0.5f, 1.0f );
+
+	float fogFactor = input.linearDepth.x;
+
+	float4 finalColor = color[ input.texID ] * nDotL * sunColorTex * 0.5 +
+						color[ input.texID ] * ao * ambientColorTex * 0.7;
+
+	return fogFactor*fogColor + ( 1 - fogFactor )*finalColor;
 }
 
 bool IsPointInsideProjectedVolume( float3 P )
 {
-	return saturate( abs( P.x ) ) == abs( P.x ) && 
+	return saturate( abs( P.x ) ) == abs( P.x ) &&
 	       saturate( abs( P.y ) ) == abs( P.y ) &&
 	       saturate( P.z ) 		  == P.z;
 }

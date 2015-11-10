@@ -39,7 +39,9 @@ struct VertexPosNormalTexcoord
 struct GlobalCB {
 	DirectX::XMFLOAT4X4 screenToNDC;
 	DirectX::XMFLOAT4 normals[6];
-	DirectX::XMFLOAT4 texcoords[4 * 4];
+	DirectX::XMFLOAT4 texcoords[4];
+	float viewDistance;
+	float padding[3];
 };
 
 struct FrameCB {
@@ -215,7 +217,7 @@ private:
 	ID3D11Buffer *blockVB_;
 	BlockVertex *blockCache_;
 	uint numCachedVerts_;
-	
+
 	Shader shaders_[ MAX_SHADERS ];
 	Texture textures_[ MAX_TEXTURES ];
 	Mesh meshes_[ MAX_MESHES ];

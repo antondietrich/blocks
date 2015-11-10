@@ -6,12 +6,16 @@
 * 	position.y		8
 * 	position.z		8
 * 	normalID		3
-* 	texcoordID		5
+* 	texcoordID		2
+*	unused			3
 * 					--
 * 					32
 *
-* 	unused			30
+* 	texID			6
 * 	occlusion		2
+* 	unused			8
+* 	unused			8
+* 	unused			8
 *					--
 *					32
 /**************************************/
@@ -63,8 +67,8 @@ struct BlockPosition
 
 struct BlockVertex
 {
-	uint8 data[4];
-	uint32 texID;
+	uint8 data1[4];
+	uint8 data2[4];
 };
 
 struct Chunk
