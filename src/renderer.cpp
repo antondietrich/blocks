@@ -7,7 +7,7 @@ using namespace DirectX;
 
 extern ConfigType Config;
 
-void MakeGlobalCBInitData( GlobalCB *cbData, D3D11_SUBRESOURCE_DATA *cbInitData, float screenWidth, float screenHeight );
+void MakeGlobalCBInitData( GlobalCB *cbData, D3D11_SUBRESOURCE_DATA *cbInitData, float screenWidth, float screenHeight, float viewDistance );
 
 bool Renderer::isInstantiated_ = false;
 
@@ -408,7 +408,7 @@ bool Renderer::Start( HWND wnd )
 	GlobalCB cbData;
 	D3D11_SUBRESOURCE_DATA cbInitData;
 
-	MakeGlobalCBInitData( &cbData, &cbInitData, screenViewport_.Width, screenViewport_.Height );
+	MakeGlobalCBInitData( &cbData, &cbInitData, screenViewport_.Width, screenViewport_.Height, (float)(Config.viewDistanceChunks * CHUNK_WIDTH) );
 	hr = device_->CreateBuffer( &cbDesc, &cbInitData, &globalConstantBuffer_ );
 	if( FAILED( hr ) )
 	{
@@ -547,7 +547,7 @@ bool Renderer::Start( HWND wnd )
 
 void Renderer::Begin()
 {
-	float clearColor[ 4 ] = { 0.53f, 0.81f, 0.98f, 1.0f };
+	float clearColor[ 4 ] = { 0.5f, 0.5f, 0.5f, 1.0f };
 	context_->ClearRenderTargetView( backBufferView_, clearColor );
 	context_->ClearDepthStencilView( depthStencilView_, D3D11_CLEAR_DEPTH, 1.0f, 0 );
 
@@ -774,7 +774,7 @@ bool Renderer::ResizeBuffers()
 
 	D3D11_SUBRESOURCE_DATA cbInitData;
 	GlobalCB cbData;
-	MakeGlobalCBInitData( &cbData, &cbInitData, screenViewport_.Width, screenViewport_.Height );
+	MakeGlobalCBInitData( &cbData, &cbInitData, screenViewport_.Width, screenViewport_.Height, (float)(Config.viewDistanceChunks * CHUNK_WIDTH) );
 
 	if( FAILED( hr ) )
 	{
@@ -947,7 +947,7 @@ void Renderer::RemoveTexture( SHADER_TYPE shader, uint slot )
 	}
 }
 
-void MakeGlobalCBInitData( GlobalCB *cbData, D3D11_SUBRESOURCE_DATA *cbInitData, float screenWidth, float screenHeight )
+void MakeGlobalCBInitData( GlobalCB *cbData, D3D11_SUBRESOURCE_DATA *cbInitData, float screenWidth, float screenHeight, float viewDistance )
 {
 	cbData->screenToNDC = XMFLOAT4X4(
 		2.0f / screenWidth,	 0.0f,					0.0f,	-1.0f,
@@ -967,6 +967,8 @@ void MakeGlobalCBInitData( GlobalCB *cbData, D3D11_SUBRESOURCE_DATA *cbInitData,
 	cbData->texcoords[1] = { 0.0f, 1.0f, 0.0f, 0.0f }; // bottom left
 	cbData->texcoords[2] = { 1.0f, 0.0f, 0.0f, 0.0f }; // top right
 	cbData->texcoords[3] = { 1.0f, 1.0f, 0.0f, 0.0f }; // bottom right
+
+	cbData->viewDistance = viewDistance;
 
 	cbInitData->pSysMem = cbData;
 	cbInitData->SysMemPitch = sizeof( GlobalCB );

@@ -40,6 +40,8 @@ struct GlobalCB {
 	DirectX::XMFLOAT4X4 screenToNDC;
 	DirectX::XMFLOAT4 normals[6];
 	DirectX::XMFLOAT4 texcoords[4];
+	float viewDistance;
+	float padding[3];
 };
 
 struct FrameCB {

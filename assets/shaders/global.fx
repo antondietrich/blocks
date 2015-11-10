@@ -10,7 +10,9 @@ cbuffer GlobalCB : register( b0 )
 {
 	matrix screenToNDC;
 	float4 normals[6];
-	float4 texcoords[16];
+	float4 texcoords[4];
+	float viewDistance;
+	float padding[3];
 }
 
 cbuffer FrameCB : register( b1 )
@@ -42,6 +44,7 @@ struct PS_Input
 	float2 texcoord : TEXCOORD2;
 	float occlusion : TEXCOORD3;
 	int texID : TEXCOORD4;
+	float2 linearDepth : TEXCOORD5;
 };
 
 PS_Input VSMain( VS_Input input )
@@ -81,6 +84,9 @@ PS_Input VSMain( VS_Input input )
 
 	output.texID = texID;
 
+	output.linearDepth.x = output.pos.w / viewDistance;
+	output.linearDepth.y = 1.0 - unpackedPos.y / 128;
+
 	return output;
 }
 
@@ -91,11 +97,6 @@ float4 PSMain( PS_Input input ) : SV_TARGET
 	float2 tc;// = float2( input.lightViewPos.x, input.lightViewPos.y );
 	tc.x = input.lightViewPos.x / input.lightViewPos.w / 2.0f + 0.5f;
 	tc.y = -input.lightViewPos.y / input.lightViewPos.w / 2.0f + 0.5f;
-
-	// return float4( input.lightViewPos.x, input.lightViewPos.y, 0.0, 1.0 );
-	// return sm;
-
-	// return float4( 1.0f, 1.0f, 1.0f, 1.0f );
 
 	float4 negLightDir = normalize( sunDir );
 	float ao = ( 1.0 - input.occlusion ) * 0.7 + 0.3;
@@ -140,7 +141,14 @@ float4 PSMain( PS_Input input ) : SV_TARGET
 	color[2] = blockTexture[2].Sample( samplerFiltered, input.texcoord );
 	color[3] = blockTexture[3].Sample( samplerFiltered, input.texcoord );
 
-	return color[ input.texID ] * nDotL * sunColorTex * 0.5 + color[ input.texID ] * ao * ambientColorTex * 0.7;
+	float4 fogColor = float4( 0.5f, 0.5f, 0.5f, 1.0f );
+
+	float fogFactor = input.linearDepth.x;
+
+	float4 finalColor = color[ input.texID ] * nDotL * sunColorTex * 0.5 +
+						color[ input.texID ] * ao * ambientColorTex * 0.7;
+
+	return fogFactor*fogColor + ( 1 - fogFactor )*finalColor;
 }
 
 bool IsPointInsideProjectedVolume( float3 P )
