@@ -797,7 +797,7 @@ int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkP
 
 	chunkMesh->vertices = new BlockVertex[ vertexIndex ];
 	memcpy( chunkMesh->vertices, gChunkVertexBuffer, sizeof( BlockVertex ) * vertexIndex );
-	chunkMesh->size = vertexIndex;
+	chunkMesh->numVertices = vertexIndex;
 
 	return vertexIndex;
 }

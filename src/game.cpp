@@ -128,16 +128,6 @@ Game::~Game()
 
 bool Game::Start( HWND wnd )
 {
-	if( !renderer.Start( wnd ) )
-	{
-		return false;
-	}
-
-	if( !overlay.Start( &renderer ) )
-	{
-		return false;
-	}
-
 	for( int i = 0; i < KEY::COUNT; i++ )
 	{
 		input.key[i] = { 0 };
@@ -155,6 +145,17 @@ bool Game::Start( HWND wnd )
 
 	gChunkCache = new Chunk[ gChunkCacheDim * gChunkCacheDim ];
 	gChunkMeshCache = new ChunkMesh[ gChunkMeshCacheDim * gChunkMeshCacheDim ];
+	// renderer.InitChunkMeshCache( gChunkMeshCacheDim );
+
+	if( !renderer.Start( wnd ) )
+	{
+		return false;
+	}
+
+	if( !overlay.Start( &renderer ) )
+	{
+		return false;
+	}
 
 	InitWorldGen();
 	PrefillChunkCache( gChunkCache, gChunkCacheDim );
@@ -162,7 +163,7 @@ bool Game::Start( HWND wnd )
 	for( int i = 0; i < gChunkMeshCacheDim * gChunkMeshCacheDim; i++ ) {
 		gChunkMeshCache[i].dirty = true;
 		gChunkMeshCache[i].vertices = 0;
-		gChunkMeshCache[i].size = 0;
+		gChunkMeshCache[i].numVertices = 0;
 		gChunkMeshCache[i].chunkPos[0] = 0;
 		gChunkMeshCache[i].chunkPos[1] = 0;
 	}
@@ -749,6 +750,7 @@ void Game::DoFrame( float dt )
 											  chunkNegX,		chunk,		chunkPosX,
 											  chunkNegXNegZ,	chunkNegZ,	chunkPosXNegZ );
 
+				renderer.SubmitChunkMesh( MeshCacheIndexFromChunkPos( x, z, gChunkMeshCacheDim ), chunkMesh->vertices, chunkMesh->numVertices );
 			} // else
 
 		} // for chunkX
@@ -777,8 +779,8 @@ void Game::DoFrame( float dt )
 //	}
 
 	ProfileStart( "Render" );
-
 	// draw shadow map
+
 
 	// time of day
 	// t: [ 0, 86400 )
@@ -799,6 +801,7 @@ void Game::DoFrame( float dt )
 
 	float smRegionDim = (float)gChunkMeshCacheDim * CHUNK_WIDTH;
 
+	ProfileStart( "ShadowmapPass" );
 	XMMATRIX lightProj = XMMatrixOrthographicLH(	smRegionDim*0.5f,
 													smRegionDim*0.5f,
 													-smRegionDim*0.5f,
@@ -853,17 +856,20 @@ void Game::DoFrame( float dt )
 	renderer.ClearTexture( &gShadowDB );
 
 	renderer.SetRenderTarget( &gShadowRT, &gShadowDB );
+	ProfileStart( "ShadowmapDrawing" );
 	for( int meshIndex = 0; meshIndex < gChunkMeshCacheDim * gChunkMeshCacheDim; meshIndex++ )
 	{
 		if( gChunkMeshCache[ meshIndex ].vertices )
 		{
-			renderer.DrawChunkMesh( gChunkMeshCache[ meshIndex ].chunkPos[0] * CHUNK_WIDTH,
-												gChunkMeshCache[ meshIndex ].chunkPos[1] * CHUNK_WIDTH,
-												gChunkMeshCache[ meshIndex ].vertices,
-												gChunkMeshCache[ meshIndex ].size );
-			numDrawnVertices += gChunkMeshCache[ meshIndex ].size;
+			renderer.DrawChunkMeshBuffer( gChunkMeshCache[ meshIndex ].chunkPos[0] * CHUNK_WIDTH,
+											gChunkMeshCache[ meshIndex ].chunkPos[1] * CHUNK_WIDTH,
+											meshIndex,
+											gChunkMeshCache[ meshIndex ].numVertices );
+			numDrawnVertices += gChunkMeshCache[ meshIndex ].numVertices;
 		}
 	}
+	ProfileStop(); // ShadowmapDrawing
+	ProfileStop(); // ShadowmapPass
 
 #if 1
 	// draw to frame buffer
@@ -959,19 +965,18 @@ void Game::DoFrame( float dt )
 	int numChunksToDraw = 0;
 	int numChunksDrawn = 0;
 	Plane frustumPlanes[6];
+	frustumPlanes[0] = Plane( playerFrustum.corners[ 0 ], playerFrustum.corners[ 3 ], playerFrustum.corners[ 4 ] );
+	frustumPlanes[1] = Plane( playerFrustum.corners[ 0 ], playerFrustum.corners[ 4 ], playerFrustum.corners[ 1 ] );
+	frustumPlanes[2] = Plane( playerFrustum.corners[ 1 ], playerFrustum.corners[ 5 ], playerFrustum.corners[ 2 ] );
+	frustumPlanes[3] = Plane( playerFrustum.corners[ 2 ], playerFrustum.corners[ 6 ], playerFrustum.corners[ 3 ] );
+	frustumPlanes[4] = Plane( playerFrustum.corners[ 0 ], playerFrustum.corners[ 1 ], playerFrustum.corners[ 3 ] );
+	frustumPlanes[5] = Plane( playerFrustum.corners[ 5 ], playerFrustum.corners[ 4 ], playerFrustum.corners[ 6 ] );
+	ProfileStart( "BeautyPass" );
 	for( int meshIndex = 0; meshIndex < gChunkMeshCacheDim * gChunkMeshCacheDim; meshIndex++ )
 	{
 		if( gChunkMeshCache[ meshIndex ].vertices )
 		{
 			numChunksToDraw++;
-
-			frustumPlanes[0] = Plane( playerFrustum.corners[ 0 ], playerFrustum.corners[ 3 ], playerFrustum.corners[ 4 ] );
-			frustumPlanes[1] = Plane( playerFrustum.corners[ 0 ], playerFrustum.corners[ 4 ], playerFrustum.corners[ 1 ] );
-			frustumPlanes[2] = Plane( playerFrustum.corners[ 1 ], playerFrustum.corners[ 5 ], playerFrustum.corners[ 2 ] );
-			frustumPlanes[3] = Plane( playerFrustum.corners[ 2 ], playerFrustum.corners[ 6 ], playerFrustum.corners[ 3 ] );
-			frustumPlanes[4] = Plane( playerFrustum.corners[ 0 ], playerFrustum.corners[ 1 ], playerFrustum.corners[ 3 ] );
-			frustumPlanes[5] = Plane( playerFrustum.corners[ 5 ], playerFrustum.corners[ 4 ], playerFrustum.corners[ 6 ] );
-
 			bool culled = false;
 
 			AABB chunkBound;
@@ -993,18 +998,21 @@ void Game::DoFrame( float dt )
 				}
 			}
 
+			ProfileStart( "BeatyDrawing" );
 			if( !culled )
 			{
-				renderer.DrawChunkMesh( gChunkMeshCache[ meshIndex ].chunkPos[0] * CHUNK_WIDTH,
-													gChunkMeshCache[ meshIndex ].chunkPos[1] * CHUNK_WIDTH,
-													gChunkMeshCache[ meshIndex ].vertices,
-													gChunkMeshCache[ meshIndex ].size );
-				numDrawnVertices += gChunkMeshCache[ meshIndex ].size;
+				renderer.DrawChunkMeshBuffer( gChunkMeshCache[ meshIndex ].chunkPos[0] * CHUNK_WIDTH,
+											gChunkMeshCache[ meshIndex ].chunkPos[1] * CHUNK_WIDTH,
+											meshIndex,
+											gChunkMeshCache[ meshIndex ].numVertices );
+				numDrawnVertices += gChunkMeshCache[ meshIndex ].numVertices;
 				numChunksDrawn++;
 			}
+			ProfileStop();
 
 		}
 	}
+	ProfileStop();
 
 #endif
 	ProfileStop();
@@ -1033,17 +1041,17 @@ void Game::DoFrame( float dt )
 															gameTime_.hours,
 															gameTime_.minutes,
 															(int)gameTime_.seconds );
-		overlay.WriteLine( "Chunk buffer size: %i KB", sizeof( BlockVertex ) * MAX_VERTS_PER_BATCH / 1024 );
+//		overlay.WriteLine( "Chunk buffer size: %i KB", sizeof( BlockVertex ) * MAX_VERTS_PER_BATCH / 1024 );
 //		overlay.WriteLine( "Batches rendered: %i", renderer.numBatches_ );
 //		overlay.WriteLine( "Vertices rendered: %i", numDrawnVertices );
-		overlay.WriteLine( "Chunks generated: %i", chunksGenerated );
-		overlay.WriteLine( "Chunk meshes rebuild: %i", chunkMeshesRebuilt );
+//		overlay.WriteLine( "Chunks generated: %i", chunksGenerated );
+//		overlay.WriteLine( "Chunk meshes rebuild: %i", chunkMeshesRebuilt );
 //		overlay.WriteLine( "Mouse offset: %+03i - %+03i", input.mouse.x, input.mouse.y );
 		overlay.WriteLine( "" );
 		overlay.WriteLine( "Player pos: %5.2f %5.2f %5.2f", playerPos.x, playerPos.y, playerPos.z );
 		overlay.WriteLine( "Chunk pos:  %5i ----- %5i", playerChunkPos.x, playerChunkPos.z );
-		overlay.WriteLine( "Speed:  %5.2f", XMVectorGetX( XMVector4Length( vSpeed ) ) );
-		overlay.WriteLine( "FOV:  %5.2f", gPlayerHFOV );
+//		overlay.WriteLine( "Speed:  %5.2f", XMVectorGetX( XMVector4Length( vSpeed ) ) );
+//		overlay.WriteLine( "FOV:  %5.2f", gPlayerHFOV );
 		overlay.Write( "Keys pressed: " );
 		for( int i = 0; i < KEY::COUNT; i++ )
 		{

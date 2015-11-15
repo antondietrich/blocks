@@ -9,15 +9,15 @@ namespace Blocks
 
 #define BACK_BUFFER_FORMAT DXGI_FORMAT_R8G8B8A8_UNORM
 
-
-
 #define MAX_SHADERS 8
 #define MAX_TEXTURES 8
 #define MAX_MESHES 8
 
 #define VERTS_PER_BLOCK 36
 #define VERTS_PER_FACE 6
-#define MAX_VERTS_PER_BATCH 50000 * 256 * 2
+#define MAX_VERTS_PER_BATCH 50000 * 256 * 2 // 25 600 000
+
+typedef ID3D11Buffer * ID3D11BufferArray;
 
 enum SAMPLER_TYPE
 {

@@ -11,6 +11,8 @@ void MakeGlobalCBInitData( GlobalCB *cbData, D3D11_SUBRESOURCE_DATA *cbInitData,
 
 bool Renderer::isInstantiated_ = false;
 
+extern int gChunkMeshCacheDim;
+
 Renderer::Renderer()
 {
 	assert( !isInstantiated_ );
@@ -58,7 +60,8 @@ Renderer::Renderer()
 	}
 
 	blockVB_ = 0;
-	blockCache_ = new BlockVertex[ MAX_VERTS_PER_BATCH ];
+
+	// blockCache_ = new BlockVertex[ MAX_VERTS_PER_BATCH ];
 	numCachedVerts_ = 0;
 
 	viewPosition_ = { 0, 0, 0 };
@@ -75,8 +78,15 @@ Renderer::~Renderer()
 	device_->QueryInterface(__uuidof(ID3D11Debug), (void**)(&DebugDevice));
 #endif
 
-	delete[] blockCache_;
-	RELEASE( blockVB_ );
+	// delete[] blockCache_;
+	if( blockVB_ )
+	{
+		for( int i = 0; i < gChunkMeshCacheDim * gChunkMeshCacheDim; i++ )
+		{
+			RELEASE( blockVB_[i] );
+		}
+		delete[] blockVB_;
+	}
 	for( int i = 0; i < NUM_DEPTH_BUFFER_MODES; i++ ) {
 		RELEASE( depthStencilStates_[i] );
 	}
@@ -526,6 +536,12 @@ bool Renderer::Start( HWND wnd )
 		return false;
 	}
 
+	blockVB_ = new ID3D11BufferArray[ gChunkMeshCacheDim * gChunkMeshCacheDim ];
+	for( int i = 0; i < gChunkMeshCacheDim * gChunkMeshCacheDim; i++ )
+	{
+		blockVB_[i] = 0;
+	}
+#if 0
 	// vertex buffer to store chunk meshes
 	D3D11_BUFFER_DESC vertexBufferDesc;
 	ZeroMemory( &vertexBufferDesc, sizeof( vertexBufferDesc ) );
@@ -540,6 +556,7 @@ bool Renderer::Start( HWND wnd )
 		OutputDebugStringA( "Failed to create vertex buffer!" );
 		return false;
 	}
+#endif
 	context_->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
 
 	return true;
@@ -573,11 +590,58 @@ void Renderer::SetChunkDrawingState()
 	SetDepthBufferMode( DB_ENABLED );
 	context_->PSSetConstantBuffers( 1, 1, &frameConstantBuffer_ );
 
-	uint stride = sizeof( BlockVertex );
-	uint offset = 0;
-	context_->IASetVertexBuffers( 0, 1, &blockVB_, &stride, &offset );
+//	uint stride = sizeof( BlockVertex );
+//	uint offset = 0;
+//	context_->IASetVertexBuffers( 0, 1, &blockVB_, &stride, &offset );
 }
 
+bool Renderer::SubmitChunkMesh( int index, BlockVertex *vertices, uint numVertices )
+{
+	//TODO: don't release a buffer if the new chunk fits in it?
+	// Maybe set a size limit?
+	RELEASE( blockVB_[ index ] );
+
+	D3D11_BUFFER_DESC vertexBufferDesc;
+	ZeroMemory( &vertexBufferDesc, sizeof( vertexBufferDesc ) );
+	vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+	vertexBufferDesc.CPUAccessFlags = 0;
+	vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	vertexBufferDesc.ByteWidth = sizeof( BlockVertex ) * numVertices;
+
+	D3D11_SUBRESOURCE_DATA InitData;
+	InitData.pSysMem = vertices;
+	InitData.SysMemPitch = 0;
+	InitData.SysMemSlicePitch = 0;
+
+	HRESULT hr = device_->CreateBuffer( &vertexBufferDesc, &InitData, &blockVB_[ index ] );
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "Failed to create chunk mesh vertex buffer!" );
+		return false;
+	}
+
+	return true;
+}
+
+void Renderer::DrawChunkMeshBuffer( int x, int z, int bufferIndex, int numVertices )
+{
+	uint stride = sizeof( BlockVertex );
+	uint offset = 0;
+	context_->IASetVertexBuffers( 0, 1, &blockVB_[ bufferIndex ], &stride, &offset );
+
+	ModelCB modelCBData;
+	modelCBData.translate = XMFLOAT4( (float)x, 0.0f, (float)z, 0.0f );
+	context_->UpdateSubresource( modelConstantBuffer_, 0, NULL, &modelCBData, sizeof( ModelCB ), 0 );
+
+	ProfileStart( "Draw" );
+
+	context_->Draw( numVertices, 0 );
+
+	numBatches_++;
+
+	ProfileStop();
+}
+#if 0
 void Renderer::DrawChunkMesh( int x, int z, BlockVertex *vertices, int numVertices )
 {
 	assert( numCachedVerts_ + numVertices < MAX_VERTS_PER_BATCH );
@@ -628,6 +692,7 @@ void Renderer::DrawChunkMesh( int x, int z, BlockVertex *vertices, int numVertic
 
 	numCachedVerts_ += numVertices;
 }
+#endif
 
 void Renderer::ClearTexture( RenderTarget *rt, float r, float g, float b, float a )
 {

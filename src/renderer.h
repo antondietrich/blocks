@@ -155,7 +155,9 @@ public:
 	void End();
 
 	void SetChunkDrawingState();
-	void DrawChunkMesh( int x, int z, BlockVertex *vertices, int numVertices );
+//	void DrawChunkMesh( int x, int z, BlockVertex *vertices, int numVertices );
+	bool SubmitChunkMesh( int index, BlockVertex *vertices, uint numVertices );
+	void DrawChunkMeshBuffer( int x, int z, int bufferIndex, int numVertices );
 
 	void ClearTexture( RenderTarget *rt, float r = 1.0f, float g = 0.0f, float b = 1.0f, float a = 1.0f );
 	void ClearTexture( DepthBuffer *db, float d = 1.0f );
@@ -214,8 +216,8 @@ private:
 	ID3D11BlendState *blendStates_[ NUM_BLEND_MODES ];
 	ID3D11DepthStencilState *depthStencilStates_[ NUM_DEPTH_BUFFER_MODES ];
 
-	ID3D11Buffer *blockVB_;
-	BlockVertex *blockCache_;
+	ID3D11Buffer **blockVB_;
+	// BlockVertex *blockCache_;
 	uint numCachedVerts_;
 
 	Shader shaders_[ MAX_SHADERS ];
