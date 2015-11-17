@@ -643,17 +643,18 @@ void Renderer::DrawChunkMeshBuffer( int x, int z, int bufferIndex, int numVertic
 	ProfileStop();
 }
 #endif
-void Renderer::DrawVertexBuffer( VertexBuffer * vBuffer, int x, int z )
+void Renderer::DrawVertexBuffer( VertexBuffer * vBuffer, uint slot, int x, int z )
 {
-	uint stride = vBuffer->stride_;
+	uint stride = vBuffer->strides_[ slot ];
+	uint numVertices = vBuffer->sizes_[ slot ];
 	uint offset = 0;
-	context_->IASetVertexBuffers( 0, 1, vBuffer->GetBufferPointer(), &stride, &offset );
+	context_->IASetVertexBuffers( 0, 1, vBuffer->GetBuffer( slot ), &stride, &offset );
 
 	ModelCB modelCBData;
 	modelCBData.translate = XMFLOAT4( (float)x, 0.0f, (float)z, 0.0f );
 	context_->UpdateSubresource( modelConstantBuffer_, 0, NULL, &modelCBData, sizeof( ModelCB ), 0 );
 
-	context_->Draw( vBuffer->numVertices_, 0 );
+	context_->Draw( numVertices, 0 );
 }
 
 #if 0
@@ -1355,12 +1356,37 @@ bool Mesh::Load( const VertexPosNormalTexcoord *vertices, int numVertices, ID3D1
 //**************************************************************
 // Vertex Buffer
 //**************************************************************
-bool VertexBuffer::Create( uint vertexSize,
+VertexBuffer::VertexBuffer( uint arraySize )
+{
+	numBuffers_ = arraySize;
+	buffers_ = new ID3D11Buffer * [ arraySize ];
+	for( uint i = 0; i < numBuffers_; i ++ )
+	{
+		buffers_[i] = 0;
+	}
+	sizes_ = new uint[ arraySize ];
+	strides_ = new uint[ arraySize ];
+}
+
+VertexBuffer::~VertexBuffer()
+{
+	for( uint i = 0; i < numBuffers_; i ++ )
+	{
+		RELEASE( buffers_[i] );
+	}
+	delete[] buffers_;
+	delete[] strides_;
+	delete[] sizes_;
+}
+
+bool VertexBuffer::Create( uint slot,
+						   uint vertexSize,
 						   uint numVertices,
 						   ID3D11Device * device,
 						   void * vertices )
 {
-	return Create(	vertexSize,
+	return Create(	slot,
+					vertexSize,
 					numVertices,
 					vertices,
 					RESOURCE_USAGE::DEFAULT,
@@ -1368,7 +1394,8 @@ bool VertexBuffer::Create( uint vertexSize,
 					device );
 }
 
-bool VertexBuffer::Create( 	uint vertexSize,
+bool VertexBuffer::Create( 	uint slot,
+							uint vertexSize,
 							uint numVertices,
 							void * vertices,
 							RESOURCE_USAGE usage,
@@ -1377,8 +1404,8 @@ bool VertexBuffer::Create( 	uint vertexSize,
 {
 	HRESULT hr;
 
-	stride_ = vertexSize;
-	numVertices_ = numVertices;
+	strides_[ slot ] = vertexSize;
+	sizes_[ slot ] = numVertices;
 
 	D3D11_BUFFER_DESC bufferDesc;
 	bufferDesc.Usage            = (D3D11_USAGE)usage;
@@ -1393,11 +1420,11 @@ bool VertexBuffer::Create( 	uint vertexSize,
 		initData.pSysMem = vertices;
 		initData.SysMemPitch = 0;
 		initData.SysMemSlicePitch = 0;
-		hr = device->CreateBuffer( &bufferDesc, &initData, &buffer_ );
+		hr = device->CreateBuffer( &bufferDesc, &initData, &buffers_[ slot ] );
 	}
 	else
 	{
-		hr = device->CreateBuffer( &bufferDesc, NULL, &buffer_ );
+		hr = device->CreateBuffer( &bufferDesc, NULL, &buffers_[ slot ] );
 	}
 
 	if( FAILED( hr ) )
@@ -1407,9 +1434,9 @@ bool VertexBuffer::Create( 	uint vertexSize,
 	return true;
 }
 
-void VertexBuffer::Release()
+void VertexBuffer::Release( uint slot )
 {
-	RELEASE( buffer_ );
+	RELEASE( buffers_[ slot ] );
 }
 
 //********************************

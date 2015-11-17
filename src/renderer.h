@@ -143,28 +143,32 @@ struct Frustum
 class VertexBuffer
 {
 public:
-	VertexBuffer() { buffer_ = 0; };
-	~VertexBuffer() { Release(); };
+	VertexBuffer( uint arraySize = 1 );
+	~VertexBuffer();
 
-	bool Create( uint vertexSize,
+	bool Create( uint slot,
+				 uint vertexSize,
 				 uint numVertices,
 				 ID3D11Device * device,
 				 void * vertices = NULL );
 
-	bool Create( uint vertexSize,
+	bool Create( uint slot,
+				 uint vertexSize,
 				 uint numVertices,
 				 void * vertices,
 				 RESOURCE_USAGE usage,
 				 CPU_ACCESS access,
 				 ID3D11Device * device );
-	void Release();
+	void Release( uint slot );
 
-	ID3D11Buffer ** GetBufferPointer() { return &buffer_; };
+	ID3D11Buffer ** GetBuffer( uint slot ) { return &buffers_[ slot ]; };
+	ID3D11Buffer ** GetBufferArray() { return buffers_; };
 
-	uint numVertices_;
-	uint stride_;
+	uint numBuffers_;
+	uint * sizes_;
+	uint * strides_;
 private:
-	ID3D11Buffer *buffer_;
+	ID3D11Buffer ** buffers_;
 };
 
 //********************
@@ -186,7 +190,7 @@ public:
 	bool SubmitChunkMesh( int index, BlockVertex *vertices, uint numVertices );
 	void DrawChunkMeshBuffer( int x, int z, int bufferIndex, int numVertices );
 
-	void DrawVertexBuffer( VertexBuffer * buffer, int x, int z );
+	void DrawVertexBuffer( VertexBuffer * buffer, uint slot, int x, int z );
 
 	void ClearTexture( RenderTarget *rt, float r = 1.0f, float g = 0.0f, float b = 1.0f, float a = 1.0f );
 	void ClearTexture( DepthBuffer *db, float d = 1.0f );
