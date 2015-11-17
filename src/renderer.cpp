@@ -645,7 +645,7 @@ void Renderer::DrawChunkMeshBuffer( int x, int z, int bufferIndex, int numVertic
 #endif
 void Renderer::DrawVertexBuffer( VertexBuffer * vBuffer, int x, int z )
 {
-	uint stride = vBuffer->stride;
+	uint stride = vBuffer->stride_;
 	uint offset = 0;
 	context_->IASetVertexBuffers( 0, 1, vBuffer->GetBufferPointer(), &stride, &offset );
 
@@ -653,7 +653,7 @@ void Renderer::DrawVertexBuffer( VertexBuffer * vBuffer, int x, int z )
 	modelCBData.translate = XMFLOAT4( (float)x, 0.0f, (float)z, 0.0f );
 	context_->UpdateSubresource( modelConstantBuffer_, 0, NULL, &modelCBData, sizeof( ModelCB ), 0 );
 
-	context_->Draw( vBuffer->numVertices, 0 );
+	context_->Draw( vBuffer->numVertices_, 0 );
 }
 
 #if 0
@@ -1355,39 +1355,30 @@ bool Mesh::Load( const VertexPosNormalTexcoord *vertices, int numVertices, ID3D1
 //**************************************************************
 // Vertex Buffer
 //**************************************************************
-bool Renderer::CreateVertexBuffer( 	VertexBuffer * buffer,
-									uint vertexSize,
-									uint numVertices,
-									RESOURCE_USAGE usage,
-									CPU_ACCESS access )
+bool VertexBuffer::Create( uint vertexSize,
+						   uint numVertices,
+						   ID3D11Device * device,
+						   void * vertices )
 {
-	buffer->stride = vertexSize;
-	buffer->numVertices = numVertices;
-
-	D3D11_BUFFER_DESC bufferDesc;
-	bufferDesc.Usage            = (D3D11_USAGE)usage;
-	bufferDesc.ByteWidth        = vertexSize * numVertices;
-	bufferDesc.BindFlags        = D3D11_BIND_VERTEX_BUFFER;
-	bufferDesc.CPUAccessFlags   = (UINT)access;
-	bufferDesc.MiscFlags        = 0;
-
-	HRESULT hr = device_->CreateBuffer( &bufferDesc, NULL, buffer->GetBufferPointer() );
-	if( FAILED( hr ) )
-	{
-		return false;
-	}
-	return true;
+	return Create(	vertexSize,
+					numVertices,
+					vertices,
+					RESOURCE_USAGE::DEFAULT,
+					CPU_ACCESS::NONE,
+					device );
 }
 
-bool Renderer::CreateVertexBuffer( 	VertexBuffer * buffer,
-									uint vertexSize,
-									uint numVertices,
-									void * vertices,
-									RESOURCE_USAGE usage,
-									CPU_ACCESS access )
+bool VertexBuffer::Create( 	uint vertexSize,
+							uint numVertices,
+							void * vertices,
+							RESOURCE_USAGE usage,
+							CPU_ACCESS access,
+							ID3D11Device * device )
 {
-	buffer->stride = vertexSize;
-	buffer->numVertices = numVertices;
+	HRESULT hr;
+
+	stride_ = vertexSize;
+	numVertices_ = numVertices;
 
 	D3D11_BUFFER_DESC bufferDesc;
 	bufferDesc.Usage            = (D3D11_USAGE)usage;
@@ -1396,12 +1387,19 @@ bool Renderer::CreateVertexBuffer( 	VertexBuffer * buffer,
 	bufferDesc.CPUAccessFlags   = (UINT)access;
 	bufferDesc.MiscFlags        = 0;
 
-	D3D11_SUBRESOURCE_DATA initData;
-	initData.pSysMem = vertices;
-	initData.SysMemPitch = 0;
-	initData.SysMemSlicePitch = 0;
+	if( vertices )
+	{
+		D3D11_SUBRESOURCE_DATA initData;
+		initData.pSysMem = vertices;
+		initData.SysMemPitch = 0;
+		initData.SysMemSlicePitch = 0;
+		hr = device->CreateBuffer( &bufferDesc, &initData, &buffer_ );
+	}
+	else
+	{
+		hr = device->CreateBuffer( &bufferDesc, NULL, &buffer_ );
+	}
 
-	HRESULT hr = device_->CreateBuffer( &bufferDesc, &initData, buffer->GetBufferPointer() );
 	if( FAILED( hr ) )
 	{
 		return false;

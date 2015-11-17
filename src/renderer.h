@@ -145,12 +145,24 @@ class VertexBuffer
 public:
 	VertexBuffer() { buffer_ = 0; };
 	~VertexBuffer() { Release(); };
+
+	bool Create( uint vertexSize,
+				 uint numVertices,
+				 ID3D11Device * device,
+				 void * vertices = NULL );
+
+	bool Create( uint vertexSize,
+				 uint numVertices,
+				 void * vertices,
+				 RESOURCE_USAGE usage,
+				 CPU_ACCESS access,
+				 ID3D11Device * device );
 	void Release();
 
 	ID3D11Buffer ** GetBufferPointer() { return &buffer_; };
 
-	uint numVertices;
-	uint stride;
+	uint numVertices_;
+	uint stride_;
 private:
 	ID3D11Buffer *buffer_;
 };
@@ -173,6 +185,8 @@ public:
 //	void DrawChunkMesh( int x, int z, BlockVertex *vertices, int numVertices );
 	bool SubmitChunkMesh( int index, BlockVertex *vertices, uint numVertices );
 	void DrawChunkMeshBuffer( int x, int z, int bufferIndex, int numVertices );
+
+	void DrawVertexBuffer( VertexBuffer * buffer, int x, int z );
 
 	void ClearTexture( RenderTarget *rt, float r = 1.0f, float g = 0.0f, float b = 1.0f, float a = 1.0f );
 	void ClearTexture( DepthBuffer *db, float d = 1.0f );
@@ -209,10 +223,6 @@ public:
 	void SetTexture( RenderTarget& texture, SHADER_TYPE shader, uint slot = 0 );
 	void RemoveTexture( SHADER_TYPE shader, uint slot = 0 );
 
-	/* Factory functions */
-	bool CreateVertexBuffer( VertexBuffer * buffer, uint vertexSize, uint numVertices, RESOURCE_USAGE usage = RESOURCE_USAGE::DEFAULT, CPU_ACCESS access = CPU_ACCESS::NONE );
-	bool CreateVertexBuffer( VertexBuffer * buffer, uint vertexSize, uint numVertices, void * initData, RESOURCE_USAGE usage = RESOURCE_USAGE::DEFAULT, CPU_ACCESS access = CPU_ACCESS::NONE );
-	void DrawVertexBuffer( VertexBuffer * buffer, int x, int z );
 
 	unsigned int numBatches_;
 private:
