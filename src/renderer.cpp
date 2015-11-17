@@ -59,7 +59,7 @@ Renderer::Renderer()
 		meshes_[i] = Mesh();
 	}
 
-	blockVB_ = 0;
+	//blockVB_ = 0;
 
 	// blockCache_ = new BlockVertex[ MAX_VERTS_PER_BATCH ];
 	numCachedVerts_ = 0;
@@ -79,14 +79,14 @@ Renderer::~Renderer()
 #endif
 
 	// delete[] blockCache_;
-	if( blockVB_ )
-	{
-		for( int i = 0; i < gChunkMeshCacheDim * gChunkMeshCacheDim; i++ )
-		{
-			RELEASE( blockVB_[i] );
-		}
-		delete[] blockVB_;
-	}
+//	if( blockVB_ )
+//	{
+//		for( int i = 0; i < gChunkMeshCacheDim * gChunkMeshCacheDim; i++ )
+//		{
+//			RELEASE( blockVB_[i] );
+//		}
+//		delete[] blockVB_;
+//	}
 	for( int i = 0; i < NUM_DEPTH_BUFFER_MODES; i++ ) {
 		RELEASE( depthStencilStates_[i] );
 	}
@@ -536,11 +536,11 @@ bool Renderer::Start( HWND wnd )
 		return false;
 	}
 
-	blockVB_ = new ID3D11BufferArray[ gChunkMeshCacheDim * gChunkMeshCacheDim ];
-	for( int i = 0; i < gChunkMeshCacheDim * gChunkMeshCacheDim; i++ )
-	{
-		blockVB_[i] = 0;
-	}
+//	blockVB_ = new ID3D11BufferArray[ gChunkMeshCacheDim * gChunkMeshCacheDim ];
+//	for( int i = 0; i < gChunkMeshCacheDim * gChunkMeshCacheDim; i++ )
+//	{
+//		blockVB_[i] = 0;
+//	}
 #if 0
 	// vertex buffer to store chunk meshes
 	D3D11_BUFFER_DESC vertexBufferDesc;
@@ -595,6 +595,7 @@ void Renderer::SetChunkDrawingState()
 //	context_->IASetVertexBuffers( 0, 1, &blockVB_, &stride, &offset );
 }
 
+#if 0
 bool Renderer::SubmitChunkMesh( int index, BlockVertex *vertices, uint numVertices )
 {
 	//TODO: don't release a buffer if the new chunk fits in it?
@@ -641,6 +642,20 @@ void Renderer::DrawChunkMeshBuffer( int x, int z, int bufferIndex, int numVertic
 
 	ProfileStop();
 }
+#endif
+void Renderer::DrawVertexBuffer( VertexBuffer * vBuffer, int x, int z )
+{
+	uint stride = vBuffer->stride;
+	uint offset = 0;
+	context_->IASetVertexBuffers( 0, 1, vBuffer->GetBufferPointer(), &stride, &offset );
+
+	ModelCB modelCBData;
+	modelCBData.translate = XMFLOAT4( (float)x, 0.0f, (float)z, 0.0f );
+	context_->UpdateSubresource( modelConstantBuffer_, 0, NULL, &modelCBData, sizeof( ModelCB ), 0 );
+
+	context_->Draw( vBuffer->numVertices, 0 );
+}
+
 #if 0
 void Renderer::DrawChunkMesh( int x, int z, BlockVertex *vertices, int numVertices )
 {
@@ -1335,6 +1350,68 @@ bool Mesh::Load( const VertexPosNormalTexcoord *vertices, int numVertices, ID3D1
 		return false;
 	}
 	return true;
+}
+
+//**************************************************************
+// Vertex Buffer
+//**************************************************************
+bool Renderer::CreateVertexBuffer( 	VertexBuffer * buffer,
+									uint vertexSize,
+									uint numVertices,
+									RESOURCE_USAGE usage,
+									CPU_ACCESS access )
+{
+	buffer->stride = vertexSize;
+	buffer->numVertices = numVertices;
+
+	D3D11_BUFFER_DESC bufferDesc;
+	bufferDesc.Usage            = (D3D11_USAGE)usage;
+	bufferDesc.ByteWidth        = vertexSize * numVertices;
+	bufferDesc.BindFlags        = D3D11_BIND_VERTEX_BUFFER;
+	bufferDesc.CPUAccessFlags   = (UINT)access;
+	bufferDesc.MiscFlags        = 0;
+
+	HRESULT hr = device_->CreateBuffer( &bufferDesc, NULL, buffer->GetBufferPointer() );
+	if( FAILED( hr ) )
+	{
+		return false;
+	}
+	return true;
+}
+
+bool Renderer::CreateVertexBuffer( 	VertexBuffer * buffer,
+									uint vertexSize,
+									uint numVertices,
+									void * vertices,
+									RESOURCE_USAGE usage,
+									CPU_ACCESS access )
+{
+	buffer->stride = vertexSize;
+	buffer->numVertices = numVertices;
+
+	D3D11_BUFFER_DESC bufferDesc;
+	bufferDesc.Usage            = (D3D11_USAGE)usage;
+	bufferDesc.ByteWidth        = vertexSize * numVertices;
+	bufferDesc.BindFlags        = D3D11_BIND_VERTEX_BUFFER;
+	bufferDesc.CPUAccessFlags   = (UINT)access;
+	bufferDesc.MiscFlags        = 0;
+
+	D3D11_SUBRESOURCE_DATA initData;
+	initData.pSysMem = vertices;
+	initData.SysMemPitch = 0;
+	initData.SysMemSlicePitch = 0;
+
+	HRESULT hr = device_->CreateBuffer( &bufferDesc, &initData, buffer->GetBufferPointer() );
+	if( FAILED( hr ) )
+	{
+		return false;
+	}
+	return true;
+}
+
+void VertexBuffer::Release()
+{
+	RELEASE( buffer_ );
 }
 
 //********************************

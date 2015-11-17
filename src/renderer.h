@@ -140,6 +140,21 @@ struct Frustum
 	DirectX::XMFLOAT3 corners[8];
 };
 
+class VertexBuffer
+{
+public:
+	VertexBuffer() { buffer_ = 0; };
+	~VertexBuffer() { Release(); };
+	void Release();
+
+	ID3D11Buffer ** GetBufferPointer() { return &buffer_; };
+
+	uint numVertices;
+	uint stride;
+private:
+	ID3D11Buffer *buffer_;
+};
+
 //********************
 // Renderer
 //********************
@@ -194,6 +209,11 @@ public:
 	void SetTexture( RenderTarget& texture, SHADER_TYPE shader, uint slot = 0 );
 	void RemoveTexture( SHADER_TYPE shader, uint slot = 0 );
 
+	/* Factory functions */
+	bool CreateVertexBuffer( VertexBuffer * buffer, uint vertexSize, uint numVertices, RESOURCE_USAGE usage = RESOURCE_USAGE::DEFAULT, CPU_ACCESS access = CPU_ACCESS::NONE );
+	bool CreateVertexBuffer( VertexBuffer * buffer, uint vertexSize, uint numVertices, void * initData, RESOURCE_USAGE usage = RESOURCE_USAGE::DEFAULT, CPU_ACCESS access = CPU_ACCESS::NONE );
+	void DrawVertexBuffer( VertexBuffer * buffer, int x, int z );
+
 	unsigned int numBatches_;
 private:
 	static bool isInstantiated_;
@@ -216,7 +236,7 @@ private:
 	ID3D11BlendState *blendStates_[ NUM_BLEND_MODES ];
 	ID3D11DepthStencilState *depthStencilStates_[ NUM_DEPTH_BUFFER_MODES ];
 
-	ID3D11Buffer **blockVB_;
+//	ID3D11Buffer **blockVB_;
 	// BlockVertex *blockCache_;
 	uint numCachedVerts_;
 

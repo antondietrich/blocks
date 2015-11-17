@@ -68,6 +68,23 @@ enum RASTERIZER_STATE
 	NUM_RASTERIZER_STATES
 };
 
+// Buffer related
+
+enum class RESOURCE_USAGE
+{
+	DEFAULT = 0,
+	IMMUTABLE = 1,
+	DYNAMIC = 2,
+	STAGING = 3
+};
+
+enum class CPU_ACCESS
+{
+	NONE = 0,
+	WRITE = 0x10000L,
+	READ = 0x20000L
+};
+
 } // namespace Blocks
 
 #endif // __BLOCKS_RENDERER_DEF__

@@ -34,8 +34,9 @@ int gChunkCacheHalfDim = 0;
 int gChunkCacheDim = 0;
 int gChunkMeshCacheHalfDim = 0;
 int gChunkMeshCacheDim = 0;
-Chunk * gChunkCache; // [ CHUNK_CACHE_DIM * CHUNK_CACHE_DIM ]
+Chunk * gChunkCache;
 ChunkMesh * gChunkMeshCache;
+VertexBuffer *gChunkVertexBuffers;
 
 RenderTarget gShadowRT;
 DepthBuffer gShadowDB;
@@ -123,11 +124,26 @@ renderer()
 
 Game::~Game()
 {
-
+	for( int i = 0; i < gChunkMeshCacheDim * gChunkMeshCacheDim; ++i )
+	{
+		gChunkVertexBuffers[i].Release();
+	}
+	delete[] gChunkVertexBuffers;
+	delete[] gChunkCache;
+	delete[] gChunkMeshCache;
 }
 
 bool Game::Start( HWND wnd )
 {
+	if( !renderer.Start( wnd ) )
+	{
+		return false;
+	}
+
+	if( !overlay.Start( &renderer ) )
+	{
+		return false;
+	}
 	for( int i = 0; i < KEY::COUNT; i++ )
 	{
 		input.key[i] = { 0 };
@@ -145,17 +161,7 @@ bool Game::Start( HWND wnd )
 
 	gChunkCache = new Chunk[ gChunkCacheDim * gChunkCacheDim ];
 	gChunkMeshCache = new ChunkMesh[ gChunkMeshCacheDim * gChunkMeshCacheDim ];
-	// renderer.InitChunkMeshCache( gChunkMeshCacheDim );
-
-	if( !renderer.Start( wnd ) )
-	{
-		return false;
-	}
-
-	if( !overlay.Start( &renderer ) )
-	{
-		return false;
-	}
+	gChunkVertexBuffers = new VertexBuffer[ gChunkMeshCacheDim * gChunkMeshCacheDim ];
 
 	InitWorldGen();
 	PrefillChunkCache( gChunkCache, gChunkCacheDim );
@@ -750,7 +756,12 @@ void Game::DoFrame( float dt )
 											  chunkNegX,		chunk,		chunkPosX,
 											  chunkNegXNegZ,	chunkNegZ,	chunkPosXNegZ );
 
-				renderer.SubmitChunkMesh( MeshCacheIndexFromChunkPos( x, z, gChunkMeshCacheDim ), chunkMesh->vertices, chunkMesh->numVertices );
+				// renderer.SubmitChunkMesh( MeshCacheIndexFromChunkPos( x, z, gChunkMeshCacheDim ), chunkMesh->vertices, chunkMesh->numVertices );
+				gChunkVertexBuffers[MeshCacheIndexFromChunkPos( x, z, gChunkMeshCacheDim )].Release();
+				renderer.CreateVertexBuffer( 	&gChunkVertexBuffers[MeshCacheIndexFromChunkPos( x, z, gChunkMeshCacheDim )],
+												sizeof( BlockVertex ),
+												chunkMesh->numVertices,
+												chunkMesh->vertices );
 			} // else
 
 		} // for chunkX
@@ -861,10 +872,13 @@ void Game::DoFrame( float dt )
 	{
 		if( gChunkMeshCache[ meshIndex ].vertices )
 		{
-			renderer.DrawChunkMeshBuffer( gChunkMeshCache[ meshIndex ].chunkPos[0] * CHUNK_WIDTH,
-											gChunkMeshCache[ meshIndex ].chunkPos[1] * CHUNK_WIDTH,
-											meshIndex,
-											gChunkMeshCache[ meshIndex ].numVertices );
+			//renderer.DrawChunkMeshBuffer( 	gChunkMeshCache[ meshIndex ].chunkPos[0] * CHUNK_WIDTH,
+			//								gChunkMeshCache[ meshIndex ].chunkPos[1] * CHUNK_WIDTH,
+			//								meshIndex,
+			//								gChunkMeshCache[ meshIndex ].numVertices );
+			renderer.DrawVertexBuffer( &gChunkVertexBuffers[ meshIndex ],
+										gChunkMeshCache[ meshIndex ].chunkPos[0] * CHUNK_WIDTH,
+										gChunkMeshCache[ meshIndex ].chunkPos[1] * CHUNK_WIDTH );
 			numDrawnVertices += gChunkMeshCache[ meshIndex ].numVertices;
 		}
 	}
@@ -1001,10 +1015,13 @@ void Game::DoFrame( float dt )
 			ProfileStart( "BeatyDrawing" );
 			if( !culled )
 			{
-				renderer.DrawChunkMeshBuffer( gChunkMeshCache[ meshIndex ].chunkPos[0] * CHUNK_WIDTH,
-											gChunkMeshCache[ meshIndex ].chunkPos[1] * CHUNK_WIDTH,
-											meshIndex,
-											gChunkMeshCache[ meshIndex ].numVertices );
+				//renderer.DrawChunkMeshBuffer( gChunkMeshCache[ meshIndex ].chunkPos[0] * CHUNK_WIDTH,
+				//							gChunkMeshCache[ meshIndex ].chunkPos[1] * CHUNK_WIDTH,
+				//							meshIndex,
+				//							gChunkMeshCache[ meshIndex ].numVertices );
+				renderer.DrawVertexBuffer( &gChunkVertexBuffers[ meshIndex ],
+										gChunkMeshCache[ meshIndex ].chunkPos[0] * CHUNK_WIDTH,
+										gChunkMeshCache[ meshIndex ].chunkPos[1] * CHUNK_WIDTH );
 				numDrawnVertices += gChunkMeshCache[ meshIndex ].numVertices;
 				numChunksDrawn++;
 			}
