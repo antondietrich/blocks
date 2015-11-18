@@ -197,7 +197,7 @@ bool LoadConfig()
 //	Config.screenHeight = 1080;
 	Config.multisampling = 2;
 	Config.filtering = 8;
-	Config.viewDistanceChunks = 6;
+	Config.viewDistanceChunks = 12;
 
 	return true;
 }

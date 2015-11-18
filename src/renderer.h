@@ -140,6 +140,37 @@ struct Frustum
 	DirectX::XMFLOAT3 corners[8];
 };
 
+class VertexBuffer
+{
+public:
+	VertexBuffer( uint arraySize = 1 );
+	~VertexBuffer();
+
+	bool Create( uint slot,
+				 uint vertexSize,
+				 uint numVertices,
+				 ID3D11Device * device,
+				 void * vertices = NULL );
+
+	bool Create( uint slot,
+				 uint vertexSize,
+				 uint numVertices,
+				 void * vertices,
+				 RESOURCE_USAGE usage,
+				 CPU_ACCESS access,
+				 ID3D11Device * device );
+	void Release( uint slot );
+
+	ID3D11Buffer ** GetBuffer( uint slot ) { return &buffers_[ slot ]; };
+	ID3D11Buffer ** GetBufferArray() { return buffers_; };
+
+	uint numBuffers_;
+	uint * sizes_;
+	uint * strides_;
+private:
+	ID3D11Buffer ** buffers_;
+};
+
 //********************
 // Renderer
 //********************
@@ -155,7 +186,11 @@ public:
 	void End();
 
 	void SetChunkDrawingState();
-	void DrawChunkMesh( int x, int z, BlockVertex *vertices, int numVertices );
+//	void DrawChunkMesh( int x, int z, BlockVertex *vertices, int numVertices );
+	bool SubmitChunkMesh( int index, BlockVertex *vertices, uint numVertices );
+	void DrawChunkMeshBuffer( int x, int z, int bufferIndex, int numVertices );
+
+	void DrawVertexBuffer( VertexBuffer * buffer, uint slot, int x, int z );
 
 	void ClearTexture( RenderTarget *rt, float r = 1.0f, float g = 0.0f, float b = 1.0f, float a = 1.0f );
 	void ClearTexture( DepthBuffer *db, float d = 1.0f );
@@ -192,6 +227,7 @@ public:
 	void SetTexture( RenderTarget& texture, SHADER_TYPE shader, uint slot = 0 );
 	void RemoveTexture( SHADER_TYPE shader, uint slot = 0 );
 
+
 	unsigned int numBatches_;
 private:
 	static bool isInstantiated_;
@@ -214,8 +250,8 @@ private:
 	ID3D11BlendState *blendStates_[ NUM_BLEND_MODES ];
 	ID3D11DepthStencilState *depthStencilStates_[ NUM_DEPTH_BUFFER_MODES ];
 
-	ID3D11Buffer *blockVB_;
-	BlockVertex *blockCache_;
+//	ID3D11Buffer **blockVB_;
+	// BlockVertex *blockCache_;
 	uint numCachedVerts_;
 
 	Shader shaders_[ MAX_SHADERS ];

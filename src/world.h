@@ -80,7 +80,7 @@ struct Chunk
 struct ChunkMesh
 {
 	int chunkPos[2];
-	int size;
+	int numVertices;
 	bool dirty;
 	BlockVertex* vertices;
 };
