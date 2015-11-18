@@ -835,7 +835,8 @@ void Game::DoFrame( float dt )
 	renderer.SetRasterizer( RS_SHADOWMAP );
 	renderer.SetSampler( SAMPLER_POINT, ST_FRAGMENT, 1 );
 	renderer.SetShader( 1 );
-	renderer.RemoveTexture( ST_FRAGMENT, 1 );
+	// renderer.RemoveTexture( ST_FRAGMENT, 1 );
+	renderer.RemoveTexture( ST_FRAGMENT, 4 );
 
 	renderer.SetLightCBuffer( lightCBData );
 
@@ -851,8 +852,8 @@ void Game::DoFrame( float dt )
 
 	renderer.ClearTexture( &gShadowRT );
 	renderer.ClearTexture( &gShadowDB );
-
 	renderer.SetRenderTarget( &gShadowRT, &gShadowDB );
+
 	for( int meshIndex = 0; meshIndex < gChunkMeshCacheDim * gChunkMeshCacheDim; meshIndex++ )
 	{
 		if( gChunkMeshCache[ meshIndex ].vertices )
