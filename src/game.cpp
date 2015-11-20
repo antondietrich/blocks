@@ -854,6 +854,8 @@ void Game::DoFrame( float dt )
 	renderer.ClearTexture( &gShadowDB );
 	renderer.SetRenderTarget( &gShadowRT, &gShadowDB );
 
+	int numChunksToDrawSM = gChunkMeshCacheDim * gChunkMeshCacheDim;
+	int numChunksDrawnSM = 0;
 	for( int meshIndex = 0; meshIndex < gChunkMeshCacheDim * gChunkMeshCacheDim; meshIndex++ )
 	{
 		if( gChunkMeshCache[ meshIndex ].vertices )
@@ -863,6 +865,7 @@ void Game::DoFrame( float dt )
 												gChunkMeshCache[ meshIndex ].vertices,
 												gChunkMeshCache[ meshIndex ].size );
 			numDrawnVertices += gChunkMeshCache[ meshIndex ].size;
+			++numChunksDrawnSM;
 		}
 	}
 
@@ -957,14 +960,14 @@ void Game::DoFrame( float dt )
 	renderer.SetRenderTarget( 0, 0 );
 	renderer.SetTexture( gShadowRT, ST_FRAGMENT, 4 );
 
-	int numChunksToDraw = 0;
-	int numChunksDrawn = 0;
+	int numChunksToDrawRT = gChunkMeshCacheDim * gChunkMeshCacheDim;
+	int numChunksDrawnRT = 0;
 	Plane frustumPlanes[6];
 	for( int meshIndex = 0; meshIndex < gChunkMeshCacheDim * gChunkMeshCacheDim; meshIndex++ )
 	{
 		if( gChunkMeshCache[ meshIndex ].vertices )
 		{
-			numChunksToDraw++;
+			// numChunksToDrawRT++;
 
 			frustumPlanes[0] = Plane( playerFrustum.corners[ 0 ], playerFrustum.corners[ 3 ], playerFrustum.corners[ 4 ] );
 			frustumPlanes[1] = Plane( playerFrustum.corners[ 0 ], playerFrustum.corners[ 4 ], playerFrustum.corners[ 1 ] );
@@ -1001,7 +1004,7 @@ void Game::DoFrame( float dt )
 													gChunkMeshCache[ meshIndex ].vertices,
 													gChunkMeshCache[ meshIndex ].size );
 				numDrawnVertices += gChunkMeshCache[ meshIndex ].size;
-				numChunksDrawn++;
+				numChunksDrawnRT++;
 			}
 
 		}
@@ -1037,8 +1040,8 @@ void Game::DoFrame( float dt )
 		overlay.WriteLine( "Chunk buffer size: %i KB", sizeof( BlockVertex ) * MAX_VERTS_PER_BATCH / 1024 );
 //		overlay.WriteLine( "Batches rendered: %i", renderer.numBatches_ );
 //		overlay.WriteLine( "Vertices rendered: %i", numDrawnVertices );
-		overlay.WriteLine( "Chunks generated: %i", chunksGenerated );
-		overlay.WriteLine( "Chunk meshes rebuild: %i", chunkMeshesRebuilt );
+//		overlay.WriteLine( "Chunks generated: %i", chunksGenerated );
+//		overlay.WriteLine( "Chunk meshes rebuild: %i", chunkMeshesRebuilt );
 //		overlay.WriteLine( "Mouse offset: %+03i - %+03i", input.mouse.x, input.mouse.y );
 		overlay.WriteLine( "" );
 		overlay.WriteLine( "Player pos: %5.2f %5.2f %5.2f", playerPos.x, playerPos.y, playerPos.z );
@@ -1055,9 +1058,12 @@ void Game::DoFrame( float dt )
 		}
 
 		overlay.WriteLine( "" );
-		overlay.WriteLine( "Drawing %i / %i chunks (%i culled)", numChunksDrawn,
-																 numChunksToDraw,
-																 numChunksToDraw - numChunksDrawn );
+		overlay.WriteLine( "SM: V%3i C%3i T%3i", numChunksToDrawSM,
+												 numChunksDrawnSM,
+												 numChunksToDrawSM - numChunksDrawnSM );
+		overlay.WriteLine( "RT: V%3i C%3i T%3i", numChunksToDrawRT,
+												 numChunksDrawnRT,
+												 numChunksToDrawRT - numChunksDrawnRT );
 
 
 		ProfileStop();
