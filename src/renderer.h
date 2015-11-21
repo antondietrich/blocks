@@ -135,11 +135,6 @@ private:
 	friend class Renderer;
 };
 
-struct Frustum
-{
-	DirectX::XMFLOAT3 corners[8];
-};
-
 class VertexBuffer
 {
 public:
