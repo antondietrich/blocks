@@ -21,6 +21,39 @@ Plane::Plane( DirectX::XMFLOAT3 p0, DirectX::XMFLOAT3 p1, DirectX::XMFLOAT3 p2 )
 	d = XMVectorGetX( vd );
 }
 
+
+Frustum::Frustum( DirectX::XMFLOAT3 A, DirectX::XMFLOAT3 B, DirectX::XMFLOAT3 C, DirectX::XMFLOAT3 D,
+		 DirectX::XMFLOAT3 E, DirectX::XMFLOAT3 F, DirectX::XMFLOAT3 G, DirectX::XMFLOAT3 H )
+{
+	corners[0] = A;
+	corners[1] = B;
+	corners[2] = C;
+	corners[3] = D;
+	corners[4] = E;
+	corners[5] = F;
+	corners[6] = G;
+	corners[7] = H;
+
+	planes[0] = Plane( corners[ 0 ], corners[ 3 ], corners[ 4 ] );
+	planes[1] = Plane( corners[ 0 ], corners[ 4 ], corners[ 1 ] );
+	planes[2] = Plane( corners[ 1 ], corners[ 5 ], corners[ 2 ] );
+	planes[3] = Plane( corners[ 2 ], corners[ 6 ], corners[ 3 ] );
+	planes[4] = Plane( corners[ 0 ], corners[ 1 ], corners[ 3 ] );
+	planes[5] = Plane( corners[ 5 ], corners[ 4 ], corners[ 6 ] );
+}
+
+bool IsFrustumCulled( const Frustum &frustum, AABB aabb )
+{
+	for( int planeIndex = 0; planeIndex < 6; planeIndex++ )
+	{
+		if( TestIntersection( frustum.planes[ planeIndex ], aabb ) == OUTSIDE )
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 bool TestIntersection( Segment seg, AABB bound )
 {
 	if( seg.B.x > bound.min.x &&

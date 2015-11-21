@@ -41,6 +41,21 @@ struct AABB
 	DirectX::XMFLOAT3 max;
 };
 
+
+
+struct Frustum
+{
+	Frustum() {};
+	Frustum( DirectX::XMFLOAT3 A, DirectX::XMFLOAT3 B, DirectX::XMFLOAT3 C, DirectX::XMFLOAT3 D,
+			 DirectX::XMFLOAT3 E, DirectX::XMFLOAT3 F, DirectX::XMFLOAT3 G, DirectX::XMFLOAT3 H );
+	~Frustum() {};
+	DirectX::XMFLOAT3 corners[8];
+	Plane planes[6];
+};
+bool IsFrustumCulled( const Frustum&, AABB );
+
+
+
 struct RayAABBIntersection
 {
 	DirectX::XMFLOAT3 point;
