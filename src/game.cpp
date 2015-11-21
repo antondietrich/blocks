@@ -851,7 +851,8 @@ void Game::DoFrame( float dt )
 	renderer.SetRasterizer( RS_SHADOWMAP );
 	renderer.SetSampler( SAMPLER_POINT, ST_FRAGMENT, 1 );
 	renderer.SetShader( 1 );
-	renderer.RemoveTexture( ST_FRAGMENT, 1 );
+	// renderer.RemoveTexture( ST_FRAGMENT, 1 );
+	renderer.RemoveTexture( ST_FRAGMENT, 4 );
 
 	renderer.SetLightCBuffer( lightCBData );
 
@@ -867,22 +868,21 @@ void Game::DoFrame( float dt )
 
 	renderer.ClearTexture( &gShadowRT );
 	renderer.ClearTexture( &gShadowDB );
-
 	renderer.SetRenderTarget( &gShadowRT, &gShadowDB );
 	ProfileStart( "ShadowmapDrawing" );
+
+	int numChunksToDrawSM = gChunkMeshCacheDim * gChunkMeshCacheDim;
+	int numChunksDrawnSM = 0;
 	for( int meshIndex = 0; meshIndex < gChunkMeshCacheDim * gChunkMeshCacheDim; meshIndex++ )
 	{
 		if( gChunkMeshCache[ meshIndex ].vertices )
 		{
-			//renderer.DrawChunkMeshBuffer( 	gChunkMeshCache[ meshIndex ].chunkPos[0] * CHUNK_WIDTH,
-			//								gChunkMeshCache[ meshIndex ].chunkPos[1] * CHUNK_WIDTH,
-			//								meshIndex,
-			//								gChunkMeshCache[ meshIndex ].numVertices );
 			renderer.DrawVertexBuffer(  gChunkVertexBuffer,
 										meshIndex,
 										gChunkMeshCache[ meshIndex ].chunkPos[0] * CHUNK_WIDTH,
 										gChunkMeshCache[ meshIndex ].chunkPos[1] * CHUNK_WIDTH );
 			numDrawnVertices += gChunkMeshCache[ meshIndex ].numVertices;
+			++numChunksDrawnSM;
 		}
 	}
 	ProfileStop(); // ShadowmapDrawing
@@ -979,8 +979,8 @@ void Game::DoFrame( float dt )
 	renderer.SetRenderTarget( 0, 0 );
 	renderer.SetTexture( gShadowRT, ST_FRAGMENT, 4 );
 
-	int numChunksToDraw = 0;
-	int numChunksDrawn = 0;
+	int numChunksToDrawRT = gChunkMeshCacheDim * gChunkMeshCacheDim;
+	int numChunksDrawnRT = 0;
 	Plane frustumPlanes[6];
 	frustumPlanes[0] = Plane( playerFrustum.corners[ 0 ], playerFrustum.corners[ 3 ], playerFrustum.corners[ 4 ] );
 	frustumPlanes[1] = Plane( playerFrustum.corners[ 0 ], playerFrustum.corners[ 4 ], playerFrustum.corners[ 1 ] );
@@ -993,7 +993,6 @@ void Game::DoFrame( float dt )
 	{
 		if( gChunkMeshCache[ meshIndex ].vertices )
 		{
-			numChunksToDraw++;
 			bool culled = false;
 
 			AABB chunkBound;
@@ -1018,16 +1017,12 @@ void Game::DoFrame( float dt )
 			ProfileStart( "BeatyDrawing" );
 			if( !culled )
 			{
-				//renderer.DrawChunkMeshBuffer( gChunkMeshCache[ meshIndex ].chunkPos[0] * CHUNK_WIDTH,
-				//							gChunkMeshCache[ meshIndex ].chunkPos[1] * CHUNK_WIDTH,
-				//							meshIndex,
-				//							gChunkMeshCache[ meshIndex ].numVertices );
 				renderer.DrawVertexBuffer(  gChunkVertexBuffer,
 											meshIndex,
 											gChunkMeshCache[ meshIndex ].chunkPos[0] * CHUNK_WIDTH,
 											gChunkMeshCache[ meshIndex ].chunkPos[1] * CHUNK_WIDTH );
 				numDrawnVertices += gChunkMeshCache[ meshIndex ].numVertices;
-				numChunksDrawn++;
+				numChunksDrawnRT++;
 			}
 			ProfileStop();
 
@@ -1083,9 +1078,12 @@ void Game::DoFrame( float dt )
 		}
 
 		overlay.WriteLine( "" );
-		overlay.WriteLine( "Drawing %i / %i chunks (%i culled)", numChunksDrawn,
-																 numChunksToDraw,
-																 numChunksToDraw - numChunksDrawn );
+		overlay.WriteLine( "SM: V%3i C%3i T%3i", numChunksDrawnSM,
+												 numChunksToDrawSM - numChunksDrawnSM,
+												 numChunksToDrawSM );
+		overlay.WriteLine( "RT: V%3i C%3i T%3i", numChunksDrawnRT,
+												 numChunksToDrawRT - numChunksDrawnRT,
+												 numChunksToDrawRT );
 
 
 		ProfileStop();
