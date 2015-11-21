@@ -812,7 +812,7 @@ void Game::DoFrame( float dt )
 	gSunDirection.z = sin( sunAzimuth ) * sin( XM_PIDIV2 - sunElevation );
 	gSunDirection.x = cos( sunAzimuth );
 
-	float smRegionDim = (float)gChunkMeshCacheDim * CHUNK_WIDTH;
+	float smRegionDim = (float)gChunkMeshCacheDim * 0.5f * CHUNK_WIDTH;
 
 	ProfileStart( "ShadowmapPass" );
 	XMMATRIX lightProj = XMMatrixOrthographicLH(	smRegionDim*0.5f,
@@ -821,12 +821,12 @@ void Game::DoFrame( float dt )
 													smRegionDim*0.5f );
 
 	XMVECTOR vSunDirection = -XMVector4Normalize( XMLoadFloat3( &gSunDirection ) );
-	XMVECTOR lightUp = XMVector4Normalize( XMVectorSet( 0.0f, cos( sunElevation ), -sin( sunElevation ), 0.0f ) );
-	XMVECTOR lightRight = XMVector4Normalize( XMVector3Cross( lightUp, vSunDirection ) );
+	XMVECTOR vLightUp = XMVector4Normalize( XMVectorSet( 0.0f, cos( sunElevation ), -sin( sunElevation ), 0.0f ) );
+	XMVECTOR vLightRight = XMVector4Normalize( XMVector3Cross( vLightUp, vSunDirection ) );
 
 	XMMATRIX worldToLight = XMMatrixTranspose( XMMATRIX(
-		lightRight,
-		lightUp,
+		vLightRight,
+		vLightUp,
 		vSunDirection,
 		XMVectorSet( 0.0f, 0.0f, 0.0f, 1.0f ) ) );
 	XMMATRIX lightToWorld = XMMatrixTranspose( worldToLight );
@@ -840,8 +840,29 @@ void Game::DoFrame( float dt )
 	vLightPos /= texelsPerMeter;
 	vLightPos = XMVector4Transform( vLightPos, lightToWorld );
 
-	XMMATRIX lightView =  XMMatrixLookToLH( vLightPos, vSunDirection, lightUp );
+	XMMATRIX lightView =  XMMatrixLookToLH( vLightPos, vSunDirection, vLightUp );
 	XMMATRIX lightVP = XMMatrixTranspose( XMMatrixMultiply( lightView, lightProj ) );
+
+	XMFLOAT3 sunFrustumA;
+	XMFLOAT3 sunFrustumB;
+	XMFLOAT3 sunFrustumC;
+	XMFLOAT3 sunFrustumD;
+	XMFLOAT3 sunFrustumE;
+	XMFLOAT3 sunFrustumF;
+	XMFLOAT3 sunFrustumG;
+	XMFLOAT3 sunFrustumH;
+
+	XMStoreFloat3( &sunFrustumA, vLightPos - vSunDirection*smRegionDim*0.5f - vLightRight*smRegionDim*0.5f - vLightUp*smRegionDim*0.5f );
+	XMStoreFloat3( &sunFrustumB, vLightPos - vSunDirection*smRegionDim*0.5f + vLightRight*smRegionDim*0.5f - vLightUp*smRegionDim*0.5f );
+	XMStoreFloat3( &sunFrustumC, vLightPos - vSunDirection*smRegionDim*0.5f + vLightRight*smRegionDim*0.5f + vLightUp*smRegionDim*0.5f );
+	XMStoreFloat3( &sunFrustumD, vLightPos - vSunDirection*smRegionDim*0.5f - vLightRight*smRegionDim*0.5f + vLightUp*smRegionDim*0.5f );
+	XMStoreFloat3( &sunFrustumE, vLightPos + vSunDirection*smRegionDim*0.5f - vLightRight*smRegionDim*0.5f - vLightUp*smRegionDim*0.5f );
+	XMStoreFloat3( &sunFrustumF, vLightPos + vSunDirection*smRegionDim*0.5f + vLightRight*smRegionDim*0.5f - vLightUp*smRegionDim*0.5f );
+	XMStoreFloat3( &sunFrustumG, vLightPos + vSunDirection*smRegionDim*0.5f + vLightRight*smRegionDim*0.5f + vLightUp*smRegionDim*0.5f );
+	XMStoreFloat3( &sunFrustumH, vLightPos + vSunDirection*smRegionDim*0.5f - vLightRight*smRegionDim*0.5f + vLightUp*smRegionDim*0.5f );
+
+	Frustum sunFrustum = Frustum( sunFrustumA, sunFrustumB, sunFrustumC, sunFrustumD,
+								  sunFrustumE, sunFrustumF, sunFrustumG, sunFrustumH );
 
 	LightCB lightCBData;
 	XMStoreFloat4x4( &lightCBData.vp, lightVP );
@@ -875,7 +896,22 @@ void Game::DoFrame( float dt )
 	int numChunksDrawnSM = 0;
 	for( int meshIndex = 0; meshIndex < gChunkMeshCacheDim * gChunkMeshCacheDim; meshIndex++ )
 	{
-		if( gChunkMeshCache[ meshIndex ].vertices )
+		AABB chunkBound;
+		chunkBound.min = {
+			float( gChunkMeshCache[ meshIndex ].chunkPos[0] * CHUNK_WIDTH ),
+			0,
+			float( gChunkMeshCache[ meshIndex ].chunkPos[1] * CHUNK_WIDTH ) };
+		chunkBound.max = {
+			chunkBound.min.x + CHUNK_WIDTH,
+			CHUNK_HEIGHT,
+			chunkBound.min.z + CHUNK_WIDTH };
+
+		ProfileStart( "Culling" );
+		bool culled = IsFrustumCulled( sunFrustum, chunkBound );
+		ProfileStop();
+
+
+		if( gChunkMeshCache[ meshIndex ].vertices && !culled )
 		{
 			renderer.DrawVertexBuffer(  gChunkVertexBuffer,
 										meshIndex,
@@ -898,7 +934,6 @@ void Game::DoFrame( float dt )
 	float verticalFOV = XMConvertToRadians( gPlayerHFOV / screenAspect );
 
 	// frustum
-	Frustum playerFrustum;
 	float halfWidth = gPlayerNearPlane * tan( XMConvertToRadians( gPlayerHFOV )*0.5f );
 	float halfHeight = gPlayerNearPlane * tan( verticalFOV*0.5f );
 
@@ -926,7 +961,10 @@ void Game::DoFrame( float dt )
 	XMStoreFloat3( &frustumG, vEyePos + vLook*gPlayerFarPlane + vRight*halfWidth + vLookUp*halfHeight );
 	XMStoreFloat3( &frustumH, vEyePos + vLook*gPlayerFarPlane - vRight*halfWidth + vLookUp*halfHeight );
 
-	playerFrustum = { frustumA, frustumB, frustumC, frustumD, frustumE, frustumF, frustumG, frustumH };
+	Frustum playerFrustum = Frustum( frustumA, frustumB, frustumC, frustumD, frustumE, frustumF, frustumG, frustumH );
+
+	// Plane frustumPlanes[6];
+	// GetFrustumPlanes( playerFrustum, frustumPlanes );
 
 	playerProj = XMMatrixPerspectiveFovLH( verticalFOV, screenAspect, gPlayerNearPlane, gPlayerFarPlane );
 	playerView =  XMMatrixLookToLH( vEyePos, vLook, vUp );
@@ -981,20 +1019,12 @@ void Game::DoFrame( float dt )
 
 	int numChunksToDrawRT = gChunkMeshCacheDim * gChunkMeshCacheDim;
 	int numChunksDrawnRT = 0;
-	Plane frustumPlanes[6];
-	frustumPlanes[0] = Plane( playerFrustum.corners[ 0 ], playerFrustum.corners[ 3 ], playerFrustum.corners[ 4 ] );
-	frustumPlanes[1] = Plane( playerFrustum.corners[ 0 ], playerFrustum.corners[ 4 ], playerFrustum.corners[ 1 ] );
-	frustumPlanes[2] = Plane( playerFrustum.corners[ 1 ], playerFrustum.corners[ 5 ], playerFrustum.corners[ 2 ] );
-	frustumPlanes[3] = Plane( playerFrustum.corners[ 2 ], playerFrustum.corners[ 6 ], playerFrustum.corners[ 3 ] );
-	frustumPlanes[4] = Plane( playerFrustum.corners[ 0 ], playerFrustum.corners[ 1 ], playerFrustum.corners[ 3 ] );
-	frustumPlanes[5] = Plane( playerFrustum.corners[ 5 ], playerFrustum.corners[ 4 ], playerFrustum.corners[ 6 ] );
+
 	ProfileStart( "BeautyPass" );
 	for( int meshIndex = 0; meshIndex < gChunkMeshCacheDim * gChunkMeshCacheDim; meshIndex++ )
 	{
 		if( gChunkMeshCache[ meshIndex ].vertices )
 		{
-			bool culled = false;
-
 			AABB chunkBound;
 			chunkBound.min = {
 				float( gChunkMeshCache[ meshIndex ].chunkPos[0] * CHUNK_WIDTH ),
@@ -1005,14 +1035,9 @@ void Game::DoFrame( float dt )
 				CHUNK_HEIGHT,
 				chunkBound.min.z + CHUNK_WIDTH };
 
-			for( int planeIndex = 0; planeIndex < 6; planeIndex++ )
-			{
-				if( TestIntersection( frustumPlanes[ planeIndex ], chunkBound ) == OUTSIDE )
-				{
-					culled = true;
-					break;
-				}
-			}
+			ProfileStart( "Culling" );
+			bool culled = IsFrustumCulled( playerFrustum, chunkBound );
+			ProfileStop();
 
 			ProfileStart( "BeatyDrawing" );
 			if( !culled )
