@@ -8,8 +8,8 @@ namespace Blocks
 
 enum INTERSECTION
 {
-	OUTSIDE = 0,
-	INTERSECTS = 1,
+	OUTSIDE = -1,
+	INTERSECTS = 0,
 	INSIDE = 1
 };
 
@@ -31,8 +31,7 @@ struct Plane
 {
 	Plane() {};
 	Plane( DirectX::XMFLOAT3 p0, DirectX::XMFLOAT3 p1, DirectX::XMFLOAT3 p2 );
-	DirectX::XMFLOAT3 n;
-	float d;
+	DirectX::XMFLOAT4 p;
 };
 
 struct AABB
@@ -52,8 +51,7 @@ struct Frustum
 	DirectX::XMFLOAT3 corners[8];
 	Plane planes[6];
 };
-bool IsFrustumCulled( const Frustum&, AABB );
-
+bool IsFrustumCulled( const Frustum&, const AABB& );
 
 
 struct RayAABBIntersection
@@ -64,7 +62,8 @@ struct RayAABBIntersection
 
 bool TestIntersection( Segment, AABB );
 bool TestIntersection( Line, AABB );
-INTERSECTION TestIntersection( Plane, AABB );
+// INTERSECTION TestIntersection( Plane, AABB );
+INTERSECTION TestIntersectionFast( const Plane&, const AABB& );
 
 RayAABBIntersection GetIntersection( Line, AABB );
 
@@ -72,7 +71,16 @@ float DistanceSq( DirectX::XMFLOAT3 A, DirectX::XMFLOAT3 B );
 float LengthSq( DirectX::XMFLOAT3 v );
 float Length( DirectX::XMFLOAT3 v );
 DirectX::XMFLOAT3 Normalize( DirectX::XMFLOAT3 v );
-float Distance( DirectX::XMFLOAT3 A, Plane P );
+
+inline float Distance( const DirectX::XMFLOAT4 &A, const Plane &P )
+{
+	float distance = P.p.x*A.x + P.p.y*A.y + P.p.z*A.z + P.p.w;
+	return distance;
+//	XMVECTOR point = XMLoadFloat4( &A );
+//	XMVECTOR plane = XMLoadFloat4( &P.p );
+//	XMVECTOR distance = XMVector4Dot( plane, point );
+//	return XMVectorGetX( distance );
+}
 
 } // namespace Blocks
 

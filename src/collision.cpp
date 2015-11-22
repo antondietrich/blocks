@@ -17,41 +17,8 @@ Plane::Plane( DirectX::XMFLOAT3 p0, DirectX::XMFLOAT3 p1, DirectX::XMFLOAT3 p2 )
 	XMVECTOR vn = XMVector3Normalize( XMVector3Cross( v0, v1 ) );
 	XMVECTOR vd = XMVector3Dot( -vn, vp0 );
 
-	XMStoreFloat3( &n, vn );
-	d = XMVectorGetX( vd );
-}
-
-
-Frustum::Frustum( DirectX::XMFLOAT3 A, DirectX::XMFLOAT3 B, DirectX::XMFLOAT3 C, DirectX::XMFLOAT3 D,
-		 DirectX::XMFLOAT3 E, DirectX::XMFLOAT3 F, DirectX::XMFLOAT3 G, DirectX::XMFLOAT3 H )
-{
-	corners[0] = A;
-	corners[1] = B;
-	corners[2] = C;
-	corners[3] = D;
-	corners[4] = E;
-	corners[5] = F;
-	corners[6] = G;
-	corners[7] = H;
-
-	planes[0] = Plane( corners[ 0 ], corners[ 3 ], corners[ 4 ] );
-	planes[1] = Plane( corners[ 0 ], corners[ 4 ], corners[ 1 ] );
-	planes[2] = Plane( corners[ 1 ], corners[ 5 ], corners[ 2 ] );
-	planes[3] = Plane( corners[ 2 ], corners[ 6 ], corners[ 3 ] );
-	planes[4] = Plane( corners[ 0 ], corners[ 1 ], corners[ 3 ] );
-	planes[5] = Plane( corners[ 5 ], corners[ 4 ], corners[ 6 ] );
-}
-
-bool IsFrustumCulled( const Frustum &frustum, AABB aabb )
-{
-	for( int planeIndex = 0; planeIndex < 6; planeIndex++ )
-	{
-		if( TestIntersection( frustum.planes[ planeIndex ], aabb ) == OUTSIDE )
-		{
-			return true;
-		}
-	}
-	return false;
+	XMStoreFloat4( &p, vn );
+	p.w = XMVectorGetX( vd );
 }
 
 bool TestIntersection( Segment seg, AABB bound )
@@ -164,32 +131,152 @@ bool TestIntersection( Line line, AABB bound )
 	return true;
 }
 
+
+Frustum::Frustum( DirectX::XMFLOAT3 A, DirectX::XMFLOAT3 B, DirectX::XMFLOAT3 C, DirectX::XMFLOAT3 D,
+		 DirectX::XMFLOAT3 E, DirectX::XMFLOAT3 F, DirectX::XMFLOAT3 G, DirectX::XMFLOAT3 H )
+{
+	corners[0] = A;
+	corners[1] = B;
+	corners[2] = C;
+	corners[3] = D;
+	corners[4] = E;
+	corners[5] = F;
+	corners[6] = G;
+	corners[7] = H;
+
+	planes[0] = Plane( corners[ 0 ], corners[ 3 ], corners[ 4 ] );
+	planes[1] = Plane( corners[ 0 ], corners[ 4 ], corners[ 1 ] );
+	planes[2] = Plane( corners[ 1 ], corners[ 5 ], corners[ 2 ] );
+	planes[3] = Plane( corners[ 2 ], corners[ 6 ], corners[ 3 ] );
+	planes[4] = Plane( corners[ 0 ], corners[ 1 ], corners[ 3 ] );
+	planes[5] = Plane( corners[ 5 ], corners[ 4 ], corners[ 6 ] );
+}
+
+bool IsFrustumCulled( const Frustum &frustum, const AABB &aabb )
+{
+	for( int planeIndex = 0; planeIndex < 6; planeIndex++ )
+	{
+		if( TestIntersectionFast( frustum.planes[ planeIndex ], aabb ) == OUTSIDE )
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+// Real-time Rendering:755
 // TODO: https://fgiesen.wordpress.com/2010/10/17/view-frustum-culling/
+INTERSECTION TestIntersectionFast( const Plane &P, const AABB &bound )
+{
+#if 1
+	XMVECTOR boundCenter = XMVectorSet( (bound.max.x + bound.min.x) * 0.5f,
+										(bound.max.y + bound.min.y) * 0.5f,
+										(bound.max.z + bound.min.z) * 0.5f,
+										1.0f );
+
+	XMVECTOR halfDiagonal = XMVectorSet( (bound.max.x - bound.min.x) * 0.5f,
+										 (bound.max.y - bound.min.y) * 0.5f,
+										 (bound.max.z - bound.min.z) * 0.5f,
+										 0.0f );
+
+	XMVECTOR normal = XMLoadFloat4( &P.p );
+	XMVECTOR normalAbs = XMVectorAbs( normal );
+
+	XMVECTOR extent = XMVector3Dot( halfDiagonal, normalAbs );
+	XMVECTOR distancePlane = XMVector4Dot( boundCenter, normal );
+
+	XMVECTOR zero = XMVectorZero();
+
+	if( XMVectorGetX( XMVectorGreaterOrEqual( distancePlane + extent, zero ) ) ) return INSIDE;
+	if( XMVectorGetX( XMVectorLessOrEqual( distancePlane + extent, zero ) ) ) return OUTSIDE;
+	return INTERSECTS;
+#else
+	XMFLOAT4 boundCenter = { (bound.max.x + bound.min.x) * 0.5f,
+							 (bound.max.y + bound.min.y) * 0.5f,
+							 (bound.max.z + bound.min.z) * 0.5f,
+							 1.0f };
+
+	XMFLOAT3 halfDiagonal = { (bound.max.x - bound.min.x) * 0.5f,
+							  (bound.max.y - bound.min.y) * 0.5f,
+							  (bound.max.z - bound.min.z) * 0.5f };
+
+	float extent = halfDiagonal.x * abs( P.p.x ) + halfDiagonal.y * abs( P.p.y ) + halfDiagonal.z * abs( P.p.z );
+
+	float distancePlane = Distance( boundCenter, P );
+
+	if( distancePlane - extent > 0 ) return INSIDE;
+	if( distancePlane + extent < 0 ) return OUTSIDE;
+	return INTERSECTS;
+
+#endif
+}
+
+#if 0
 INTERSECTION TestIntersection( Plane p, AABB bound )
 {
-	XMFLOAT3 points[8];
-	points[0] = { bound.min.x, bound.min.y, bound.min.z };
-	points[1] = { bound.min.x, bound.min.y, bound.max.z };
-	points[2] = { bound.min.x, bound.max.y, bound.min.z };
-	points[3] = { bound.min.x, bound.max.y, bound.max.z };
-	points[4] = { bound.max.x, bound.min.y, bound.min.z };
-	points[5] = { bound.max.x, bound.min.y, bound.max.z };
-	points[6] = { bound.max.x, bound.max.y, bound.min.z };
-	points[7] = { bound.max.x, bound.max.y, bound.min.z };
+#if 0
+	XMFLOAT4 points[8];
+	points[0] = { bound.min.x, bound.min.y, bound.min.z, 1.0f };
+	points[1] = { bound.min.x, bound.min.y, bound.max.z, 1.0f };
+	points[2] = { bound.min.x, bound.max.y, bound.min.z, 1.0f };
+	points[3] = { bound.min.x, bound.max.y, bound.max.z, 1.0f };
+	points[4] = { bound.max.x, bound.min.y, bound.min.z, 1.0f };
+	points[5] = { bound.max.x, bound.min.y, bound.max.z, 1.0f };
+	points[6] = { bound.max.x, bound.max.y, bound.min.z, 1.0f };
+	points[7] = { bound.max.x, bound.max.y, bound.min.z, 1.0f };
+#else
+	XMVECTOR plane = XMLoadFloat4( &p.p );
+	XMVECTOR points[8];
+	points[0] = XMVectorSet( bound.min.x, bound.min.y, bound.min.z, 1.0f );
+	points[1] = XMVectorSet( bound.min.x, bound.min.y, bound.max.z, 1.0f );
+	points[2] = XMVectorSet( bound.min.x, bound.max.y, bound.min.z, 1.0f );
+	points[3] = XMVectorSet( bound.min.x, bound.max.y, bound.max.z, 1.0f );
+	points[4] = XMVectorSet( bound.max.x, bound.min.y, bound.min.z, 1.0f );
+	points[5] = XMVectorSet( bound.max.x, bound.min.y, bound.max.z, 1.0f );
+	points[6] = XMVectorSet( bound.max.x, bound.max.y, bound.min.z, 1.0f );
+	points[7] = XMVectorSet( bound.max.x, bound.max.y, bound.min.z, 1.0f );
+#endif
 
 	int result = 0;
 
+#if 0
 	for( int i = 0; i < 8; i++ )
 	{
-		if( Distance( points[i], p ) >= 0 )
+		// float distance = Distance( points[i], p );
+		// float distance = XMVector4Dot( plane, points[0] );
+		XMVECTOR distance = XMVector4Dot( plane, points[i] );
+		// float distance = p.p.x*points[i].x + p.p.y*points[i].y + p.p.z*points[i].z + p.p.w;
+		// if( distance >= 0 )
+		if( XMVectorGetX( XMVectorGreaterOrEqual( distance, zero ) ) )
 		{
 			result++;
 		}
-		else if( Distance( points[i], p ) < 0 )
+		else
 		{
 			result--;
 		}
 	}
+#else
+	XMVECTOR distance[8];
+	distance[0] = XMVector4Dot( plane, points[0] );
+	distance[1] = XMVector4Dot( plane, points[1] );
+	distance[2] = XMVector4Dot( plane, points[2] );
+	distance[3] = XMVector4Dot( plane, points[3] );
+	distance[4] = XMVector4Dot( plane, points[4] );
+	distance[5] = XMVector4Dot( plane, points[5] );
+	distance[6] = XMVector4Dot( plane, points[6] );
+	distance[7] = XMVector4Dot( plane, points[7] );
+
+	XMVECTOR zero = XMVectorZero();
+	XMVectorGetX( XMVectorGreaterOrEqual( distance[0], zero ) ) ? ++result : --result;
+	XMVectorGetX( XMVectorGreaterOrEqual( distance[1], zero ) ) ? ++result : --result;
+	XMVectorGetX( XMVectorGreaterOrEqual( distance[2], zero ) ) ? ++result : --result;
+	XMVectorGetX( XMVectorGreaterOrEqual( distance[3], zero ) ) ? ++result : --result;
+	XMVectorGetX( XMVectorGreaterOrEqual( distance[4], zero ) ) ? ++result : --result;
+	XMVectorGetX( XMVectorGreaterOrEqual( distance[5], zero ) ) ? ++result : --result;
+	XMVectorGetX( XMVectorGreaterOrEqual( distance[6], zero ) ) ? ++result : --result;
+	XMVectorGetX( XMVectorGreaterOrEqual( distance[7], zero ) ) ? ++result : --result;
+#endif
 
 	if( result == 8 )
 	{
@@ -201,6 +288,7 @@ INTERSECTION TestIntersection( Plane p, AABB bound )
 	}
 	return INTERSECTS;
 }
+#endif
 
 RayAABBIntersection GetIntersection( Line ray, AABB bound )
 {
@@ -287,11 +375,7 @@ float DistanceSq( XMFLOAT3 A, XMFLOAT3 B )
 	return result;
 }
 
-float Distance( DirectX::XMFLOAT3 A, Plane P )
-{
-	float distance = P.n.x*A.x + P.n.y*A.y + P.n.z*A.z + P.d;
-	return distance;
-}
+
 
 
 } // namespace Blocks
