@@ -1,18 +1,23 @@
 @echo off
 setlocal
 
+if /I "%1"=="--profile" set profileEnable=-D_PROFILE_
+if /I "%1"=="/profile" set profileEnable=-D_PROFILE_
+if /I "%2"=="--profile" set profileEnable=-D_PROFILE_
+if /I "%2"=="/profile" set profileEnable=-D_PROFILE_
+
 if /I "%1"=="" goto DEBUG
 if /I "%1"=="--debug" goto DEBUG
 if /I "%1"=="/debug" goto DEBUG
 
 if /I "%1"=="--release" goto RELEASE
 if /I "%1"=="/release" goto RELEASE
+if /I "%1"=="/profile" goto RELEASE
 
-if /I "%1"=="--profile" goto PROFILE
 
 :PROFILE
 set profileEnable=-D_PROFILE_
-goto DEBUG
+goto RELEASE
 
 :DEBUG
 set compilerFlags=-Od -Oi -Zi -EHsc -GR- -MTd -W4 -nologo -D_DEBUG_ -D_CRT_SECURE_NO_WARNINGS %profileEnable%
@@ -23,7 +28,7 @@ if not exist "bin" md bin
 goto COMMON
 
 :RELEASE
-set compilerFlags=-Ox -Oi -EHsc -GR- -MT -W4 -nologo -D_RELEASE_ -DNDEBUG
+set compilerFlags=-Ox -Oi -EHsc -GR- -MT -W4 -nologo -D_RELEASE_ -DNDEBUG -D_CRT_SECURE_NO_WARNINGS %profileEnable%
 rem set suppressedWarnings=-wd4530
 set output=-Fdbin\ -Fobuild\ -Febin\blocks.exe
 goto COMMON
