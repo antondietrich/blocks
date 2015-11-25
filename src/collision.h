@@ -51,6 +51,24 @@ struct Frustum
 	DirectX::XMFLOAT3 corners[8];
 	Plane planes[6];
 };
+Frustum CalculatePerspectiveFrustum( const DirectX::XMFLOAT3 &eyePos,
+									 const DirectX::XMFLOAT3 &front,
+									 const DirectX::XMFLOAT3 &right,
+									 const DirectX::XMFLOAT3 &up,
+									 const float near,
+									 const float far,
+									 const float hFovDeg,
+									 const float aspect );
+
+Frustum ComputeOrthoFrustum( const DirectX::XMFLOAT3 &eyePos,
+							 const DirectX::XMFLOAT3 &front,
+							 const DirectX::XMFLOAT3 &right,
+							 const DirectX::XMFLOAT3 &up,
+							 const float width,
+							 const float height,
+							 const float near,
+							 const float far );
+
 bool IsFrustumCulled( const Frustum&, const AABB& );
 
 

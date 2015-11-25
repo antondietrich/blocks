@@ -152,6 +152,90 @@ Frustum::Frustum( DirectX::XMFLOAT3 A, DirectX::XMFLOAT3 B, DirectX::XMFLOAT3 C,
 	planes[5] = Plane( corners[ 5 ], corners[ 4 ], corners[ 6 ] );
 }
 
+Frustum CalculatePerspectiveFrustum( const DirectX::XMFLOAT3 &eyePos,
+									 const DirectX::XMFLOAT3 &front,
+									 const DirectX::XMFLOAT3 &right,
+									 const DirectX::XMFLOAT3 &up,
+									 const float near,
+									 const float far,
+									 const float hFovDeg,
+									 const float aspect )
+{
+	XMFLOAT3 frustumA;
+	XMFLOAT3 frustumB;
+	XMFLOAT3 frustumC;
+	XMFLOAT3 frustumD;
+	XMFLOAT3 frustumE;
+	XMFLOAT3 frustumF;
+	XMFLOAT3 frustumG;
+	XMFLOAT3 frustumH;
+
+	float hFovRad = XMConvertToRadians( hFovDeg );
+	float vFovRad = hFovRad / aspect;
+	float halfWidthNear  = near * tan( hFovRad*0.5f );
+	float halfHeightNear = near * tan( vFovRad*0.5f );
+	float halfWidthFar   = far * tan( hFovRad*0.5f );
+	float halfHeightFar  = far * tan( vFovRad*0.5f );
+
+	XMVECTOR vEyePos = XMLoadFloat3( &eyePos );
+	XMVECTOR vFront = XMLoadFloat3( &front );
+	XMVECTOR vRight = XMLoadFloat3( &right );
+	XMVECTOR vUp = XMLoadFloat3( &up );
+
+	// near plane corners
+	XMStoreFloat3( &frustumA, vEyePos + vFront*near - vRight*halfWidthNear - vUp*halfHeightNear );
+	XMStoreFloat3( &frustumB, vEyePos + vFront*near + vRight*halfWidthNear - vUp*halfHeightNear );
+	XMStoreFloat3( &frustumC, vEyePos + vFront*near + vRight*halfWidthNear + vUp*halfHeightNear );
+	XMStoreFloat3( &frustumD, vEyePos + vFront*near - vRight*halfWidthNear + vUp*halfHeightNear );
+	// far plane corners
+	XMStoreFloat3( &frustumE, vEyePos + vFront*far - vRight*halfWidthFar - vUp*halfHeightFar );
+	XMStoreFloat3( &frustumF, vEyePos + vFront*far + vRight*halfWidthFar - vUp*halfHeightFar );
+	XMStoreFloat3( &frustumG, vEyePos + vFront*far + vRight*halfWidthFar + vUp*halfHeightFar );
+	XMStoreFloat3( &frustumH, vEyePos + vFront*far - vRight*halfWidthFar + vUp*halfHeightFar );
+
+	Frustum frustum = Frustum( frustumA, frustumB, frustumC, frustumD, frustumE, frustumF, frustumG, frustumH );
+
+	return frustum;
+}
+
+Frustum ComputeOrthoFrustum( const DirectX::XMFLOAT3 &eyePos,
+							 const DirectX::XMFLOAT3 &front,
+							 const DirectX::XMFLOAT3 &right,
+							 const DirectX::XMFLOAT3 &up,
+							 const float width,
+							 const float height,
+							 const float near,
+							 const float far )
+{
+	XMFLOAT3 frustumA;
+	XMFLOAT3 frustumB;
+	XMFLOAT3 frustumC;
+	XMFLOAT3 frustumD;
+	XMFLOAT3 frustumE;
+	XMFLOAT3 frustumF;
+	XMFLOAT3 frustumG;
+	XMFLOAT3 frustumH;
+
+	XMVECTOR vEyePos = XMLoadFloat3( &eyePos );
+	XMVECTOR vFront = XMLoadFloat3( &front );
+	XMVECTOR vRight = XMLoadFloat3( &right );
+	XMVECTOR vUp = XMLoadFloat3( &up );
+
+	XMStoreFloat3( &frustumA, vEyePos + vFront*near - vRight*width*0.5f - vUp*height*0.5f );
+	XMStoreFloat3( &frustumB, vEyePos + vFront*near + vRight*width*0.5f - vUp*height*0.5f );
+	XMStoreFloat3( &frustumC, vEyePos + vFront*near + vRight*width*0.5f + vUp*height*0.5f );
+	XMStoreFloat3( &frustumD, vEyePos + vFront*near - vRight*width*0.5f + vUp*height*0.5f );
+	XMStoreFloat3( &frustumE, vEyePos + vFront*far  - vRight*width*0.5f - vUp*height*0.5f );
+	XMStoreFloat3( &frustumF, vEyePos + vFront*far  + vRight*width*0.5f - vUp*height*0.5f );
+	XMStoreFloat3( &frustumG, vEyePos + vFront*far  + vRight*width*0.5f + vUp*height*0.5f );
+	XMStoreFloat3( &frustumH, vEyePos + vFront*far  - vRight*width*0.5f + vUp*height*0.5f );
+
+	Frustum frustum = Frustum( frustumA, frustumB, frustumC, frustumD,
+								  frustumE, frustumF, frustumG, frustumH );
+
+	return frustum;
+}
+
 bool IsFrustumCulled( const Frustum &frustum, const AABB &aabb )
 {
 	for( int planeIndex = 0; planeIndex < 6; planeIndex++ )
