@@ -348,34 +348,4 @@ RayAABBIntersection GetIntersection( Line ray, AABB bound )
 	return result;
 }
 
-float LengthSq( XMFLOAT3 v )
-{
-	float result = v.x * v.x + v.y * v.y + v.z * v.z;
-	return result;
-}
-
-float Length( XMFLOAT3 v )
-{
-	float lenSq = LengthSq( v );
-	float result = sqrt( lenSq );
-	return result;
-}
-
-XMFLOAT3 Normalize( XMFLOAT3 v )
-{
-	float len = Length( v );
-	XMFLOAT3 result = { v.x / len, v.y / len, v.z / len };
-	return result;
-}
-
-float DistanceSq( XMFLOAT3 A, XMFLOAT3 B )
-{
-	XMFLOAT3 vec = { B.x - A.x, B.y - A.y, B.z - A.z };
-	float result = vec.x * vec.x + vec.y * vec.y + vec.z * vec.z;
-	return result;
-}
-
-
-
-
 } // namespace Blocks
