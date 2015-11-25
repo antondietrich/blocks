@@ -1804,6 +1804,24 @@ void Overlay::OulineBlock( int chunkX, int chunkZ, int x, int y, int z, XMFLOAT4
 
 }
 
+void Overlay::DrawFrustum( const Frustum & frustum, DirectX::XMFLOAT4 color )
+{
+	DrawLine( frustum.corners[0], frustum.corners[1], color );
+	DrawLine( frustum.corners[1], frustum.corners[2], color );
+	DrawLine( frustum.corners[2], frustum.corners[3], color );
+	DrawLine( frustum.corners[3], frustum.corners[0], color );
+
+	DrawLine( frustum.corners[4], frustum.corners[5], color );
+	DrawLine( frustum.corners[5], frustum.corners[6], color );
+	DrawLine( frustum.corners[6], frustum.corners[7], color );
+	DrawLine( frustum.corners[7], frustum.corners[4], color );
+
+	DrawLine( frustum.corners[0], frustum.corners[4], color );
+	DrawLine( frustum.corners[1], frustum.corners[5], color );
+	DrawLine( frustum.corners[2], frustum.corners[6], color );
+	DrawLine( frustum.corners[3], frustum.corners[7], color );
+}
+
 //********************************
 // Function definitions
 //********************************
