@@ -46,7 +46,7 @@ XMFLOAT4 gAmbientColor;
 XMFLOAT4 gSunColor;
 float gSunElevation = 90.0f;
 
-#define SM_RESOLUTION 4096
+#define SM_RESOLUTION 1024
 //#define SM_REGION_DIM 128.0f
 //#define SM_REGION_HALF_DEPTH ( VIEW_DISTANCE * CHUNK_WIDTH )
 
@@ -150,7 +150,8 @@ bool Game::Start( HWND wnd )
 	}
 	input.mouse = {0, 0};
 
-	gameTime_ = { 2015, 1, 1, 12, 0, 0.0f, 60.f };
+	// gameTime_ = { 2015, 1, 1, 12, 0, 0.0f, 60.0f*60.0f };
+	gameTime_ = { 2015, 1, 1, 15, 0, 0.0f, 60.0f*60.0f };
 
 	gPlayerFarPlane = float(Config.viewDistanceChunks * CHUNK_WIDTH);
 
@@ -198,6 +199,7 @@ uint gMaxChunkMeshesToBuild = 1;
 void Game::DoFrame( float dt )
 {
 	static bool timeLive = true;
+	timeLive = false;
 	if( input.key[ KEY::NUM_6 ].Down )
 	{
 		gameTime_.AdvanceTime( dt );
@@ -296,8 +298,8 @@ void Game::DoFrame( float dt )
 
 	// player movement
 	float dTSec = dt / 1000.0f;
-	XMVECTOR vPos, vDir, vLook, vRight, vUp, vSpeed, force, acceleration, drag, vGravity;
-	vPos 	= XMLoadFloat3( &playerPos );
+	XMVECTOR vPlayerPos, vDir, vLook, vRight, vUp, vSpeed, force, acceleration, drag, vGravity;
+	vPlayerPos 	= XMLoadFloat3( &playerPos );
 	vDir 	= XMLoadFloat3( &playerDir );
 	vLook 	= XMLoadFloat3( &playerLook );
 	vRight 	= XMLoadFloat3( &playerRight );
@@ -353,8 +355,8 @@ void Game::DoFrame( float dt )
 	acceleration = force / playerMass - drag;
 
 	// check for world collisions
-	XMVECTOR vTargetPos = vPos + vSpeed * dTSec + ( acceleration * dTSec * dTSec ) / 2.0f;
-	XMVECTOR vPlayerDelta = vTargetPos - vPos;
+	XMVECTOR vTargetPos = vPlayerPos + vSpeed * dTSec + ( acceleration * dTSec * dTSec ) / 2.0f;
+	XMVECTOR vPlayerDelta = vTargetPos - vPlayerPos;
 
 	XMFLOAT3 targetPos = {};
 	XMStoreFloat3( &targetPos, vTargetPos );
@@ -434,7 +436,7 @@ void Game::DoFrame( float dt )
 
 
 	// move player
-	vPos = vTargetPos;
+	vPlayerPos = vTargetPos;
 	vSpeed = vSpeed + acceleration * dTSec;
 
 	if( input.mouse.x ) {
@@ -457,7 +459,7 @@ void Game::DoFrame( float dt )
 		}
 	}
 
-	XMStoreFloat3( &playerPos, vPos );
+	XMStoreFloat3( &playerPos, vPlayerPos );
 	XMStoreFloat3( &playerDir, vDir );
 	XMStoreFloat3( &playerLook, vLook );
 	XMStoreFloat3( &playerRight, vRight );
@@ -815,125 +817,15 @@ void Game::DoFrame( float dt )
 	float smRegionDim = (float)gChunkMeshCacheDim * 0.5f * CHUNK_WIDTH;
 
 	ProfileStart( "ShadowmapPass" );
-	XMMATRIX lightProj = XMMatrixOrthographicLH(	smRegionDim*0.5f,
-													smRegionDim*0.5f,
-													-smRegionDim*0.5f,
-													smRegionDim*0.5f );
-
 	XMVECTOR vSunDirection = -XMVector4Normalize( XMLoadFloat3( &gSunDirection ) );
 	XMVECTOR vLightUp = XMVector4Normalize( XMVectorSet( 0.0f, cos( sunElevation ), -sin( sunElevation ), 0.0f ) );
 	XMVECTOR vLightRight = XMVector4Normalize( XMVector3Cross( vLightUp, vSunDirection ) );
+	XMMATRIX lightView = XMMatrixLookToLH( XMVectorZero(), vSunDirection, vLightUp );
+	XMMATRIX invLightView = XMMatrixTranspose( lightView );
 
-	XMMATRIX worldToLight = XMMatrixTranspose( XMMATRIX(
-		vLightRight,
-		vLightUp,
-		vSunDirection,
-		XMVectorSet( 0.0f, 0.0f, 0.0f, 1.0f ) ) );
-	XMMATRIX lightToWorld = XMMatrixTranspose( worldToLight );
-
-	float texelsPerMeter = SM_RESOLUTION / smRegionDim;
-
-	XMVECTOR vLightPos = vPos;// - (0.5f*SM_REGION_DIM) * vSunDirection;
-	vLightPos = XMVector4Transform( vLightPos, worldToLight );
-	vLightPos *= texelsPerMeter;
-	vLightPos = XMVectorRound( vLightPos );
-	vLightPos /= texelsPerMeter;
-	vLightPos = XMVector4Transform( vLightPos, lightToWorld );
-
-	XMMATRIX lightView =  XMMatrixLookToLH( vLightPos, vSunDirection, vLightUp );
-	XMMATRIX lightVP = XMMatrixTranspose( XMMatrixMultiply( lightView, lightProj ) );
-
-	XMFLOAT3 sunFrustumA;
-	XMFLOAT3 sunFrustumB;
-	XMFLOAT3 sunFrustumC;
-	XMFLOAT3 sunFrustumD;
-	XMFLOAT3 sunFrustumE;
-	XMFLOAT3 sunFrustumF;
-	XMFLOAT3 sunFrustumG;
-	XMFLOAT3 sunFrustumH;
-
-	XMStoreFloat3( &sunFrustumA, vLightPos - vSunDirection*smRegionDim*0.5f - vLightRight*smRegionDim*0.5f - vLightUp*smRegionDim*0.5f );
-	XMStoreFloat3( &sunFrustumB, vLightPos - vSunDirection*smRegionDim*0.5f + vLightRight*smRegionDim*0.5f - vLightUp*smRegionDim*0.5f );
-	XMStoreFloat3( &sunFrustumC, vLightPos - vSunDirection*smRegionDim*0.5f + vLightRight*smRegionDim*0.5f + vLightUp*smRegionDim*0.5f );
-	XMStoreFloat3( &sunFrustumD, vLightPos - vSunDirection*smRegionDim*0.5f - vLightRight*smRegionDim*0.5f + vLightUp*smRegionDim*0.5f );
-	XMStoreFloat3( &sunFrustumE, vLightPos + vSunDirection*smRegionDim*0.5f - vLightRight*smRegionDim*0.5f - vLightUp*smRegionDim*0.5f );
-	XMStoreFloat3( &sunFrustumF, vLightPos + vSunDirection*smRegionDim*0.5f + vLightRight*smRegionDim*0.5f - vLightUp*smRegionDim*0.5f );
-	XMStoreFloat3( &sunFrustumG, vLightPos + vSunDirection*smRegionDim*0.5f + vLightRight*smRegionDim*0.5f + vLightUp*smRegionDim*0.5f );
-	XMStoreFloat3( &sunFrustumH, vLightPos + vSunDirection*smRegionDim*0.5f - vLightRight*smRegionDim*0.5f + vLightUp*smRegionDim*0.5f );
-
-	Frustum sunFrustum = Frustum( sunFrustumA, sunFrustumB, sunFrustumC, sunFrustumD,
-								  sunFrustumE, sunFrustumF, sunFrustumG, sunFrustumH );
-
-	LightCB lightCBData;
-	XMStoreFloat4x4( &lightCBData.vp, lightVP );
-
-	renderer.SetChunkDrawingState();
-	renderer.SetDepthBufferMode( DB_ENABLED );
-	renderer.SetRasterizer( RS_SHADOWMAP );
-	renderer.SetSampler( SAMPLER_POINT, ST_FRAGMENT, 1 );
-	renderer.SetShader( 1 );
-	// renderer.RemoveTexture( ST_FRAGMENT, 1 );
-	renderer.RemoveTexture( ST_FRAGMENT, 4 );
-
-	renderer.SetLightCBuffer( lightCBData );
-
-	D3D11_VIEWPORT smViewport;
-	smViewport.Width = SM_RESOLUTION;
-	smViewport.Height = SM_RESOLUTION;
-	smViewport.MinDepth = 0.0f;
-	smViewport.MaxDepth = 1.0f;
-	smViewport.TopLeftX = 0.0f;
-	smViewport.TopLeftY = 0.0f;
-
-	renderer.SetViewport( &smViewport );
-
-	renderer.ClearTexture( &gShadowRT );
-	renderer.ClearTexture( &gShadowDB );
-	renderer.SetRenderTarget( &gShadowRT, &gShadowDB );
-	ProfileStart( "ShadowmapDrawing" );
-
-	int numChunksToDrawSM = gChunkMeshCacheDim * gChunkMeshCacheDim;
-	int numChunksDrawnSM = 0;
-	for( int meshIndex = 0; meshIndex < gChunkMeshCacheDim * gChunkMeshCacheDim; meshIndex++ )
-	{
-		AABB chunkBound;
-		chunkBound.min = {
-			float( gChunkMeshCache[ meshIndex ].chunkPos[0] * CHUNK_WIDTH ),
-			0,
-			float( gChunkMeshCache[ meshIndex ].chunkPos[1] * CHUNK_WIDTH ) };
-		chunkBound.max = {
-			chunkBound.min.x + CHUNK_WIDTH,
-			CHUNK_HEIGHT,
-			chunkBound.min.z + CHUNK_WIDTH };
-
-		ProfileStart( "Culling" );
-		bool culled = IsFrustumCulled( sunFrustum, chunkBound );
-		ProfileStop();
-
-
-		if( gChunkMeshCache[ meshIndex ].vertices && !culled )
-		{
-			renderer.DrawVertexBuffer(  gChunkVertexBuffer,
-										meshIndex,
-										gChunkMeshCache[ meshIndex ].chunkPos[0] * CHUNK_WIDTH,
-										gChunkMeshCache[ meshIndex ].chunkPos[1] * CHUNK_WIDTH );
-			numDrawnVertices += gChunkMeshCache[ meshIndex ].numVertices;
-			++numChunksDrawnSM;
-		}
-	}
-	ProfileStop(); // ShadowmapDrawing
-	ProfileStop(); // ShadowmapPass
-
-#if 1
-	// draw to frame buffer
-	// Frame CB
-	renderer.SetChunkDrawingState();
-
-	FrameCB cbData;
+	// player frustum
 	float screenAspect = (float)renderer.GetViewportWidth() / (float)renderer.GetViewportHeight();
 	float verticalFOV = XMConvertToRadians( gPlayerHFOV / screenAspect );
-
-	// frustum
 	float halfWidth = gPlayerNearPlane * tan( XMConvertToRadians( gPlayerHFOV )*0.5f );
 	float halfHeight = gPlayerNearPlane * tan( verticalFOV*0.5f );
 
@@ -963,16 +855,168 @@ void Game::DoFrame( float dt )
 
 	Frustum playerFrustum = Frustum( frustumA, frustumB, frustumC, frustumD, frustumE, frustumF, frustumG, frustumH );
 
-	// Plane frustumPlanes[6];
-	// GetFrustumPlanes( playerFrustum, frustumPlanes );
+	// frustum slice
+	float sliceDistance = 4.0f;
+	halfWidth = sliceDistance * tan( XMConvertToRadians( gPlayerHFOV )*0.5f );
+	halfHeight = sliceDistance * tan( verticalFOV*0.5f );
+
+	XMStoreFloat3( &frustumE, vEyePos + vLook*sliceDistance - vRight*halfWidth - vLookUp*halfHeight );
+	XMStoreFloat3( &frustumF, vEyePos + vLook*sliceDistance + vRight*halfWidth - vLookUp*halfHeight );
+	XMStoreFloat3( &frustumG, vEyePos + vLook*sliceDistance + vRight*halfWidth + vLookUp*halfHeight );
+	XMStoreFloat3( &frustumH, vEyePos + vLook*sliceDistance - vRight*halfWidth + vLookUp*halfHeight );
+
+	Frustum playerFrustumSlice = Frustum( frustumA, frustumB, frustumC, frustumD, frustumE, frustumF, frustumG, frustumH );
+
+	// find bound sphere center
+	// TODO: calculate a tighter sphere
+	XMFLOAT3 playerFrustumSliceCenter;
+	XMVECTOR vPlayerFrustumSliceCenter = vEyePos + vLook * ((sliceDistance - gPlayerNearPlane ) * 0.5f);
+	XMStoreFloat3( &playerFrustumSliceCenter, vPlayerFrustumSliceCenter );
+
+	XMFLOAT3 smBoundCenter;
+	XMVECTOR vLightSpaceCenter = XMVector4Transform( XMLoadFloat3( &playerFrustumSliceCenter ), lightView );
+	XMStoreFloat3( &smBoundCenter, vLightSpaceCenter );
+
+	float boundSphereRadius = 0;
+
+	for( int i = 0; i < 8; i++ )
+	{
+		XMVECTOR vLightSpaceCorner = XMVector4Transform( XMLoadFloat3( &playerFrustumSlice.corners[i] ), lightView );
+
+		// calculate minimum bound sphere radius
+		if( XMVectorGetX( XMVector3Length( vLightSpaceCorner - vLightSpaceCenter ) ) > boundSphereRadius )
+		{
+			boundSphereRadius = XMVectorGetX( XMVector3Length( vLightSpaceCorner - vLightSpaceCenter ) );
+		}
+	}
+
+	XMFLOAT3 smBoundOffset = { boundSphereRadius, boundSphereRadius, boundSphereRadius };
+
+	XMFLOAT3 smBoundMax = smBoundCenter + smBoundOffset;
+	XMFLOAT3 smBoundMin = smBoundCenter - smBoundOffset;
+
+	// snap SM bound to texel grid
+	float texelsPerMeter = SM_RESOLUTION / (smBoundMax.x-smBoundMin.x);
+	smBoundMin = smBoundMin * texelsPerMeter;
+	smBoundMax = smBoundMax * texelsPerMeter;
+	smBoundMin.x = floor( smBoundMin.x );
+	smBoundMax.x = floor( smBoundMax.x );
+	smBoundMin.y = floor( smBoundMin.y );
+	smBoundMax.y = floor( smBoundMax.y );
+	smBoundMin = smBoundMin / texelsPerMeter;
+	smBoundMax = smBoundMax / texelsPerMeter;
+
+	XMMATRIX lightProj = XMMatrixOrthographicOffCenterLH( smBoundMin.x,
+														  smBoundMax.x,
+														  smBoundMin.y,
+														  smBoundMax.y,
+														  -smRegionDim*0.5f,
+														  smRegionDim*0.5f );
+	XMMATRIX lightVP = XMMatrixTranspose( XMMatrixMultiply( lightView, lightProj ) );
+
+	LightCB lightCBData;
+	XMStoreFloat4x4( &lightCBData.vp, lightVP );
+
+	// calculate world-space shadow bound for culling
+	XMFLOAT3 sunFrustumA;
+	XMFLOAT3 sunFrustumB;
+	XMFLOAT3 sunFrustumC;
+	XMFLOAT3 sunFrustumD;
+	XMFLOAT3 sunFrustumE;
+	XMFLOAT3 sunFrustumF;
+	XMFLOAT3 sunFrustumG;
+	XMFLOAT3 sunFrustumH;
+
+	XMStoreFloat3( &sunFrustumA, vPlayerFrustumSliceCenter - vSunDirection*smRegionDim*0.5f - vLightRight*boundSphereRadius - vLightUp*boundSphereRadius );
+	XMStoreFloat3( &sunFrustumB, vPlayerFrustumSliceCenter - vSunDirection*smRegionDim*0.5f + vLightRight*boundSphereRadius - vLightUp*boundSphereRadius );
+	XMStoreFloat3( &sunFrustumC, vPlayerFrustumSliceCenter - vSunDirection*smRegionDim*0.5f + vLightRight*boundSphereRadius + vLightUp*boundSphereRadius );
+	XMStoreFloat3( &sunFrustumD, vPlayerFrustumSliceCenter - vSunDirection*smRegionDim*0.5f - vLightRight*boundSphereRadius + vLightUp*boundSphereRadius );
+	XMStoreFloat3( &sunFrustumE, vPlayerFrustumSliceCenter + vSunDirection*smRegionDim*0.5f - vLightRight*boundSphereRadius - vLightUp*boundSphereRadius );
+	XMStoreFloat3( &sunFrustumF, vPlayerFrustumSliceCenter + vSunDirection*smRegionDim*0.5f + vLightRight*boundSphereRadius - vLightUp*boundSphereRadius );
+	XMStoreFloat3( &sunFrustumG, vPlayerFrustumSliceCenter + vSunDirection*smRegionDim*0.5f + vLightRight*boundSphereRadius + vLightUp*boundSphereRadius );
+	XMStoreFloat3( &sunFrustumH, vPlayerFrustumSliceCenter + vSunDirection*smRegionDim*0.5f - vLightRight*boundSphereRadius + vLightUp*boundSphereRadius );
+
+	Frustum sunFrustum = Frustum( sunFrustumA, sunFrustumB, sunFrustumC, sunFrustumD,
+								  sunFrustumE, sunFrustumF, sunFrustumG, sunFrustumH );
+
+	renderer.SetChunkDrawingState();
+	renderer.SetDepthBufferMode( DB_ENABLED );
+	renderer.SetRasterizer( RS_SHADOWMAP );
+	renderer.SetSampler( SAMPLER_POINT, ST_FRAGMENT, 1 );
+	renderer.SetShader( 1 );
+	// renderer.RemoveTexture( ST_FRAGMENT, 1 );
+	renderer.RemoveTexture( ST_FRAGMENT, 4 );
+
+	renderer.SetLightCBuffer( lightCBData );
+
+	D3D11_VIEWPORT smViewport;
+	smViewport.Width = SM_RESOLUTION;
+	smViewport.Height = SM_RESOLUTION;
+	smViewport.MinDepth = 0.0f;
+	smViewport.MaxDepth = 1.0f;
+	smViewport.TopLeftX = 0.0f;
+	smViewport.TopLeftY = 0.0f;
+
+	renderer.SetViewport( &smViewport );
+
+	renderer.ClearTexture( &gShadowRT );
+	renderer.ClearTexture( &gShadowDB );
+	renderer.SetRenderTarget( &gShadowRT, &gShadowDB );
+
+	int numChunksToDrawSM = gChunkMeshCacheDim * gChunkMeshCacheDim;
+	int numChunksDrawnSM = 0;
+	for( int meshIndex = 0; meshIndex < gChunkMeshCacheDim * gChunkMeshCacheDim; meshIndex++ )
+	{
+		AABB chunkBound;
+		chunkBound.min = {
+			float( gChunkMeshCache[ meshIndex ].chunkPos[0] * CHUNK_WIDTH ),
+			0,
+			float( gChunkMeshCache[ meshIndex ].chunkPos[1] * CHUNK_WIDTH ) };
+		chunkBound.max = {
+			chunkBound.min.x + CHUNK_WIDTH,
+			CHUNK_HEIGHT,
+			chunkBound.min.z + CHUNK_WIDTH };
+
+		bool culled = IsFrustumCulled( sunFrustum, chunkBound );
+
+		if( gChunkMeshCache[ meshIndex ].vertices && !culled )
+		{
+			renderer.DrawVertexBuffer(  gChunkVertexBuffer,
+										meshIndex,
+										gChunkMeshCache[ meshIndex ].chunkPos[0] * CHUNK_WIDTH,
+										gChunkMeshCache[ meshIndex ].chunkPos[1] * CHUNK_WIDTH );
+			numDrawnVertices += gChunkMeshCache[ meshIndex ].numVertices;
+			++numChunksDrawnSM;
+		}
+	}
+	ProfileStop(); // ShadowmapPass
+
+#if 1
+	// draw to frame buffer
+	// Frame CB
+	renderer.SetChunkDrawingState();
+
+	FrameCB cbData;
 
 	playerProj = XMMatrixPerspectiveFovLH( verticalFOV, screenAspect, gPlayerNearPlane, gPlayerFarPlane );
 	playerView =  XMMatrixLookToLH( vEyePos, vLook, vUp );
 	XMMATRIX vp = XMMatrixTranspose( XMMatrixMultiply( playerView, playerProj ) );
 
-	XMMATRIX debugTopView = XMMatrixLookToLH( vEyePos + vUp*100.0f, -vUp, vLook );
+	static float debugCameraHeight = 100.0f;
+	static float debugCameraViewHeight = 100.0f;
+
+	if( input.key[ KEY::RBRACKET ].Down )
+	{
+		debugCameraViewHeight += 1.0f;
+	}
+	if( input.key[ KEY::LBRACKET ].Down )
+	{
+		debugCameraViewHeight -= 1.0f;
+	}
+
+	XMMATRIX debugTopView = XMMatrixLookToLH( vEyePos + vUp*debugCameraHeight, -vUp, vLook );
 	// XMMATRIX debugTopProjection = XMMatrixPerspectiveFovLH( XM_PI / 4, screenAspect, 0.01f, 150.0f );
-	XMMATRIX debugTopProjection = XMMatrixOrthographicLH( 100.0f * screenAspect, 100.0f, 1.0f, 150.0f );
+	XMMATRIX debugTopProjection = XMMatrixOrthographicLH( debugCameraViewHeight * screenAspect, debugCameraViewHeight, 1.0f, debugCameraHeight + 50.0f );
 	XMMATRIX debugVP = XMMatrixTranspose( XMMatrixMultiply( debugTopView, debugTopProjection ) );
 
 	static bool useDebugProjection = false;
@@ -987,6 +1031,7 @@ void Game::DoFrame( float dt )
 	{
 		XMStoreFloat4x4( &cbData.vp, vp );
 	}
+//	XMStoreFloat4x4( &cbData.vp, lightVP );
 
 	cbData.sunColor = { gSunColor.x * Saturate( gSunDirection.y ),
 						gSunColor.x * Saturate( gSunDirection.y ),
@@ -1010,6 +1055,16 @@ void Game::DoFrame( float dt )
 
 
 	renderer.SetViewport( 0 );
+
+//	// set square viewport to render from the sun
+//	D3D11_VIEWPORT debugViewport;
+//	smViewport.Width = 600;
+//	smViewport.Height = 600;
+//	smViewport.MinDepth = 0.0f;
+//	smViewport.MaxDepth = 1.0f;
+//	smViewport.TopLeftX = 0.0f;
+//	smViewport.TopLeftY = 0.0f;
+//	renderer.SetViewport( &debugViewport );
 
 	renderer.SetDepthBufferMode( DB_ENABLED );
 	renderer.SetRasterizer( RS_DEFAULT );
@@ -1091,6 +1146,10 @@ void Game::DoFrame( float dt )
 		overlay.WriteLine( "" );
 		overlay.WriteLine( "Player pos: %5.2f %5.2f %5.2f", playerPos.x, playerPos.y, playerPos.z );
 		overlay.WriteLine( "Chunk pos:  %5i ----- %5i", playerChunkPos.x, playerChunkPos.z );
+//		overlay.WriteLine( "Radius:  %8.6f", smBoundRadius );
+		overlay.WriteLine( "HWidth:   %8.6f", halfWidth );
+		overlay.WriteLine( "HHeight:  %8.6f", halfHeight );
+		overlay.WriteLine( "Diagonal:  %8.6f", boundSphereRadius );
 //		overlay.WriteLine( "Speed:  %5.2f", XMVectorGetX( XMVector4Length( vSpeed ) ) );
 //		overlay.WriteLine( "FOV:  %5.2f", gPlayerHFOV );
 		overlay.Write( "Keys pressed: " );
@@ -1113,6 +1172,7 @@ void Game::DoFrame( float dt )
 
 		ProfileStop();
 
+#if 0
 		// show lines at chunk borders
 		for( int x = -1; x <= 1; x++  )
 		{
@@ -1123,33 +1183,21 @@ void Game::DoFrame( float dt )
 				overlay.DrawLine( {lineX, 0.0f, lineZ}, {lineX, 255.0f, lineZ}, {1.0f, 0.2f, 0.2f, 1.0f} );
 			}
 		}
+#endif
 
-		// Draw frustum
-		{
-			overlay.DrawLine( playerFrustum.corners[0], playerFrustum.corners[1], { 0.0f, 0.5f, 1.0f, 1.0f } );
-			overlay.DrawLine( playerFrustum.corners[1], playerFrustum.corners[2], { 0.0f, 0.5f, 1.0f, 1.0f } );
-			overlay.DrawLine( playerFrustum.corners[2], playerFrustum.corners[3], { 0.0f, 0.5f, 1.0f, 1.0f } );
-			overlay.DrawLine( playerFrustum.corners[3], playerFrustum.corners[0], { 0.0f, 0.5f, 1.0f, 1.0f } );
-
-			overlay.DrawLine( playerFrustum.corners[4], playerFrustum.corners[5], { 0.0f, 0.5f, 1.0f, 1.0f } );
-			overlay.DrawLine( playerFrustum.corners[5], playerFrustum.corners[6], { 0.0f, 0.5f, 1.0f, 1.0f } );
-			overlay.DrawLine( playerFrustum.corners[6], playerFrustum.corners[7], { 0.0f, 0.5f, 1.0f, 1.0f } );
-			overlay.DrawLine( playerFrustum.corners[7], playerFrustum.corners[4], { 0.0f, 0.5f, 1.0f, 1.0f } );
-
-			overlay.DrawLine( playerFrustum.corners[0], playerFrustum.corners[4], { 1.0f, 0.5f, 0.0f, 1.0f } );
-			overlay.DrawLine( playerFrustum.corners[1], playerFrustum.corners[5], { 1.0f, 0.5f, 0.0f, 1.0f } );
-			overlay.DrawLine( playerFrustum.corners[2], playerFrustum.corners[6], { 1.0f, 0.5f, 0.0f, 1.0f } );
-			overlay.DrawLine( playerFrustum.corners[3], playerFrustum.corners[7], { 1.0f, 0.5f, 0.0f, 1.0f } );
-		} // End Draw frustum
+		// Draw frusta
+		overlay.DrawFrustum( playerFrustum, { 0.0f, 0.5f, 1.0f, 1.0f } );
+		overlay.DrawFrustum( playerFrustumSlice, { 1.0f, 0.5f, 0.0f, 1.0f } );
+		overlay.DrawFrustum( sunFrustum, { 1.0f, 0.0f, 0.0f, 1.0f } );
 
 		if( blockPicked )
 		{
 			overlay.DrawPoint( intersection.point, { 0.0f, 1.0f, 1.0f, 1.0f } );
 		}
 
-		XMFLOAT3 lightPos;
-		XMStoreFloat3( &lightPos, vLightPos );
-		overlay.DrawPoint( lightPos, { 1.0f, 0.0f, 1.0f, 1.0f } );
+//		XMFLOAT3 lightPos;
+//		XMStoreFloat3( &lightPos, vLightPos );
+//		overlay.DrawPoint( lightPos, { 1.0f, 0.0f, 1.0f, 1.0f } );
 	}
 
 	renderer.End();

@@ -6,6 +6,7 @@
 #include <limits.h>
 
 #include "types.h"
+#include "directxmathex.h"
 #include "input.h"
 #include "renderer.h"
 #include "world.h"
