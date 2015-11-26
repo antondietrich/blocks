@@ -41,6 +41,14 @@ inline DirectX::XMFLOAT2 operator/( DirectX::XMFLOAT2 A, const float c )
 	return DirectX::XMFLOAT2( A.x / c, A.y / c );
 }
 
+inline DirectX::XMFLOAT2 Floor( DirectX::XMFLOAT2 A )
+{
+	DirectX::XMFLOAT2 result;
+	result.x = floor( A.x );
+	result.y = floor( A.y );
+	return result;
+}
+
 inline float LengthSq( DirectX::XMFLOAT2 v )
 {
 	float result = v.x * v.x + v.y * v.y;
@@ -99,6 +107,15 @@ inline DirectX::XMFLOAT3 operator*( DirectX::XMFLOAT3 A, float c )
 inline DirectX::XMFLOAT3 operator/( DirectX::XMFLOAT3 A, float c )
 {
 	return DirectX::XMFLOAT3( A.x / c, A.y / c, A.z / c );
+}
+
+inline DirectX::XMFLOAT3 Floor( DirectX::XMFLOAT3 A )
+{
+	DirectX::XMFLOAT3 result;
+	result.x = floor( A.x );
+	result.y = floor( A.y );
+	result.z = floor( A.z );
+	return result;
 }
 
 inline float LengthSq( DirectX::XMFLOAT3 v )
