@@ -585,7 +585,7 @@ void Renderer::SetChunkDrawingState()
 	SetTexture( textures_[4], ST_FRAGMENT, 2 );
 	SetTexture( textures_[5], ST_FRAGMENT, 3 );
 
-	SetTexture( textures_[7], ST_FRAGMENT, 5 );
+	SetTexture( textures_[7], ST_FRAGMENT, 8 );
 	SetShader( shaders_[0] );
 	SetDepthBufferMode( DB_ENABLED );
 	context_->PSSetConstantBuffers( 1, 1, &frameConstantBuffer_ );
