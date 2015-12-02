@@ -5,13 +5,20 @@ namespace Blocks
 
 using namespace DirectX;
 
+/*** globals ***/
 extern ConfigType Config;
+extern int gChunkMeshCacheDim;
 
-void MakeGlobalCBInitData( GlobalCB *cbData, D3D11_SUBRESOURCE_DATA *cbInitData, float screenWidth, float screenHeight, float viewDistance );
+ResourceHandle gDefaultDepthStencilState;
+ResourceHandle gDefaultRasterizerState;
 
 bool Renderer::isInstantiated_ = false;
 
-extern int gChunkMeshCacheDim;
+
+/*** function declarations ***/
+void MakeGlobalCBInitData( GlobalCB *cbData, D3D11_SUBRESOURCE_DATA *cbInitData, float screenWidth, float screenHeight, float viewDistance );
+
+
 
 Renderer::Renderer()
 {
@@ -242,6 +249,41 @@ bool Renderer::Start( HWND wnd )
 
 	if( Config.fullscreen ) {
 		ToggleFullscreen();
+	}
+
+	// depth/stencil
+	DepthStateDesc depthStateDesc;
+	ZERO_MEMORY( depthStateDesc );
+	depthStateDesc.enabled = true;
+	depthStateDesc.readonly = false;
+	depthStateDesc.comparisonFunction = COMPARISON_FUNCTION::LESS_EQUAL;
+	StencilStateDesc stencilStateDesc;
+	stencilStateDesc.enabled = false;
+	gDefaultDepthStencilState = CreateDepthStencilState( depthStateDesc, stencilStateDesc );
+	if( gDefaultDepthStencilState == INVALID_HANDLE )
+	{
+		OutputDebugStringA( "Failed to create default depth/stencil state!" );
+		return false;
+	}
+
+	// rasterizer
+	RasterizerStateDesc rasterizerStateDesc;
+	ZERO_MEMORY( rasterizerStateDesc );
+	rasterizerStateDesc.fillMode = FILL_MODE::SOLID;
+	rasterizerStateDesc.cullMode = CULL_MODE::BACK;
+	rasterizerStateDesc.frontCCW = true;
+	rasterizerStateDesc.depthClipEnabled = true;
+	if( Config.multisampling == 2 || Config.multisampling == 4 || Config.multisampling == 8 || Config.multisampling == 16 )
+	{
+		rasterizerStateDesc.multisampleEnabled = true;
+		rasterizerStateDesc.antialiasedLineEnabled = true;
+	}
+
+	gDefaultRasterizerState = CreateRasterizerState( rasterizerStateDesc );
+	if( gDefaultRasterizerState == INVALID_HANDLE )
+	{
+		OutputDebugStringA( "Failed to create default rasterizer state!" );
+		return false;
 	}
 
 	// texture samplers
@@ -1728,6 +1770,7 @@ void Overlay::DisplayText( int x, int y, const char* text, XMFLOAT4 color )
 	}
 
 	renderer_->SetDepthStencilState( depthStateDisabled_ );
+	renderer_->SetRasterizerState( gDefaultRasterizerState );
 	renderer_->SetBlendMode( BM_ALPHA );
 	renderer_->context_->IASetVertexBuffers( 0, 1, &textVB_, &stride, &offset );
 	renderer_->SetTexture( texture_, ST_FRAGMENT );
@@ -1782,6 +1825,7 @@ void Overlay::DrawLine( XMFLOAT3 A, XMFLOAT3 B, XMFLOAT4 color )
 	uint offset = 0;
 
 	renderer_->SetDepthStencilState( depthStateRead_ );
+	renderer_->SetRasterizerState( gDefaultRasterizerState );
 	renderer_->SetBlendMode( BM_ALPHA );
 	renderer_->context_->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_LINELIST );
 	renderer_->context_->IASetVertexBuffers( 0, 1, &primitiveVB_, &stride, &offset );

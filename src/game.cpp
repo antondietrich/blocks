@@ -40,8 +40,8 @@ VertexBuffer * gChunkVertexBuffer;
 
 const int gNumShadowCascades = 4;
 
-ResourceHandle gDefaultDepthStencilState;
-ResourceHandle gDefaultRasterizerState;
+// ResourceHandle gDefaultDepthStencilState;
+// ResourceHandle gDefaultRasterizerState;
 ResourceHandle gSMRasterizerState;
 //RenderTarget gShadowRT[ gNumShadowCascades ];
 DepthBuffer gShadowDB[ gNumShadowCascades ];
@@ -145,42 +145,12 @@ bool Game::Start( HWND wnd )
 		return false;
 	}
 
-	DepthStateDesc depthStateDesc;
-	ZERO_MEMORY( depthStateDesc );
-	depthStateDesc.enabled = true;
-	depthStateDesc.readonly = false;
-	depthStateDesc.comparisonFunction = COMPARISON_FUNCTION::LESS_EQUAL;
-	StencilStateDesc stencilStateDesc;
-	stencilStateDesc.enabled = false;
-	gDefaultDepthStencilState = renderer.CreateDepthStencilState( depthStateDesc, stencilStateDesc );
-	if( gDefaultDepthStencilState == INVALID_HANDLE )
-	{
-		return false;
-	}
-
-
 	RasterizerStateDesc rasterizerStateDesc;
 	ZERO_MEMORY( rasterizerStateDesc );
 	rasterizerStateDesc.fillMode = FILL_MODE::SOLID;
 	rasterizerStateDesc.cullMode = CULL_MODE::BACK;
 	rasterizerStateDesc.frontCCW = true;
 	rasterizerStateDesc.depthClipEnabled = true;
-	if( Config.multisampling == 2 || Config.multisampling == 4 || Config.multisampling == 8 || Config.multisampling == 16 )
-	{
-		rasterizerStateDesc.multisampleEnabled = true;
-		rasterizerStateDesc.antialiasedLineEnabled = true;
-	}
-
-	gDefaultRasterizerState = renderer.CreateRasterizerState( rasterizerStateDesc );
-	if( gDefaultRasterizerState == INVALID_HANDLE )
-	{
-		return false;
-	}
-
-	rasterizerStateDesc.fillMode = FILL_MODE::SOLID;
-	rasterizerStateDesc.cullMode = CULL_MODE::NONE;
-	rasterizerStateDesc.multisampleEnabled = false;
-	rasterizerStateDesc.antialiasedLineEnabled = false;
 
 	gSMRasterizerState = renderer.CreateRasterizerState( rasterizerStateDesc );
 	if( gSMRasterizerState == INVALID_HANDLE )

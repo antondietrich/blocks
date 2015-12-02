@@ -31,6 +31,8 @@ typedef uint8 ResourceHandle;
 #define ZERO_MEMORY( t ) ( ZeroMemory( &(t), sizeof(t) ) )
 
 /* Depth / stencil state */
+extern ResourceHandle gDefaultDepthStencilState;
+
 enum class COMPARISON_FUNCTION
 {
 	NEVER = D3D11_COMPARISON_NEVER,
@@ -81,6 +83,8 @@ struct StencilStateDesc
 
 
 /* Rasterizer state */
+extern ResourceHandle gDefaultRasterizerState;
+
 enum class FILL_MODE
 {
 	WIREFRAME = D3D11_FILL_WIREFRAME,
