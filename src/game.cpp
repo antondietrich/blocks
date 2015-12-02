@@ -884,13 +884,23 @@ void Game::DoFrame( float dt )
 	Frustum playerFrustum = CalculatePerspectiveFrustum( playerEyePos, playerLook, playerRight, lookUp, gPlayerNearPlane, gPlayerFarPlane, gPlayerHFOV, screenAspect );
 
 	// frustum slices
-	// float numFrustumSlices = 1;
-	float sliceDistances[] = { gPlayerNearPlane, 4.0f, 16.0f, 64.0f, gPlayerFarPlane };
+	float sliceDistances[5] = { gPlayerNearPlane, 4.0f, 16.0f, 64.0f, gPlayerFarPlane };
+	sliceDistances[0] = gPlayerNearPlane;
+	for( int i = 1; i < 4; ++i )
+	{
+		float t = 0.96f;
+		float linearSplit = gPlayerNearPlane + (i / 4.0f)*(gPlayerFarPlane - gPlayerNearPlane);
+		float expSplit = gPlayerNearPlane * pow( ( gPlayerFarPlane / gPlayerNearPlane ), i / 4.0f );
+		sliceDistances[i] = Lerp( linearSplit, expSplit, t );
+	}
+	sliceDistances[4] = gPlayerFarPlane;
 
 	int numChunksToDrawSM = gChunkMeshCacheDim * gChunkMeshCacheDim * gNumShadowCascades;
 	int numChunksDrawnSM = 0;
 
 	LightCB lightCBData[4];
+
+	Frustum sunFrustum[4];
 
 	for( int sliceIndex = 0; sliceIndex < gNumShadowCascades; ++sliceIndex )
 	{
@@ -902,7 +912,8 @@ void Game::DoFrame( float dt )
 		// find bound sphere center
 		// TODO: calculate a tighter sphere
 		XMFLOAT3 playerFrustumSliceCenter;
-		XMVECTOR vPlayerFrustumSliceCenter = vEyePos + vLook * (( sliceFar - sliceNear ) * 0.5f);
+		XMVECTOR vPlayerFrustumSliceCenter = vEyePos + vLook * sliceNear + vLook * (( sliceFar - sliceNear ) * 0.5f);
+		// vPlayerFrustumSliceCenter = vEyePos;
 		XMStoreFloat3( &playerFrustumSliceCenter, vPlayerFrustumSliceCenter );
 
 		XMFLOAT3 smBoundCenter;
@@ -946,7 +957,7 @@ void Game::DoFrame( float dt )
 		XMStoreFloat4x4( &lightCBData[ sliceIndex ].vp, lightVP );
 
 		// calculate world-space shadow bound for culling
-		Frustum sunFrustum = ComputeOrthoFrustum( playerFrustumSliceCenter, negSunDirection, sunRight, sunUp,
+		sunFrustum[sliceIndex] = ComputeOrthoFrustum( playerFrustumSliceCenter, negSunDirection, sunRight, sunUp,
 												  boundSphereRadius*2.0f, boundSphereRadius*2.0f, -smRegionDim*0.5f, smRegionDim*0.5f );
 
 		renderer.SetLightCBuffer( lightCBData[ sliceIndex ] );
@@ -968,7 +979,7 @@ void Game::DoFrame( float dt )
 				CHUNK_HEIGHT,
 				chunkBound.min.z + CHUNK_WIDTH };
 
-			bool culled = IsFrustumCulled( sunFrustum, chunkBound );
+			bool culled = IsFrustumCulled( sunFrustum[sliceIndex], chunkBound );
 
 			if( gChunkMeshCache[ meshIndex ].vertices && !culled )
 			{
@@ -1149,6 +1160,7 @@ void Game::DoFrame( float dt )
 		overlay.WriteLine( "" );
 		overlay.WriteLine( "Player pos: %5.2f %5.2f %5.2f", playerPos.x, playerPos.y, playerPos.z );
 		overlay.WriteLine( "Chunk pos:  %5i ----- %5i", playerChunkPos.x, playerChunkPos.z );
+		overlay.WriteLine( "Splits:  %5.2f - %5.2f - %5.2f - %5.2f - %5.2f", sliceDistances[0], sliceDistances[1], sliceDistances[2], sliceDistances[3], sliceDistances[4] );
 //		overlay.WriteLine( "Radius:  %8.6f", smBoundRadius );
 //		overlay.WriteLine( "Diagonal:  %8.6f", boundSphereRadius );
 //		overlay.WriteLine( "Speed:  %5.2f", XMVectorGetX( XMVector4Length( vSpeed ) ) );
@@ -1188,8 +1200,12 @@ void Game::DoFrame( float dt )
 
 		// Draw frusta
 		overlay.DrawFrustum( playerFrustum, { 0.0f, 0.5f, 1.0f, 1.0f } );
-		// overlay.DrawFrustum( playerFrustumSlice, { 1.0f, 0.5f, 0.0f, 1.0f } );
-		// overlay.DrawFrustum( sunFrustum, { 1.0f, 0.0f, 0.0f, 1.0f } );
+		//overlay.DrawFrustum( playerFrustumSlice, { 1.0f, 0.5f, 0.0f, 1.0f } );
+
+		overlay.DrawFrustum( sunFrustum[0], { 1.0f, 0.0f, 0.0f, 1.0f } );
+		overlay.DrawFrustum( sunFrustum[1], { 0.0f, 1.0f, 0.0f, 1.0f } );
+		overlay.DrawFrustum( sunFrustum[2], { 0.0f, 0.0f, 1.0f, 1.0f } );
+		overlay.DrawFrustum( sunFrustum[3], { 1.0f, 1.0f, 0.0f, 1.0f } );
 
 		if( blockPicked )
 		{
