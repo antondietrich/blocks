@@ -28,6 +28,7 @@
 #include <string>
 #include <DirectXMath.h>
 //#include <stdint.h>
+#include "utils.h"
 #include "types.h"
 
 namespace Blocks

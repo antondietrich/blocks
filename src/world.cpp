@@ -22,11 +22,6 @@ float Noise2D( int x, int y )
 	return Noise1( input );
 }
 
-float Lerp( float a, float b, float t )
-{
-	return a * ( 1 - t ) + b * t;
-}
-
 float Cubic( float pL, float p0, float p3, float pR, float t )
 {
 	float p1 = p0 + ( p3 - pL ) / 6;

@@ -18,6 +18,10 @@
 //
 float Saturate( float f );
 float Clamp( float f, float min, float max );
+inline float Lerp( float a, float b, float t )
+{
+	return a * ( 1 - t ) + b * t;
+}
 
 
 //
