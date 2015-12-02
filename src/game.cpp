@@ -41,6 +41,8 @@ VertexBuffer * gChunkVertexBuffer;
 const int gNumShadowCascades = 4;
 
 ResourceHandle gDefaultDepthStencilState;
+ResourceHandle gDefaultRasterizerState;
+ResourceHandle gSMRasterizerState;
 //RenderTarget gShadowRT[ gNumShadowCascades ];
 DepthBuffer gShadowDB[ gNumShadowCascades ];
 
@@ -143,17 +145,49 @@ bool Game::Start( HWND wnd )
 		return false;
 	}
 
-	DepthStateDesc depthStateDesc = {0};
+	DepthStateDesc depthStateDesc;
+	ZERO_MEMORY( depthStateDesc );
 	depthStateDesc.enabled = true;
 	depthStateDesc.readonly = false;
 	depthStateDesc.comparisonFunction = COMPARISON_FUNCTION::LESS_EQUAL;
-	StencilStateDesc stencilStateDesc = {0};
+	StencilStateDesc stencilStateDesc;
 	stencilStateDesc.enabled = false;
 	gDefaultDepthStencilState = renderer.CreateDepthStencilState( depthStateDesc, stencilStateDesc );
 	if( gDefaultDepthStencilState == INVALID_HANDLE )
 	{
 		return false;
 	}
+
+
+	RasterizerStateDesc rasterizerStateDesc;
+	ZERO_MEMORY( rasterizerStateDesc );
+	rasterizerStateDesc.fillMode = FILL_MODE::SOLID;
+	rasterizerStateDesc.cullMode = CULL_MODE::BACK;
+	rasterizerStateDesc.frontCCW = true;
+	rasterizerStateDesc.depthClipEnabled = true;
+	if( Config.multisampling == 2 || Config.multisampling == 4 || Config.multisampling == 8 || Config.multisampling == 16 )
+	{
+		rasterizerStateDesc.multisampleEnabled = true;
+		rasterizerStateDesc.antialiasedLineEnabled = true;
+	}
+
+	gDefaultRasterizerState = renderer.CreateRasterizerState( rasterizerStateDesc );
+	if( gDefaultRasterizerState == INVALID_HANDLE )
+	{
+		return false;
+	}
+
+	rasterizerStateDesc.fillMode = FILL_MODE::SOLID;
+	rasterizerStateDesc.cullMode = CULL_MODE::NONE;
+	rasterizerStateDesc.multisampleEnabled = false;
+	rasterizerStateDesc.antialiasedLineEnabled = false;
+
+	gSMRasterizerState = renderer.CreateRasterizerState( rasterizerStateDesc );
+	if( gSMRasterizerState == INVALID_HANDLE )
+	{
+		return false;
+	}
+
 
 	if( !overlay.Start( &renderer ) )
 	{
@@ -818,7 +852,7 @@ void Game::DoFrame( float dt )
 	// Render state for shadow drawing
 	renderer.SetChunkDrawingState();
 	renderer.SetDepthStencilState( gDefaultDepthStencilState );
-	renderer.SetRasterizer( RS_SHADOWMAP );
+	renderer.SetRasterizerState( gSMRasterizerState );
 	renderer.SetSampler( SAMPLER_POINT, ST_FRAGMENT, 1 );
 	renderer.SetShader( 1 );
 	renderer.RemoveTexture( ST_FRAGMENT, 4 );
@@ -1061,7 +1095,7 @@ void Game::DoFrame( float dt )
 //	renderer.SetViewport( &debugViewport );
 
 	renderer.SetDepthStencilState( gDefaultDepthStencilState );
-	renderer.SetRasterizer( RS_DEFAULT );
+	renderer.SetRasterizerState( gDefaultRasterizerState );
 	renderer.SetShader( 0 );
 	renderer.SetRenderTarget();
 

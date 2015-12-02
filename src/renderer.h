@@ -210,12 +210,12 @@ public:
 	void SetRenderTarget();
 
 	ResourceHandle CreateDepthStencilState( DepthStateDesc depthStateDesc, StencilStateDesc stencilStateDesc );
+	ResourceHandle CreateRasterizerState( RasterizerStateDesc rasterizerStateDesc );
 
 	void SetDepthStencilState( ResourceHandle handle, uint stencilReference = 0 );
-	void SetRasterizer( RASTERIZER_STATE rs );
+	void SetRasterizerState( ResourceHandle handle );
 	void SetSampler( SAMPLER_TYPE st, SHADER_TYPE shader, uint slot = 0 );
 	void SetBlendMode( BLEND_MODE bm );
-	//void SetDepthBufferMode( DEPTH_BUFFER_MODE bm );
 
 	void SetView( DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 dir, DirectX::XMFLOAT3 up );
 	void SetViewport( D3D11_VIEWPORT *viewport );
@@ -240,7 +240,6 @@ private:
 	IDXGISwapChain *swapChain_;
 	ID3D11RenderTargetView *backBufferView_;
 	ID3D11DepthStencilView *depthStencilView_;
-	// ID3D11RasterizerState *defaultRasterizerState_;
 	D3D11_VIEWPORT screenViewport_;
 
 	ID3D11Buffer *globalConstantBuffer_;
@@ -249,10 +248,11 @@ private:
 	ID3D11Buffer *modelConstantBuffer_;
 
 	ResourceHandle nextFreeDepthStencilSlot;
+	ResourceHandle nextFreeRasterizerSlot;
 
 	ID3D11DepthStencilState	*depthStencilStates_[ MAX_DEPTH_STENCIL_STATES ];
 	ID3D11SamplerState 		*samplers_[ NUM_SAMPLER_TYPES ];
-	ID3D11RasterizerState	*rasterizerStates_[ NUM_RASTERIZER_STATES ];
+	ID3D11RasterizerState	*rasterizerStates_[ MAX_RASTERIZER_STATES ];
 	ID3D11BlendState		*blendStates_[ NUM_BLEND_MODES ];
 
 //	uint numCachedVerts_;

@@ -24,13 +24,13 @@ Renderer::Renderer()
 	swapChain_ = 0;
 	backBufferView_ = 0;
 	depthStencilView_ = 0;
-	// defaultRasterizerState_ = 0;
 	globalConstantBuffer_ = 0;
 	frameConstantBuffer_ = 0;
 	lightConstantBuffer_ = 0;
 	modelConstantBuffer_ = 0;
 
 	nextFreeDepthStencilSlot = 0;
+	nextFreeRasterizerSlot = 0;
 
 	for( int i = 0; i < MAX_DEPTH_STENCIL_STATES; i++ ) {
 		depthStencilStates_[i] = 0;
@@ -38,7 +38,7 @@ Renderer::Renderer()
 	for( int i = 0; i < NUM_SAMPLER_TYPES; i++ ) {
 		samplers_[i] = 0;
 	}
-	for( int i = 0; i < NUM_RASTERIZER_STATES; i++ ) {
+	for( int i = 0; i < MAX_RASTERIZER_STATES; i++ ) {
 		rasterizerStates_[i] = 0;
 	}
 	for( int i = 0; i < NUM_BLEND_MODES; i++ ) {
@@ -82,7 +82,7 @@ Renderer::~Renderer()
 	for( int i = 0; i < NUM_BLEND_MODES; i++ ) {
 		RELEASE( blendStates_[i] );
 	}
-	for( int i = 0; i < NUM_RASTERIZER_STATES; i++ ) {
+	for( int i = 0; i < MAX_RASTERIZER_STATES; i++ ) {
 		RELEASE( rasterizerStates_[i] );
 	}
 	for( int i = 0; i < NUM_SAMPLER_TYPES; i++ ) {
@@ -95,7 +95,6 @@ Renderer::~Renderer()
 	RELEASE( lightConstantBuffer_ );
 	RELEASE( frameConstantBuffer_ );
 	RELEASE( globalConstantBuffer_ );
-//	RELEASE( defaultRasterizerState_ );
 	RELEASE( depthStencilView_ );
 	RELEASE( backBufferView_ );
 	RELEASE( swapChain_ );
@@ -244,44 +243,6 @@ bool Renderer::Start( HWND wnd )
 	if( Config.fullscreen ) {
 		ToggleFullscreen();
 	}
-
-	// rasterizer states
-	D3D11_RASTERIZER_DESC rasterizerStateDesc;
-	ZeroMemory( &rasterizerStateDesc, sizeof( rasterizerStateDesc ) );
-	rasterizerStateDesc.FillMode = D3D11_FILL_SOLID;
-	//rasterizerStateDesc.FillMode = D3D11_FILL_WIREFRAME;
-	rasterizerStateDesc.CullMode = D3D11_CULL_BACK;
-	rasterizerStateDesc.FrontCounterClockwise = TRUE;
-	rasterizerStateDesc.DepthBias = 0;
-	rasterizerStateDesc.DepthBiasClamp = 0.0f;
-	rasterizerStateDesc.SlopeScaledDepthBias = 0.0f;
-	rasterizerStateDesc.DepthClipEnable = TRUE;
-	rasterizerStateDesc.ScissorEnable = FALSE;
-	rasterizerStateDesc.MultisampleEnable = FALSE;
-	if( Config.multisampling == 2 || Config.multisampling == 4 || Config.multisampling == 8 || Config.multisampling == 16 ) {
-		rasterizerStateDesc.MultisampleEnable = TRUE;
-	}
-	rasterizerStateDesc.AntialiasedLineEnable = TRUE;
-
-	hr =  device_->CreateRasterizerState( &rasterizerStateDesc, &rasterizerStates_[ RS_DEFAULT ] );
-	if( FAILED( hr ) )
-	{
-		OutputDebugStringA( "Failed to create default rasterizer state!" );
-		return false;
-	}
-
-	rasterizerStateDesc.MultisampleEnable = FALSE;
-	rasterizerStateDesc.AntialiasedLineEnable = FALSE;
-	rasterizerStateDesc.CullMode = D3D11_CULL_BACK;
-	hr =  device_->CreateRasterizerState( &rasterizerStateDesc, &rasterizerStates_[ RS_SHADOWMAP ] );
-	if( FAILED( hr ) )
-	{
-		OutputDebugStringA( "Failed to create shadow map rasterizer state!" );
-		return false;
-	}
-
-
-	context_->RSSetState( rasterizerStates_[ RS_DEFAULT ] );
 
 	// texture samplers
 	D3D11_SAMPLER_DESC samplerDesc;
@@ -911,9 +872,44 @@ ResourceHandle Renderer::CreateDepthStencilState( DepthStateDesc depthStateDesc,
 	return result;
 }
 
+ResourceHandle Renderer::CreateRasterizerState( RasterizerStateDesc rasterizerStateDesc )
+{
+	assert( nextFreeRasterizerSlot < MAX_DEPTH_STENCIL_STATES );
+	ResourceHandle result = nextFreeRasterizerSlot;
+	++nextFreeRasterizerSlot;
+
+	D3D11_RASTERIZER_DESC desc;
+	ZeroMemory( &desc, sizeof( desc ) );
+
+	desc.FillMode = (D3D11_FILL_MODE)rasterizerStateDesc.fillMode;
+	desc.CullMode = (D3D11_CULL_MODE)rasterizerStateDesc.cullMode;
+	desc.FrontCounterClockwise = rasterizerStateDesc.frontCCW;
+	desc.DepthBias = rasterizerStateDesc.depthBias;
+	desc.DepthBiasClamp = rasterizerStateDesc.depthBiasClamp;
+	desc.SlopeScaledDepthBias = rasterizerStateDesc.slopeScaledDepthBias;
+	desc.DepthClipEnable = rasterizerStateDesc.depthClipEnabled;
+	desc.ScissorEnable = rasterizerStateDesc.scissorEnabled;
+	desc.MultisampleEnable = rasterizerStateDesc.multisampleEnabled;
+	desc.AntialiasedLineEnable = rasterizerStateDesc.antialiasedLineEnabled;
+
+	HRESULT hr =  device_->CreateRasterizerState( &desc, &rasterizerStates_[ result ] );
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "Failed to create default rasterizer state!" );
+		result = INVALID_HANDLE;
+	}
+
+	return result;
+}
+
 void Renderer::SetDepthStencilState( ResourceHandle handle, uint stencilReference )
 {
 	context_->OMSetDepthStencilState( depthStencilStates_[ handle ], stencilReference );
+}
+
+void Renderer::SetRasterizerState( ResourceHandle handle )
+{
+	context_->RSSetState( rasterizerStates_[ handle ] );
 }
 
 void Renderer::SetRenderTarget( RenderTarget *rt, DepthBuffer *db )
@@ -935,11 +931,6 @@ void Renderer::SetRenderTarget( RenderTarget *rt, DepthBuffer *db )
 void Renderer::SetRenderTarget()
 {
 	context_->OMSetRenderTargets( 1, &backBufferView_, depthStencilView_ );
-}
-
-void Renderer::SetRasterizer( RASTERIZER_STATE rs )
-{
-	context_->RSSetState( rasterizerStates_[ rs ] );
 }
 
 void Renderer::SetSampler( SAMPLER_TYPE st, SHADER_TYPE shader, uint slot )

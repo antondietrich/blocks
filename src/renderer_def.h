@@ -25,11 +25,12 @@ typedef uint8 ResourceHandle;
 #define INVALID_HANDLE 0xff
 
 /*** Render states ***/
+#define MAX_DEPTH_STENCIL_STATES 8
+#define MAX_RASTERIZER_STATES 8
 
+#define ZERO_MEMORY( t ) ( ZeroMemory( &(t), sizeof(t) ) )
 
 /* Depth / stencil state */
-#define MAX_DEPTH_STENCIL_STATES 8
-
 enum class COMPARISON_FUNCTION
 {
 	NEVER = D3D11_COMPARISON_NEVER,
@@ -78,16 +79,35 @@ struct StencilStateDesc
 	STENCIL_OP_DESC backFace;
 };
 
-/* Blend state */
-enum BLEND_MODE
-{
-	BM_DEFAULT,
-	BM_ALPHA,
-
-	NUM_BLEND_MODES
-};
 
 /* Rasterizer state */
+enum class FILL_MODE
+{
+	WIREFRAME = D3D11_FILL_WIREFRAME,
+	SOLID = D3D11_FILL_SOLID,
+};
+
+enum class CULL_MODE
+{
+	NONE = D3D11_CULL_NONE,
+	FRONT = D3D11_CULL_NONE,
+	BACK = D3D11_CULL_BACK,
+};
+
+struct RasterizerStateDesc
+{
+	FILL_MODE fillMode;
+	CULL_MODE cullMode;
+	bool frontCCW;
+	int depthBias;
+	float depthBiasClamp;
+	float slopeScaledDepthBias;
+	bool depthClipEnabled;
+	bool scissorEnabled;
+	bool multisampleEnabled;
+	bool antialiasedLineEnabled;
+};
+
 enum RASTERIZER_STATE
 {
 	RS_DEFAULT,
@@ -96,6 +116,14 @@ enum RASTERIZER_STATE
 	NUM_RASTERIZER_STATES
 };
 
+/* Blend state */
+enum BLEND_MODE
+{
+	BM_DEFAULT,
+	BM_ALPHA,
+
+	NUM_BLEND_MODES
+};
 enum SAMPLER_TYPE
 {
 	SAMPLER_POINT,
