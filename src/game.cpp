@@ -40,7 +40,7 @@ VertexBuffer * gChunkVertexBuffer;
 
 const int gNumShadowCascades = 4;
 
-RenderTarget gShadowRT[ gNumShadowCascades ];
+//RenderTarget gShadowRT[ gNumShadowCascades ];
 DepthBuffer gShadowDB[ gNumShadowCascades ];
 
 // XMFLOAT3 gSunDirection;
@@ -179,11 +179,11 @@ bool Game::Start( HWND wnd )
 
 	for( int i = 0; i < gNumShadowCascades; ++i )
 	{
-		if( !gShadowRT[i].Init( SM_RESOLUTION, SM_RESOLUTION, DXGI_FORMAT_R32_FLOAT, true, renderer.GetDevice() ) )
-		{
-			return false;
-		}
-		if( !gShadowDB[i].Init( SM_RESOLUTION, SM_RESOLUTION, DXGI_FORMAT_D32_FLOAT, 1, 0, false, renderer.GetDevice() ) )
+//		if( !gShadowRT[i].Init( SM_RESOLUTION, SM_RESOLUTION, DXGI_FORMAT_R32_FLOAT, true, renderer.GetDevice() ) )
+//		{
+//			return false;
+//		}
+		if( !gShadowDB[i].Init( SM_RESOLUTION, SM_RESOLUTION, DXGI_FORMAT_D32_FLOAT, 1, 0, true, renderer.GetDevice() ) )
 		{
 			return false;
 		}
@@ -809,6 +809,9 @@ void Game::DoFrame( float dt )
 	renderer.SetSampler( SAMPLER_POINT, ST_FRAGMENT, 1 );
 	renderer.SetShader( 1 );
 	renderer.RemoveTexture( ST_FRAGMENT, 4 );
+	renderer.RemoveTexture( ST_FRAGMENT, 5 );
+	renderer.RemoveTexture( ST_FRAGMENT, 6 );
+	renderer.RemoveTexture( ST_FRAGMENT, 7 );
 
 	D3D11_VIEWPORT smViewport;
 	smViewport.Width = SM_RESOLUTION;
@@ -931,9 +934,10 @@ void Game::DoFrame( float dt )
 
 		renderer.SetLightCBuffer( lightCBData[ sliceIndex ] );
 
-		renderer.ClearTexture( &gShadowRT[ sliceIndex ] );
+		// renderer.ClearTexture( &gShadowRT[ sliceIndex ] );
+		// renderer.SetRenderTarget( &gShadowRT[ sliceIndex ], &gShadowDB[ sliceIndex ] );
 		renderer.ClearTexture( &gShadowDB[ sliceIndex ] );
-		renderer.SetRenderTarget( &gShadowRT[ sliceIndex ], &gShadowDB[ sliceIndex ] );
+		renderer.SetRenderTarget( 0, &gShadowDB[ sliceIndex ] );
 
 		for( int meshIndex = 0; meshIndex < gChunkMeshCacheDim * gChunkMeshCacheDim; meshIndex++ )
 		{
@@ -1046,12 +1050,12 @@ void Game::DoFrame( float dt )
 	renderer.SetDepthBufferMode( DB_ENABLED );
 	renderer.SetRasterizer( RS_DEFAULT );
 	renderer.SetShader( 0 );
-	renderer.SetRenderTarget( 0, 0 );
+	renderer.SetRenderTarget();
 
 	// set shadow maps
 	for( int i = 0; i < gNumShadowCascades; ++i )
 	{
-		renderer.SetTexture( gShadowRT[i], ST_FRAGMENT, 4 + i );
+		renderer.SetTexture( gShadowDB[i], ST_FRAGMENT, 4 + i );
 	}
 
 	int numChunksToDrawRT = gChunkMeshCacheDim * gChunkMeshCacheDim;
@@ -1129,8 +1133,6 @@ void Game::DoFrame( float dt )
 		overlay.WriteLine( "Player pos: %5.2f %5.2f %5.2f", playerPos.x, playerPos.y, playerPos.z );
 		overlay.WriteLine( "Chunk pos:  %5i ----- %5i", playerChunkPos.x, playerChunkPos.z );
 //		overlay.WriteLine( "Radius:  %8.6f", smBoundRadius );
-//		overlay.WriteLine( "HWidth:   %8.6f", halfWidth );
-//		overlay.WriteLine( "HHeight:  %8.6f", halfHeight );
 //		overlay.WriteLine( "Diagonal:  %8.6f", boundSphereRadius );
 //		overlay.WriteLine( "Speed:  %5.2f", XMVectorGetX( XMVector4Length( vSpeed ) ) );
 //		overlay.WriteLine( "FOV:  %5.2f", gPlayerHFOV );

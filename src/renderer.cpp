@@ -747,7 +747,7 @@ bool Renderer::ResizeBuffers()
 {
 	HRESULT hr;
 
-	context_->OMSetRenderTargets( 0, NULL, NULL );
+	SetRenderTarget( 0, 0 );
 
 	OutputDebugStringA( "Window size changed: resizing buffers\n" );
 
@@ -842,8 +842,7 @@ bool Renderer::ResizeBuffers()
 				device_ );
 #endif
 
-//	context_->OMSetRenderTargets( 1, &backBufferView_, depthStencilView_ );
-	SetRenderTarget( NULL, NULL );
+	SetRenderTarget();
 
 	screenViewport_.Width = (float)desc.BufferDesc.Width;
 	screenViewport_.Height = (float)desc.BufferDesc.Height;
@@ -868,7 +867,7 @@ bool Renderer::ResizeBuffers()
 	}
 
 	return true;
-}
+} // ResizeBuffers
 
 void Renderer::SetView( XMFLOAT3 pos, XMFLOAT3 dir, XMFLOAT3 up )
 {
@@ -892,6 +891,7 @@ void Renderer::SetView( XMFLOAT3 pos, XMFLOAT3 dir, XMFLOAT3 up )
 
 	context_->UpdateSubresource( frameConstantBuffer_, 0, NULL, &frameCBData, sizeof( FrameCB ), 0 );
 }
+
 void Renderer::SetViewport( D3D11_VIEWPORT *viewport )
 {
 	if( !viewport )
@@ -925,16 +925,17 @@ void Renderer::SetRenderTarget( RenderTarget *rt, DepthBuffer *db )
 	}
 	else if( rt )
 	{
-		context_->OMSetRenderTargets( 1, rt->GetRTV(), depthStencilView_ );
+		context_->OMSetRenderTargets( 1, rt->GetRTV(), NULL );
 	}
 	else if( db )
 	{
-		context_->OMSetRenderTargets( 1, &backBufferView_, db->GetDSV() );
+		context_->OMSetRenderTargets( 0, NULL, db->GetDSV() );
 	}
-	else
-	{
-		context_->OMSetRenderTargets( 1, &backBufferView_, depthStencilView_ );
-	}
+}
+
+void Renderer::SetRenderTarget()
+{
+	context_->OMSetRenderTargets( 1, &backBufferView_, depthStencilView_ );
 }
 
 void Renderer::SetRasterizer( RASTERIZER_STATE rs )
@@ -998,6 +999,19 @@ void Renderer::SetTexture( const Texture& texture, SHADER_TYPE shader, uint slot
 	}
 	if( ( shader & ST_FRAGMENT ) == ST_FRAGMENT ) {
 		context_->PSSetShaderResources( slot, 1, &texture.textureView_ );
+	}
+}
+
+void Renderer::SetTexture( DepthBuffer& texture, SHADER_TYPE shader, uint slot )
+{
+	if( ( shader & ST_VERTEX ) == ST_VERTEX ) {
+		context_->VSSetShaderResources( slot, 1, texture.GetSRV() );
+	}
+	if( ( shader & ST_GEOMETRY ) == ST_GEOMETRY ) {
+		context_->GSSetShaderResources( slot, 1, texture.GetSRV() );
+	}
+	if( ( shader & ST_FRAGMENT ) == ST_FRAGMENT ) {
+		context_->PSSetShaderResources( slot, 1, texture.GetSRV() );
 	}
 }
 
@@ -1102,8 +1116,7 @@ bool Shader::Load( wchar_t* filename, ID3D11Device *device )
 	if( FAILED( hr ) )
 	{
 		OutputDebugStringA( "Failed to create input layout from shader bytecode!" );
-		if( vShaderBytecode )
-			vShaderBytecode->Release();
+		RELEASE( vShaderBytecode );
 		return false;
 	}
 
@@ -1112,10 +1125,10 @@ bool Shader::Load( wchar_t* filename, ID3D11Device *device )
 	ID3DBlob *pShaderBytecode = 0;
 	if( !LoadShader( filename, PIXEL_SHADER_ENTRY, "ps_4_0", &pShaderBytecode ) )
 	{
-		OutputDebugStringA( "Shader compiltaion failed!" );
-		if( pShaderBytecode )
-			pShaderBytecode->Release();
-		return false;
+		OutputDebugStringA( "No pixel shader!" );
+		RELEASE( pShaderBytecode );
+		pixelShader_ = 0;
+		return true;
 	}
 
 	hr = device->CreatePixelShader( pShaderBytecode->GetBufferPointer(), pShaderBytecode->GetBufferSize(), NULL, &pixelShader_ );
@@ -1252,13 +1265,36 @@ bool DepthBuffer::Init( uint width, uint height, DXGI_FORMAT format, uint msCoun
 {
 	HRESULT hr;
 
+	DXGI_FORMAT formatTexture = (DXGI_FORMAT)0;
+	DXGI_FORMAT formatSRV = (DXGI_FORMAT)0;
+	switch( format )
+	{
+		case DXGI_FORMAT_D32_FLOAT:
+			formatTexture = DXGI_FORMAT_R32_TYPELESS;
+			formatSRV = DXGI_FORMAT_R32_FLOAT;
+			break;
+
+		case DXGI_FORMAT_D24_UNORM_S8_UINT:
+			formatTexture = DXGI_FORMAT_R24G8_TYPELESS;
+			formatSRV = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+			break;
+
+		case DXGI_FORMAT_D16_UNORM:
+			formatTexture = DXGI_FORMAT_R16_TYPELESS;
+			formatSRV = DXGI_FORMAT_R16_UNORM;
+			break;
+
+		default:
+			return false;
+	}
+
 	D3D11_TEXTURE2D_DESC texDesc;
 	ZeroMemory( &texDesc, sizeof( texDesc ) );
 	texDesc.Width = width;
 	texDesc.Height = height;
 	texDesc.MipLevels = 1;
 	texDesc.ArraySize = 1;
-	texDesc.Format = format;
+	texDesc.Format = formatTexture;
 	texDesc.SampleDesc.Count = msCount;
 	texDesc.SampleDesc.Quality = msQuality;
 	texDesc.Usage = D3D11_USAGE_DEFAULT;
@@ -1302,7 +1338,7 @@ bool DepthBuffer::Init( uint width, uint height, DXGI_FORMAT format, uint msCoun
 	{
 		D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
 		ZeroMemory( &srvDesc, sizeof( srvDesc ) );
-		srvDesc.Format = format;
+		srvDesc.Format = formatSRV;
 		srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 		srvDesc.Texture2D.MostDetailedMip = 0;
 		srvDesc.Texture2D.MipLevels = 1;

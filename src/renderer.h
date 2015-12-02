@@ -207,6 +207,7 @@ public:
 
 	/* render state */
 	void SetRenderTarget( RenderTarget *rt, DepthBuffer *db );
+	void SetRenderTarget();
 	void SetRasterizer( RASTERIZER_STATE rs );
 	void SetSampler( SAMPLER_TYPE st, SHADER_TYPE shader, uint slot = 0 );
 	void SetBlendMode( BLEND_MODE bm );
@@ -220,6 +221,7 @@ public:
 	void SetShader( const Shader& shader );
 	void SetShader( uint shaderID );
 	void SetTexture( const Texture& texture, SHADER_TYPE shader, uint slot = 0 );
+	void SetTexture( DepthBuffer& texture, SHADER_TYPE shader, uint slot = 0 );
 	void SetTexture( RenderTarget& texture, SHADER_TYPE shader, uint slot = 0 );
 	void RemoveTexture( SHADER_TYPE shader, uint slot = 0 );
 

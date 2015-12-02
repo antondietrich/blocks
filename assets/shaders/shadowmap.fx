@@ -47,11 +47,11 @@ PS_Input VSMain( VS_Input input )
 	return output;
 }
 
-float PSMain( PS_Input input ) : SV_TARGET
-{
-	// return ShowTexel( input.pos );
-	return input.pos.z;
-}
+//float PSMain( PS_Input input ) : SV_TARGET
+//{
+//	// return ShowTexel( input.pos );
+//	return input.pos.z;
+//}
 
 //
 // Produces a checkered map to inspect shadow map texel size
