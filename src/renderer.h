@@ -208,10 +208,14 @@ public:
 	/* render state */
 	void SetRenderTarget( RenderTarget *rt, DepthBuffer *db );
 	void SetRenderTarget();
+
+	ResourceHandle CreateDepthStencilState( DepthStateDesc depthStateDesc, StencilStateDesc stencilStateDesc );
+
+	void SetDepthStencilState( ResourceHandle handle, uint stencilReference = 0 );
 	void SetRasterizer( RASTERIZER_STATE rs );
 	void SetSampler( SAMPLER_TYPE st, SHADER_TYPE shader, uint slot = 0 );
 	void SetBlendMode( BLEND_MODE bm );
-	void SetDepthBufferMode( DEPTH_BUFFER_MODE bm );
+	//void SetDepthBufferMode( DEPTH_BUFFER_MODE bm );
 
 	void SetView( DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 dir, DirectX::XMFLOAT3 up );
 	void SetViewport( D3D11_VIEWPORT *viewport );
@@ -238,19 +242,20 @@ private:
 	ID3D11DepthStencilView *depthStencilView_;
 	// ID3D11RasterizerState *defaultRasterizerState_;
 	D3D11_VIEWPORT screenViewport_;
+
 	ID3D11Buffer *globalConstantBuffer_;
 	ID3D11Buffer *frameConstantBuffer_;
 	ID3D11Buffer *lightConstantBuffer_;
 	ID3D11Buffer *modelConstantBuffer_;
 
-	ID3D11RasterizerState *rasterizerStates_[ NUM_RASTERIZER_STATES ];
-	ID3D11SamplerState *samplers_[ NUM_SAMPLER_TYPES ];
-	ID3D11BlendState *blendStates_[ NUM_BLEND_MODES ];
-	ID3D11DepthStencilState *depthStencilStates_[ NUM_DEPTH_BUFFER_MODES ];
+	ResourceHandle nextFreeDepthStencilSlot;
 
-//	ID3D11Buffer **blockVB_;
-	// BlockVertex *blockCache_;
-	uint numCachedVerts_;
+	ID3D11DepthStencilState	*depthStencilStates_[ MAX_DEPTH_STENCIL_STATES ];
+	ID3D11SamplerState 		*samplers_[ NUM_SAMPLER_TYPES ];
+	ID3D11RasterizerState	*rasterizerStates_[ NUM_RASTERIZER_STATES ];
+	ID3D11BlendState		*blendStates_[ NUM_BLEND_MODES ];
+
+//	uint numCachedVerts_;
 
 	Shader shaders_[ MAX_SHADERS ];
 	Texture textures_[ MAX_TEXTURES ];
@@ -331,6 +336,9 @@ private:
 	ID3D11Buffer *primitiveVB_;
 	Texture texture_;
 	ID3D11Buffer *constantBuffer_;
+
+	ResourceHandle depthStateRead_;
+	ResourceHandle depthStateDisabled_;
 
 	uint lineNumber_;
 	uint lineOffset_;

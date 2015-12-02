@@ -40,6 +40,7 @@ VertexBuffer * gChunkVertexBuffer;
 
 const int gNumShadowCascades = 4;
 
+ResourceHandle gDefaultDepthStencilState;
 //RenderTarget gShadowRT[ gNumShadowCascades ];
 DepthBuffer gShadowDB[ gNumShadowCascades ];
 
@@ -138,6 +139,18 @@ Game::~Game()
 bool Game::Start( HWND wnd )
 {
 	if( !renderer.Start( wnd ) )
+	{
+		return false;
+	}
+
+	DepthStateDesc depthStateDesc = {0};
+	depthStateDesc.enabled = true;
+	depthStateDesc.readonly = false;
+	depthStateDesc.comparisonFunction = COMPARISON_FUNCTION::LESS_EQUAL;
+	StencilStateDesc stencilStateDesc = {0};
+	stencilStateDesc.enabled = false;
+	gDefaultDepthStencilState = renderer.CreateDepthStencilState( depthStateDesc, stencilStateDesc );
+	if( gDefaultDepthStencilState == INVALID_HANDLE )
 	{
 		return false;
 	}
@@ -804,7 +817,7 @@ void Game::DoFrame( float dt )
 
 	// Render state for shadow drawing
 	renderer.SetChunkDrawingState();
-	renderer.SetDepthBufferMode( DB_ENABLED );
+	renderer.SetDepthStencilState( gDefaultDepthStencilState );
 	renderer.SetRasterizer( RS_SHADOWMAP );
 	renderer.SetSampler( SAMPLER_POINT, ST_FRAGMENT, 1 );
 	renderer.SetShader( 1 );
@@ -1047,7 +1060,7 @@ void Game::DoFrame( float dt )
 //	smViewport.TopLeftY = 0.0f;
 //	renderer.SetViewport( &debugViewport );
 
-	renderer.SetDepthBufferMode( DB_ENABLED );
+	renderer.SetDepthStencilState( gDefaultDepthStencilState );
 	renderer.SetRasterizer( RS_DEFAULT );
 	renderer.SetShader( 0 );
 	renderer.SetRenderTarget();

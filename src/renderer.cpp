@@ -30,18 +30,19 @@ Renderer::Renderer()
 	lightConstantBuffer_ = 0;
 	modelConstantBuffer_ = 0;
 
+	nextFreeDepthStencilSlot = 0;
 
-	for( int i = 0; i < NUM_RASTERIZER_STATES; i++ ) {
-		rasterizerStates_[i] = 0;
+	for( int i = 0; i < MAX_DEPTH_STENCIL_STATES; i++ ) {
+		depthStencilStates_[i] = 0;
 	}
 	for( int i = 0; i < NUM_SAMPLER_TYPES; i++ ) {
 		samplers_[i] = 0;
 	}
+	for( int i = 0; i < NUM_RASTERIZER_STATES; i++ ) {
+		rasterizerStates_[i] = 0;
+	}
 	for( int i = 0; i < NUM_BLEND_MODES; i++ ) {
 		blendStates_[i] = 0;
-	}
-	for( int i = 0; i < NUM_DEPTH_BUFFER_MODES; i++ ) {
-		depthStencilStates_[i] = 0;
 	}
 
 	for( int i = 0; i < MAX_SHADERS; i++ )
@@ -62,7 +63,7 @@ Renderer::Renderer()
 	//blockVB_ = 0;
 
 	// blockCache_ = new BlockVertex[ MAX_VERTS_PER_BATCH ];
-	numCachedVerts_ = 0;
+//	numCachedVerts_ = 0;
 
 	viewPosition_ = { 0, 0, 0 };
 	viewDirection_ = { 0, 0, 0 };
@@ -78,26 +79,17 @@ Renderer::~Renderer()
 	device_->QueryInterface(__uuidof(ID3D11Debug), (void**)(&DebugDevice));
 #endif
 
-	// delete[] blockCache_;
-//	if( blockVB_ )
-//	{
-//		for( int i = 0; i < gChunkMeshCacheDim * gChunkMeshCacheDim; i++ )
-//		{
-//			RELEASE( blockVB_[i] );
-//		}
-//		delete[] blockVB_;
-//	}
-	for( int i = 0; i < NUM_DEPTH_BUFFER_MODES; i++ ) {
-		RELEASE( depthStencilStates_[i] );
-	}
 	for( int i = 0; i < NUM_BLEND_MODES; i++ ) {
 		RELEASE( blendStates_[i] );
+	}
+	for( int i = 0; i < NUM_RASTERIZER_STATES; i++ ) {
+		RELEASE( rasterizerStates_[i] );
 	}
 	for( int i = 0; i < NUM_SAMPLER_TYPES; i++ ) {
 		RELEASE( samplers_[i] );
 	}
-	for( int i = 0; i < NUM_RASTERIZER_STATES; i++ ) {
-		RELEASE( rasterizerStates_[i] );
+	for( int i = 0; i < MAX_DEPTH_STENCIL_STATES; i++ ) {
+		RELEASE( depthStencilStates_[i] );
 	}
 	RELEASE( modelConstantBuffer_ );
 	RELEASE( lightConstantBuffer_ );
@@ -358,43 +350,6 @@ bool Renderer::Start( HWND wnd )
 
 	device_->CreateBlendState( &blendDesc, &blendStates_[ BM_ALPHA ] );
 
-	// depth buffer modes
-	D3D11_DEPTH_STENCIL_DESC depthDesc;
-	ZeroMemory( &depthDesc, sizeof( depthDesc ) );
-	depthDesc.DepthEnable = TRUE;
-	depthDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
-	depthDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
-	depthDesc.StencilEnable = FALSE;
-	depthDesc.StencilReadMask = D3D11_DEFAULT_STENCIL_READ_MASK;
-	depthDesc.StencilWriteMask = D3D11_DEFAULT_STENCIL_WRITE_MASK;
-	depthDesc.BackFace.StencilFunc = depthDesc.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
-	depthDesc.BackFace.StencilFailOp = depthDesc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
-	depthDesc.BackFace.StencilPassOp = depthDesc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
-	depthDesc.BackFace.StencilDepthFailOp = depthDesc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
-	hr = device_->CreateDepthStencilState( &depthDesc, &depthStencilStates_[ DB_ENABLED ] );
-	if( FAILED( hr ) )
-	{
-		OutputDebugStringA( "Failed to create depth-stencil state!" );
-		return false;
-	}
-
-	depthDesc.DepthEnable = FALSE;
-	hr = device_->CreateDepthStencilState( &depthDesc, &depthStencilStates_[ DB_DISABLED ] );
-	if( FAILED( hr ) )
-	{
-		OutputDebugStringA( "Failed to create depth-stencil state!" );
-		return false;
-	}
-
-	depthDesc.DepthEnable = TRUE;
-	depthDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
-	hr = device_->CreateDepthStencilState( &depthDesc, &depthStencilStates_[ DB_READ ] );
-	if( FAILED( hr ) )
-	{
-		OutputDebugStringA( "Failed to create depth-stencil state!" );
-		return false;
-	}
-
 	// viewport
 	screenViewport_.Width = static_cast<float>( Config.screenWidth );
 	screenViewport_.Height = static_cast<float>( Config.screenHeight );
@@ -573,7 +528,7 @@ void Renderer::Begin()
 	SetSampler( SAMPLER_ANISOTROPIC, ST_FRAGMENT );
 
 	numBatches_ = 0;
-	numCachedVerts_ = 0;
+//	numCachedVerts_ = 0;
 }
 
 void Renderer::SetChunkDrawingState()
@@ -587,7 +542,6 @@ void Renderer::SetChunkDrawingState()
 
 	SetTexture( textures_[7], ST_FRAGMENT, 8 );
 	SetShader( shaders_[0] );
-	SetDepthBufferMode( DB_ENABLED );
 	context_->PSSetConstantBuffers( 1, 1, &frameConstantBuffer_ );
 
 //	uint stride = sizeof( BlockVertex );
@@ -916,6 +870,51 @@ void Renderer::SetLightCBuffer( LightCB data )
 	context_->VSSetConstantBuffers( 1, 1, &lightConstantBuffer_ );
 }
 
+// Render state
+
+ResourceHandle Renderer::CreateDepthStencilState( DepthStateDesc depthStateDesc, StencilStateDesc stencilStateDesc )
+{
+	assert( nextFreeDepthStencilSlot < MAX_DEPTH_STENCIL_STATES );
+	ResourceHandle result = nextFreeDepthStencilSlot;
+	++nextFreeDepthStencilSlot;
+
+	D3D11_DEPTH_WRITE_MASK mask;
+	mask = depthStateDesc.readonly ? D3D11_DEPTH_WRITE_MASK_ZERO : D3D11_DEPTH_WRITE_MASK_ALL;
+
+	D3D11_DEPTH_STENCIL_DESC depthDesc;
+	ZeroMemory( &depthDesc, sizeof( depthDesc ) );
+	depthDesc.DepthEnable 		= depthStateDesc.enabled;
+	depthDesc.DepthWriteMask 	= mask;
+	depthDesc.DepthFunc 		= (D3D11_COMPARISON_FUNC)depthStateDesc.comparisonFunction;
+
+	depthDesc.StencilEnable 	= stencilStateDesc.enabled;
+	depthDesc.StencilReadMask 	= stencilStateDesc.readMask;
+	depthDesc.StencilWriteMask 	= stencilStateDesc.writeMask;
+
+	depthDesc.BackFace.StencilFunc 			= (D3D11_COMPARISON_FUNC)stencilStateDesc.backFace.comparisonFunction;
+	depthDesc.BackFace.StencilFailOp 		= (D3D11_STENCIL_OP)stencilStateDesc.backFace.stencilFail;
+	depthDesc.BackFace.StencilPassOp 		= (D3D11_STENCIL_OP)stencilStateDesc.backFace.bothPass;
+	depthDesc.BackFace.StencilDepthFailOp 	= (D3D11_STENCIL_OP)stencilStateDesc.backFace.stencilPassDepthFail;
+
+	depthDesc.FrontFace.StencilFunc 		= (D3D11_COMPARISON_FUNC)stencilStateDesc.frontFace.comparisonFunction;
+	depthDesc.FrontFace.StencilFailOp 		= (D3D11_STENCIL_OP)stencilStateDesc.frontFace.stencilFail;
+	depthDesc.FrontFace.StencilPassOp 		= (D3D11_STENCIL_OP)stencilStateDesc.frontFace.bothPass;
+	depthDesc.FrontFace.StencilDepthFailOp 	= (D3D11_STENCIL_OP)stencilStateDesc.frontFace.stencilPassDepthFail;
+
+	HRESULT hr = device_->CreateDepthStencilState( &depthDesc, &depthStencilStates_[ result ] );
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "Failed to create depth-stencil state!" );
+		result = INVALID_HANDLE;
+	}
+
+	return result;
+}
+
+void Renderer::SetDepthStencilState( ResourceHandle handle, uint stencilReference )
+{
+	context_->OMSetDepthStencilState( depthStencilStates_[ handle ], stencilReference );
+}
 
 void Renderer::SetRenderTarget( RenderTarget *rt, DepthBuffer *db )
 {
@@ -962,12 +961,6 @@ void Renderer::SetBlendMode( BLEND_MODE bm )
 {
 	UINT sampleMask   = 0xffffffff;
 	context_->OMSetBlendState( blendStates_[ bm ], NULL, sampleMask );
-}
-
-void Renderer::SetDepthBufferMode( DEPTH_BUFFER_MODE dbm )
-{
-	uint stencilRef = 0;
-	context_->OMSetDepthStencilState( depthStencilStates_[ dbm ], stencilRef );
 }
 
 void Renderer::SetMesh( const Mesh& mesh )
@@ -1512,6 +1505,26 @@ bool Overlay::Start( Renderer *renderer )
 	if( !primitiveShader_.Load( L"assets/shaders/primitive.fx", renderer_->device_ ) )
 		return false;
 
+	// Create depth states
+	DepthStateDesc depthStateDesc = {0};
+	depthStateDesc.enabled = true;
+	depthStateDesc.readonly = true;
+	depthStateDesc.comparisonFunction = COMPARISON_FUNCTION::LESS_EQUAL;
+	StencilStateDesc stencilStateDesc = {0};
+	stencilStateDesc.enabled = false;
+	depthStateRead_ = renderer->CreateDepthStencilState( depthStateDesc, stencilStateDesc );
+	if( depthStateRead_ == INVALID_HANDLE )
+	{
+		return false;
+	}
+
+	depthStateDesc.enabled = false;
+	depthStateDisabled_ = renderer->CreateDepthStencilState( depthStateDesc, stencilStateDesc );
+	if( depthStateRead_ == INVALID_HANDLE )
+	{
+		return false;
+	}
+
 	// create vertex buffer for text drawing
 	D3D11_BUFFER_DESC desc;
 	ZeroMemory( &desc, sizeof( desc ) );
@@ -1723,7 +1736,7 @@ void Overlay::DisplayText( int x, int y, const char* text, XMFLOAT4 color )
 		renderer_->context_->UpdateSubresource( constantBuffer_, 0, NULL, &cbData, sizeof( OverlayShaderCB ), 0 );
 	}
 
-	renderer_->SetDepthBufferMode( DB_DISABLED );
+	renderer_->SetDepthStencilState( depthStateDisabled_ );
 	renderer_->SetBlendMode( BM_ALPHA );
 	renderer_->context_->IASetVertexBuffers( 0, 1, &textVB_, &stride, &offset );
 	renderer_->SetTexture( texture_, ST_FRAGMENT );
@@ -1734,7 +1747,6 @@ void Overlay::DisplayText( int x, int y, const char* text, XMFLOAT4 color )
 	renderer_->context_->Draw( textLength * 6, 0 );
 
 	renderer_->SetBlendMode( BM_DEFAULT );
-	renderer_->SetDepthBufferMode( DB_ENABLED );
 }
 
 float Overlay::GetCharOffset( char c )
@@ -1778,7 +1790,7 @@ void Overlay::DrawLine( XMFLOAT3 A, XMFLOAT3 B, XMFLOAT4 color )
 	uint stride = sizeof( OverlayVertex3D );
 	uint offset = 0;
 
-	renderer_->SetDepthBufferMode( DB_READ );
+	renderer_->SetDepthStencilState( depthStateRead_ );
 	renderer_->SetBlendMode( BM_ALPHA );
 	renderer_->context_->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_LINELIST );
 	renderer_->context_->IASetVertexBuffers( 0, 1, &primitiveVB_, &stride, &offset );
@@ -1789,7 +1801,6 @@ void Overlay::DrawLine( XMFLOAT3 A, XMFLOAT3 B, XMFLOAT4 color )
 
 	renderer_->context_->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
 	renderer_->SetBlendMode( BM_DEFAULT );
-	renderer_->SetDepthBufferMode( DB_ENABLED );
 }
 
 void Overlay::DrawLineDir( XMFLOAT3 start, XMFLOAT3 dir, DirectX::XMFLOAT4 color )
