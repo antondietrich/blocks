@@ -1,7 +1,7 @@
 //Texture2DArray blockTexture : register( t0 );
 Texture2D blockTexture[4] : register( t0 );
-Texture2D shadowmap_[4] : register( t4 );
-Texture2D lightColor : register( t8 );
+Texture2DArray shadowmap_ : register( t4 );
+Texture2D lightColor : register( t5 );
 
 SamplerState samplerFiltered : register( s0 );
 SamplerState samplerPoint : register( s1 );
@@ -166,18 +166,15 @@ float4 PSMain( PS_Input input ) : SV_TARGET
 	cascadeColors[3] = float4( 1.0, 1.0, 0.0, 1.0 ); // yellow
 	cascadeColors[4] = float4( 1.0, 0.0, 1.0, 1.0 );
 
-	float2 tc;
+	float3 tc;
 	tc.x =  input.lightViewPos[ sliceIndex ].x / input.lightViewPos[sliceIndex].w / 2.0f + 0.5f;
 	tc.y = -input.lightViewPos[ sliceIndex ].y / input.lightViewPos[sliceIndex].w / 2.0f + 0.5f;
+	tc.z = sliceIndex;
 
-	float sm[4];
-	sm[0] = shadowmap_[0].Sample( samplerPoint, tc );
-	sm[1] = shadowmap_[1].Sample( samplerPoint, tc );
-	sm[2] = shadowmap_[2].Sample( samplerPoint, tc );
-	sm[3] = shadowmap_[3].Sample( samplerPoint, tc );
+	float sm = shadowmap_.Sample( samplerPoint, tc );
 
 	float biases[4] = { 0.00005, 0.0001, 0.0005, 0.00085 };
-	if( input.lightViewPos[sliceIndex].z / input.lightViewPos[sliceIndex].w > sm[ sliceIndex ] + biases[sliceIndex] )
+	if( input.lightViewPos[sliceIndex].z / input.lightViewPos[sliceIndex].w > sm + biases[sliceIndex] )
 	{
 		// return float4( 1.0, 0.5, 0.1, 1.0 );
 		nDotL = 0;

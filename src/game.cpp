@@ -44,16 +44,15 @@ const int gNumShadowCascades = 4;
 // ResourceHandle gDefaultRasterizerState;
 ResourceHandle gSMRasterizerState[ gNumShadowCascades ];
 //RenderTarget gShadowRT[ gNumShadowCascades ];
-DepthBuffer gShadowDB[ gNumShadowCascades ];
+//DepthBuffer gShadowDB[ gNumShadowCascades ];
+DepthBuffer gShadowDB(4);
 
 // XMFLOAT3 gSunDirection;
 XMFLOAT4 gAmbientColor;
 XMFLOAT4 gSunColor;
 float gSunElevation = 90.0f;
 
-#define SM_RESOLUTION 1024
-//#define SM_REGION_DIM 128.0f
-//#define SM_REGION_HALF_DEPTH ( VIEW_DISTANCE * CHUNK_WIDTH )
+#define SM_RESOLUTION 2048
 
 void GameTime::AdvanceTime( float ms )
 {
@@ -203,6 +202,7 @@ bool Game::Start( HWND wnd )
 		gChunkMeshCache[i].chunkPos[1] = 0;
 	}
 
+#if 0
 	for( int i = 0; i < gNumShadowCascades; ++i )
 	{
 //		if( !gShadowRT[i].Init( SM_RESOLUTION, SM_RESOLUTION, DXGI_FORMAT_R32_FLOAT, true, renderer.GetDevice() ) )
@@ -214,6 +214,12 @@ bool Game::Start( HWND wnd )
 			return false;
 		}
 	}
+#else
+	if( !gShadowDB.Init( SM_RESOLUTION, SM_RESOLUTION, DXGI_FORMAT_D32_FLOAT, 1, 0, true, renderer.GetDevice() ) )
+	{
+		return false;
+	}
+#endif
 
 
 //	gSunDirection = Normalize( { 0.5f, 0.8f, 0.25f } );
@@ -909,6 +915,8 @@ void Game::DoFrame( float dt )
 
 	float smSize[4];
 
+	renderer.ClearTexture( &gShadowDB );
+
 	for( int sliceIndex = 0; sliceIndex < gNumShadowCascades; ++sliceIndex )
 	{
 		float sliceNear = sliceDistances[sliceIndex];
@@ -971,8 +979,9 @@ void Game::DoFrame( float dt )
 
 		renderer.SetRasterizerState( gSMRasterizerState[ sliceIndex ] );
 		renderer.SetLightCBuffer( lightCBData[ sliceIndex ] );
-		renderer.ClearTexture( &gShadowDB[ sliceIndex ] );
-		renderer.SetRenderTarget( 0, &gShadowDB[ sliceIndex ] );
+		//renderer.ClearTexture( &gShadowDB[ sliceIndex ] );
+//		renderer.SetRenderTarget( 0, &gShadowDB[ sliceIndex ], sliceIndex );
+		renderer.SetRenderTarget( 0, &gShadowDB, sliceIndex );
 
 		for( int meshIndex = 0; meshIndex < gChunkMeshCacheDim * gChunkMeshCacheDim; meshIndex++ )
 		{
@@ -1093,10 +1102,14 @@ void Game::DoFrame( float dt )
 	renderer.SetRenderTarget();
 
 	// set shadow maps
+#if 0
 	for( int i = 0; i < gNumShadowCascades; ++i )
 	{
-		renderer.SetTexture( gShadowDB[i], ST_FRAGMENT, 4 + i );
+		renderer.SetTexture( gShadowDB, ST_FRAGMENT, 4 + i );
 	}
+#else
+	renderer.SetTexture( gShadowDB, ST_FRAGMENT, 4 );
+#endif
 
 	int numChunksToDrawRT = gChunkMeshCacheDim * gChunkMeshCacheDim;
 	int numChunksDrawnRT = 0;
