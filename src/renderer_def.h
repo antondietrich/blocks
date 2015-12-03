@@ -20,6 +20,7 @@ namespace Blocks
 #define MAX_VERTS_PER_BATCH 50000 * 256 * 2 // 25 600 000
 
 typedef ID3D11Buffer * ID3D11BufferArray;
+typedef ID3D11DepthStencilView * ID3D11DepthStencilViewArray;
 
 typedef uint8 ResourceHandle;
 #define INVALID_HANDLE 0xff

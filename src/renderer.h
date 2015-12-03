@@ -109,19 +109,22 @@ private:
 	ID3D11RenderTargetView *renderTargetView_;
 };
 
+// TODO: rewrite depth buffer interface, increase granularity
 class DepthBuffer
 {
 public:
-	DepthBuffer();
+	DepthBuffer( uint arraySize = 1 );
 	~DepthBuffer();
 
 	bool Init( uint width, uint height, DXGI_FORMAT format, uint msCount, uint msQuality, bool shaderAccess, ID3D11Device *device );
 
-	ID3D11DepthStencilView * GetDSV() { return depthStencilView_; };
+	uint GetArraySize() { return arraySize_; };
+	ID3D11DepthStencilView * GetDSV( uint slice = 0 ) { return depthStencilViews_[ slice ]; };
 	ID3D11ShaderResourceView ** GetSRV() { return &shaderResourceView_; };
 private:
+	uint arraySize_;
 	ID3D11ShaderResourceView *shaderResourceView_;
-	ID3D11DepthStencilView *depthStencilView_;
+	ID3D11DepthStencilView **depthStencilViews_;
 };
 
 class Mesh
@@ -207,7 +210,7 @@ public:
 	};
 
 	/* render state */
-	void SetRenderTarget( RenderTarget *rt, DepthBuffer *db );
+	void SetRenderTarget( RenderTarget *rt, DepthBuffer *db, uint dbSlice = 0 );
 	void SetRenderTarget();
 
 	ResourceHandle CreateDepthStencilState( DepthStateDesc depthStateDesc, StencilStateDesc stencilStateDesc );

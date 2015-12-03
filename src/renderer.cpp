@@ -542,8 +542,8 @@ void Renderer::SetChunkDrawingState()
 	SetTexture( textures_[0], ST_FRAGMENT, 1 );
 	SetTexture( textures_[4], ST_FRAGMENT, 2 );
 	SetTexture( textures_[5], ST_FRAGMENT, 3 );
+	SetTexture( textures_[7], ST_FRAGMENT, 5 );
 
-	SetTexture( textures_[7], ST_FRAGMENT, 8 );
 	SetShader( shaders_[0] );
 	context_->PSSetConstantBuffers( 1, 1, &frameConstantBuffer_ );
 
@@ -674,7 +674,10 @@ void Renderer::ClearTexture( RenderTarget *rt, float r, float g, float b, float 
 }
 void Renderer::ClearTexture( DepthBuffer *db, float d )
 {
-	context_->ClearDepthStencilView( db->GetDSV(), D3D11_CLEAR_DEPTH, d, 0 );
+	for( uint i = 0; i < db->GetArraySize(); ++i )
+	{
+		context_->ClearDepthStencilView( db->GetDSV( i ), D3D11_CLEAR_DEPTH, d, 0 );
+	}
 }
 
 void Renderer::End()
@@ -954,11 +957,11 @@ void Renderer::SetRasterizerState( ResourceHandle handle )
 	context_->RSSetState( rasterizerStates_[ handle ] );
 }
 
-void Renderer::SetRenderTarget( RenderTarget *rt, DepthBuffer *db )
+void Renderer::SetRenderTarget( RenderTarget *rt, DepthBuffer *db, uint dbSlice )
 {
 	if( rt && db )
 	{
-		context_->OMSetRenderTargets( 1, rt->GetRTV(), db->GetDSV() );
+		context_->OMSetRenderTargets( 1, rt->GetRTV(), db->GetDSV( dbSlice ) );
 	}
 	else if( rt )
 	{
@@ -966,7 +969,7 @@ void Renderer::SetRenderTarget( RenderTarget *rt, DepthBuffer *db )
 	}
 	else if( db )
 	{
-		context_->OMSetRenderTargets( 0, NULL, db->GetDSV() );
+		context_->OMSetRenderTargets( 0, NULL, db->GetDSV( dbSlice ) );
 	}
 }
 
@@ -1276,19 +1279,26 @@ bool RenderTarget::Init( uint width, uint height, DXGI_FORMAT format, bool shade
 	return true;
 }
 
-DepthBuffer::DepthBuffer()
+DepthBuffer::DepthBuffer( uint arraySize )
 {
+	assert( "Array size cannot be zero or negative" && arraySize );
+	arraySize_ = arraySize;
 	shaderResourceView_ = 0;
-	depthStencilView_ = 0;
+	depthStencilViews_ = new ID3D11DepthStencilViewArray[ arraySize ];
 }
 DepthBuffer::~DepthBuffer()
 {
 	RELEASE( shaderResourceView_ );
-	RELEASE( depthStencilView_ );
+	for( uint i = 0; i < arraySize_; ++i )
+	{
+		RELEASE( depthStencilViews_[i] );
+	}
+	delete[] depthStencilViews_;
 }
 
 bool DepthBuffer::Init( uint width, uint height, DXGI_FORMAT format, uint msCount, uint msQuality, bool shaderAccess, ID3D11Device *device )
 {
+	assert( "Texture width/height cannot be zero or negative" && width && height );
 	HRESULT hr;
 
 	DXGI_FORMAT formatTexture = (DXGI_FORMAT)0;
@@ -1319,7 +1329,7 @@ bool DepthBuffer::Init( uint width, uint height, DXGI_FORMAT format, uint msCoun
 	texDesc.Width = width;
 	texDesc.Height = height;
 	texDesc.MipLevels = 1;
-	texDesc.ArraySize = 1;
+	texDesc.ArraySize = arraySize_;
 	texDesc.Format = formatTexture;
 	texDesc.SampleDesc.Count = msCount;
 	texDesc.SampleDesc.Quality = msQuality;
@@ -1343,31 +1353,88 @@ bool DepthBuffer::Init( uint width, uint height, DXGI_FORMAT format, uint msCoun
 	D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc;
 	ZeroMemory( &dsvDesc, sizeof( dsvDesc ) );
 	dsvDesc.Format = format;
-	if( msCount > 1 )
+
+	if( arraySize_ == 1 )
 	{
-		dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMS;
+		if( msCount > 1 )
+		{
+			dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMS;
+		}
+		else
+		{
+			dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+			dsvDesc.Texture2D.MipSlice = 0;
+		}
+		hr = device->CreateDepthStencilView( texture, &dsvDesc, &depthStencilViews_[0] );
+		if( FAILED( hr ) )
+		{
+			OutputDebugStringA( "DepthBuffer::Init() failed to create depth stencil view!" );
+			return false;
+		}
 	}
 	else
 	{
-		dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+		for( uint i = 0; i < arraySize_; ++i )
+		{
+			if( msCount > 1 )
+			{
+				dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMSARRAY;
+				dsvDesc.Texture2DMSArray.FirstArraySlice = i;
+				dsvDesc.Texture2DMSArray.ArraySize = 1;
+			}
+			else
+			{
+				dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DARRAY;
+				dsvDesc.Texture2DArray.FirstArraySlice = i;
+				dsvDesc.Texture2DArray.ArraySize = 1;
+				dsvDesc.Texture2DArray.MipSlice = 0;
+			}
+			hr = device->CreateDepthStencilView( texture, &dsvDesc, &depthStencilViews_[i] );
+			if( FAILED( hr ) )
+			{
+				OutputDebugStringA( "DepthBuffer::Init() failed to create depth stencil view!" );
+				return false;
+			}
+		}
 	}
-	dsvDesc.Texture2D.MipSlice = 0;
 
-	hr = device->CreateDepthStencilView( texture, &dsvDesc, &depthStencilView_ );
-	if( FAILED( hr ) )
-	{
-		OutputDebugStringA( "DepthBuffer::Init() failed to create depth stencil view!" );
-		return false;
-	}
 
 	if( shaderAccess )
 	{
 		D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
 		ZeroMemory( &srvDesc, sizeof( srvDesc ) );
 		srvDesc.Format = formatSRV;
-		srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-		srvDesc.Texture2D.MostDetailedMip = 0;
-		srvDesc.Texture2D.MipLevels = 1;
+
+		if( arraySize_ == 1 )
+		{
+			if( msCount > 1 )
+			{
+				srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMS;
+			}
+			else
+			{
+				srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+				srvDesc.Texture2D.MostDetailedMip = 0;
+				srvDesc.Texture2D.MipLevels = 1;
+			}
+		}
+		else
+		{
+			if( msCount > 1 )
+			{
+				srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMSARRAY;
+				srvDesc.Texture2DMSArray.FirstArraySlice = 0;
+				srvDesc.Texture2DMSArray.ArraySize = arraySize_;
+			}
+			else
+			{
+				srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
+				srvDesc.Texture2DArray.MostDetailedMip = 0;
+				srvDesc.Texture2DArray.MipLevels = 1;
+				srvDesc.Texture2DArray.FirstArraySlice = 0;
+				srvDesc.Texture2DArray.ArraySize = arraySize_;
+			}
+		}
 
 		hr = device->CreateShaderResourceView( texture, &srvDesc, &shaderResourceView_ );
 		if( FAILED( hr ) )
