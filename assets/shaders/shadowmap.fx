@@ -47,9 +47,9 @@ PS_Input VSMain( VS_Input input )
 	return output;
 }
 
-//float PSMain( PS_Input input ) : SV_TARGET
+//float PSMain( PS_Input input ) : SV_DEPTH
 //{
-//	// return ShowTexel( input.pos );
+//	return ShowTexel( input.pos );
 //	return input.pos.z;
 //}
 
@@ -62,7 +62,7 @@ float ShowTexel( float4 fragmentPos )
 	pixelPos.x = (fragmentPos.x / fragmentPos.w) / 2  + 0.5;
 	pixelPos.y = (fragmentPos.y / fragmentPos.w) / 2  + 0.5;
 
-	if( pixelPos.x % 2 != pixelPos.y % 2 )
+	if( (pixelPos.x % 2) != (pixelPos.y % 2) )
 	{
 		return 1.0;
 	}

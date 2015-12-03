@@ -6,7 +6,7 @@ namespace Blocks
 using namespace DirectX;
 
 // player vars
-XMFLOAT3 playerPos 		= { 0.0f, 60.0f, 0.0f };
+XMFLOAT3 playerPos 		= { 133.5f, 60.0f, 3.5f };
 XMFLOAT3 playerDir 		= { 0.0f,  0.0f, 1.0f };
 XMFLOAT3 playerLook 	= { 0.0f,  0.0f, 1.0f };
 XMFLOAT3 playerRight 	= { 1.0f,  0.0f, 0.0f };
@@ -42,7 +42,7 @@ const int gNumShadowCascades = 4;
 
 // ResourceHandle gDefaultDepthStencilState;
 // ResourceHandle gDefaultRasterizerState;
-ResourceHandle gSMRasterizerState;
+ResourceHandle gSMRasterizerState[ gNumShadowCascades ];
 //RenderTarget gShadowRT[ gNumShadowCascades ];
 DepthBuffer gShadowDB[ gNumShadowCascades ];
 
@@ -145,19 +145,28 @@ bool Game::Start( HWND wnd )
 		return false;
 	}
 
+	//int biases[ gNumShadowCascades ] = { 100, 200, 400, 800 };
+	//float slopeBiases[ gNumShadowCascades ] = { 1.0f, 1.5f, 1.8f, 3.0f };
+	int biases[ gNumShadowCascades ] = { 0, 0, 0, 0 };
+	float slopeBiases[ gNumShadowCascades ] = { 0, 0, 0, 0 };
 	RasterizerStateDesc rasterizerStateDesc;
 	ZERO_MEMORY( rasterizerStateDesc );
 	rasterizerStateDesc.fillMode = FILL_MODE::SOLID;
-	rasterizerStateDesc.cullMode = CULL_MODE::BACK;
+	rasterizerStateDesc.cullMode = CULL_MODE::NONE;
 	rasterizerStateDesc.frontCCW = true;
 	rasterizerStateDesc.depthClipEnabled = true;
-
-	gSMRasterizerState = renderer.CreateRasterizerState( rasterizerStateDesc );
-	if( gSMRasterizerState == INVALID_HANDLE )
+	for( int i = 0; i < gNumShadowCascades; ++i )
 	{
-		return false;
-	}
+		rasterizerStateDesc.depthBias = biases[i];
+		rasterizerStateDesc.depthBiasClamp = 0;
+		rasterizerStateDesc.slopeScaledDepthBias = slopeBiases[i];
 
+		gSMRasterizerState[ i ] = renderer.CreateRasterizerState( rasterizerStateDesc );
+		if( gSMRasterizerState[ i ] == INVALID_HANDLE )
+		{
+			return false;
+		}
+	}
 
 	if( !overlay.Start( &renderer ) )
 	{
@@ -170,7 +179,7 @@ bool Game::Start( HWND wnd )
 	input.mouse = {0, 0};
 
 	// gameTime_ = { 2015, 1, 1, 12, 0, 0.0f, 60.0f*60.0f };
-	gameTime_ = { 2015, 1, 1, 15, 0, 0.0f, 60.0f*60.0f };
+	gameTime_ = { 2015, 1, 1, 12, 0, 0.0f, 60.0f };
 
 	gPlayerFarPlane = float(Config.viewDistanceChunks * CHUNK_WIDTH);
 
@@ -222,7 +231,6 @@ uint gMaxChunkMeshesToBuild = 1;
 void Game::DoFrame( float dt )
 {
 	static bool timeLive = true;
-	timeLive = false;
 	if( input.key[ KEY::NUM_6 ].Down )
 	{
 		gameTime_.AdvanceTime( dt );
@@ -317,7 +325,6 @@ void Game::DoFrame( float dt )
 		}
 	}
 
-//	gravity.y = -9.8f;
 
 	// player movement
 	float dTSec = dt / 1000.0f;
@@ -331,7 +338,6 @@ void Game::DoFrame( float dt )
 
 	force = XMVectorZero();
 	acceleration = XMVectorZero();
-	// gravity = XMVectorSet( 0.0f, -9.8f, 0.0f, 0.0f ) * playerMass;
 	vGravity = XMLoadFloat3( &gravity ) * playerMass;
 
 	if( input.key[ KEY::W ].Down ) {
@@ -357,7 +363,7 @@ void Game::DoFrame( float dt )
 //		}
 //	}
 
-	force = XMVector4Normalize( force ) * 1500.0f;
+	force = XMVector4Normalize( force ) * 1900.0f;
 
 	if( input.key[ KEY::SPACE ].Down ) {
 		if( !playerAirborne ) {
@@ -822,7 +828,6 @@ void Game::DoFrame( float dt )
 	// Render state for shadow drawing
 	renderer.SetChunkDrawingState();
 	renderer.SetDepthStencilState( gDefaultDepthStencilState );
-	renderer.SetRasterizerState( gSMRasterizerState );
 	renderer.SetSampler( SAMPLER_POINT, ST_FRAGMENT, 1 );
 	renderer.SetShader( 1 );
 	renderer.RemoveTexture( ST_FRAGMENT, 4 );
@@ -884,16 +889,16 @@ void Game::DoFrame( float dt )
 	Frustum playerFrustum = CalculatePerspectiveFrustum( playerEyePos, playerLook, playerRight, lookUp, gPlayerNearPlane, gPlayerFarPlane, gPlayerHFOV, screenAspect );
 
 	// frustum slices
-	float sliceDistances[5] = { gPlayerNearPlane, 4.0f, 16.0f, 64.0f, gPlayerFarPlane };
+	float sliceDistances[ gNumShadowCascades + 1 ];
 	sliceDistances[0] = gPlayerNearPlane;
-	for( int i = 1; i < 4; ++i )
+	for( int i = 1; i < gNumShadowCascades; ++i )
 	{
 		float t = 0.96f;
-		float linearSplit = gPlayerNearPlane + (i / 4.0f)*(gPlayerFarPlane - gPlayerNearPlane);
-		float expSplit = gPlayerNearPlane * pow( ( gPlayerFarPlane / gPlayerNearPlane ), i / 4.0f );
+		float linearSplit = gPlayerNearPlane + (i / (float)gNumShadowCascades)*(gPlayerFarPlane - gPlayerNearPlane);
+		float expSplit = gPlayerNearPlane * pow( ( gPlayerFarPlane / gPlayerNearPlane ), i / (float)gNumShadowCascades );
 		sliceDistances[i] = Lerp( linearSplit, expSplit, t );
 	}
-	sliceDistances[4] = gPlayerFarPlane;
+	sliceDistances[gNumShadowCascades] = gPlayerFarPlane;
 
 	int numChunksToDrawSM = gChunkMeshCacheDim * gChunkMeshCacheDim * gNumShadowCascades;
 	int numChunksDrawnSM = 0;
@@ -901,6 +906,8 @@ void Game::DoFrame( float dt )
 	LightCB lightCBData[4];
 
 	Frustum sunFrustum[4];
+
+	float smSize[4];
 
 	for( int sliceIndex = 0; sliceIndex < gNumShadowCascades; ++sliceIndex )
 	{
@@ -946,6 +953,8 @@ void Game::DoFrame( float dt )
 		smBoundMin = smBoundMin / texelsPerMeter;
 		smBoundMax = smBoundMax / texelsPerMeter;
 
+		smSize[ sliceIndex ] = smBoundMax.x - smBoundMin.x;
+
 		XMMATRIX lightProj = XMMatrixOrthographicOffCenterLH( smBoundMin.x,
 															  smBoundMax.x,
 															  smBoundMin.y,
@@ -960,10 +969,8 @@ void Game::DoFrame( float dt )
 		sunFrustum[sliceIndex] = ComputeOrthoFrustum( playerFrustumSliceCenter, negSunDirection, sunRight, sunUp,
 												  boundSphereRadius*2.0f, boundSphereRadius*2.0f, -smRegionDim*0.5f, smRegionDim*0.5f );
 
+		renderer.SetRasterizerState( gSMRasterizerState[ sliceIndex ] );
 		renderer.SetLightCBuffer( lightCBData[ sliceIndex ] );
-
-		// renderer.ClearTexture( &gShadowRT[ sliceIndex ] );
-		// renderer.SetRenderTarget( &gShadowRT[ sliceIndex ], &gShadowDB[ sliceIndex ] );
 		renderer.ClearTexture( &gShadowDB[ sliceIndex ] );
 		renderer.SetRenderTarget( 0, &gShadowDB[ sliceIndex ] );
 
@@ -1059,6 +1066,11 @@ void Game::DoFrame( float dt )
 	cbData.lightVP[1] = lightCBData[1].vp;
 	cbData.lightVP[2] = lightCBData[2].vp;
 	cbData.lightVP[3] = lightCBData[3].vp;
+
+	cbData.smTexelSize[0] = smSize[0] / SM_RESOLUTION;
+	cbData.smTexelSize[1] = smSize[1] / SM_RESOLUTION;
+	cbData.smTexelSize[2] = smSize[2] / SM_RESOLUTION;
+	cbData.smTexelSize[3] = smSize[3] / SM_RESOLUTION;
 
 	renderer.SetFrameCBuffer( cbData );
 
@@ -1161,6 +1173,7 @@ void Game::DoFrame( float dt )
 		overlay.WriteLine( "Player pos: %5.2f %5.2f %5.2f", playerPos.x, playerPos.y, playerPos.z );
 		overlay.WriteLine( "Chunk pos:  %5i ----- %5i", playerChunkPos.x, playerChunkPos.z );
 		overlay.WriteLine( "Splits:  %5.2f - %5.2f - %5.2f - %5.2f - %5.2f", sliceDistances[0], sliceDistances[1], sliceDistances[2], sliceDistances[3], sliceDistances[4] );
+		overlay.WriteLine( "SM texel:  %5.2f, %5.2f, %5.2f, %5.2f", cbData.smTexelSize[0], cbData.smTexelSize[1], cbData.smTexelSize[2], cbData.smTexelSize[3] );
 //		overlay.WriteLine( "Radius:  %8.6f", smBoundRadius );
 //		overlay.WriteLine( "Diagonal:  %8.6f", boundSphereRadius );
 //		overlay.WriteLine( "Speed:  %5.2f", XMVectorGetX( XMVector4Length( vSpeed ) ) );

@@ -51,6 +51,7 @@ struct FrameCB {
 	DirectX::XMFLOAT4 sunDirection;
 	DirectX::XMFLOAT4 sunColor;
 	DirectX::XMFLOAT4 ambientColor;
+	float smTexelSize[4];
 	float dayTimeNorm;
 	float padding[3];
 };

@@ -22,6 +22,7 @@ cbuffer FrameCB : register( b1 )
 	float4 sunDir;
 	float4 sunColor;
 	float4 ambientColor;
+	float4 smTexelSize;
 	float dayTimeNorm;
 }
 
@@ -46,6 +47,8 @@ struct PS_Input
 	int texID 				: TEXCOORD7;
 	float2 linearDepth 		: TEXCOORD8;
 };
+
+#define OFFSET_UV_ONLY 1
 
 PS_Input VSMain( VS_Input input )
 {
@@ -72,10 +75,53 @@ PS_Input VSMain( VS_Input input )
 //	output.pos = mul( output.pos, world );
 	output.pos += translate;
 
-	output.lightViewPos[0] = mul( output.pos, lightVP[0] );
-	output.lightViewPos[1] = mul( output.pos, lightVP[1] );
-	output.lightViewPos[2] = mul( output.pos, lightVP[2] );
-	output.lightViewPos[3] = mul( output.pos, lightVP[3] );
+	output.lightViewPos[0] = output.pos;
+	output.lightViewPos[1] = output.pos;
+	output.lightViewPos[2] = output.pos;
+	output.lightViewPos[3] = output.pos;
+
+	float4 normal = normals[ normalIndex ];
+	float4 negLightDir = normalize( sunDir );
+	float normalOffset = 1.0;
+	float normalOffsetScale = saturate( 1 - dot( normal, negLightDir ) );
+
+#if OFFSET_UV_ONLY
+
+	float4 offsetPosition[4];
+
+	offsetPosition[0] = output.lightViewPos[0] + normal * normalOffset * normalOffsetScale * smTexelSize[0];
+	offsetPosition[1] = output.lightViewPos[1] + normal * normalOffset * normalOffsetScale * smTexelSize[1];
+	offsetPosition[2] = output.lightViewPos[2] + normal * normalOffset * normalOffsetScale * smTexelSize[2];
+	offsetPosition[3] = output.lightViewPos[3] + normal * normalOffset * normalOffsetScale * smTexelSize[3];
+
+	offsetPosition[0] = mul( offsetPosition[0], lightVP[0] );
+	offsetPosition[1] = mul( offsetPosition[1], lightVP[1] );
+	offsetPosition[2] = mul( offsetPosition[2], lightVP[2] );
+	offsetPosition[3] = mul( offsetPosition[3], lightVP[3] );
+
+	output.lightViewPos[0] = mul( output.lightViewPos[0], lightVP[0] );
+	output.lightViewPos[1] = mul( output.lightViewPos[1], lightVP[1] );
+	output.lightViewPos[2] = mul( output.lightViewPos[2], lightVP[2] );
+	output.lightViewPos[3] = mul( output.lightViewPos[3], lightVP[3] );
+
+	output.lightViewPos[0].xy = offsetPosition[0].xy;
+	output.lightViewPos[1].xy = offsetPosition[1].xy;
+	output.lightViewPos[2].xy = offsetPosition[2].xy;
+	output.lightViewPos[3].xy = offsetPosition[3].xy;
+
+#else
+
+	output.lightViewPos[0] += normal * normalOffset * normalOffsetScale * smTexelSize[0];
+	output.lightViewPos[1] += normal * normalOffset * normalOffsetScale * smTexelSize[1];
+	output.lightViewPos[2] += normal * normalOffset * normalOffsetScale * smTexelSize[2];
+	output.lightViewPos[3] += normal * normalOffset * normalOffsetScale * smTexelSize[3];
+
+	output.lightViewPos[0] = mul( output.lightViewPos[0], lightVP[0] );
+	output.lightViewPos[1] = mul( output.lightViewPos[1], lightVP[1] );
+	output.lightViewPos[2] = mul( output.lightViewPos[2], lightVP[2] );
+	output.lightViewPos[3] = mul( output.lightViewPos[3], lightVP[3] );
+
+#endif
 
 	output.pos = mul( output.pos, vp );
 	output.normal = normals[ normalIndex ];
@@ -114,30 +160,15 @@ float4 PSMain( PS_Input input ) : SV_TARGET
 		}
 	}
 	float4 cascadeColors[5];
-	cascadeColors[0] = float4( 1.0, 0.0, 0.0, 1.0 );
-	cascadeColors[1] = float4( 0.0, 0.0, 1.0, 1.0 );
-	cascadeColors[2] = float4( 0.0, 1.0, 0.0, 1.0 );
-	cascadeColors[3] = float4( 1.0, 1.0, 0.0, 1.0 );
+	cascadeColors[0] = float4( 1.0, 0.0, 0.0, 1.0 ); // red
+	cascadeColors[1] = float4( 0.0, 1.0, 0.0, 1.0 ); // green
+	cascadeColors[2] = float4( 0.0, 0.0, 1.0, 1.0 ); // blue
+	cascadeColors[3] = float4( 1.0, 1.0, 0.0, 1.0 ); // yellow
 	cascadeColors[4] = float4( 1.0, 0.0, 1.0, 1.0 );
 
-	// if( IsPointInsideProjectedVolume( input.lightViewPos[0] ) )
-	// {
 	float2 tc;
 	tc.x =  input.lightViewPos[ sliceIndex ].x / input.lightViewPos[sliceIndex].w / 2.0f + 0.5f;
 	tc.y = -input.lightViewPos[ sliceIndex ].y / input.lightViewPos[sliceIndex].w / 2.0f + 0.5f;
-
-//	float maxBias = 0.001;
-//	float slope = dot( input.normal, negLightDir );
-//	if( slope < 0 )
-//	{
-//		slope = 0;
-//	}
-//	else
-//	{
-//		slope = 1 - slope;
-//	}
-//	float bias = maxBias * slope + 0.00001;
-	float bias[4] = { 0.00005, 0.0002, 0.0005, 0.004 };
 
 	float sm[4];
 	sm[0] = shadowmap_[0].Sample( samplerPoint, tc );
@@ -145,12 +176,12 @@ float4 PSMain( PS_Input input ) : SV_TARGET
 	sm[2] = shadowmap_[2].Sample( samplerPoint, tc );
 	sm[3] = shadowmap_[3].Sample( samplerPoint, tc );
 
-	if( input.lightViewPos[sliceIndex].z / input.lightViewPos[sliceIndex].w - bias[ sliceIndex ] > sm[ sliceIndex ] )
+	float biases[4] = { 0.00005, 0.0001, 0.0005, 0.00085 };
+	if( input.lightViewPos[sliceIndex].z / input.lightViewPos[sliceIndex].w > sm[ sliceIndex ] + biases[sliceIndex] )
 	{
-		// return float4( 1.0, 0.0, 1.0, 1.0 );
+		// return float4( 1.0, 0.5, 0.1, 1.0 );
 		nDotL = 0;
 	}
-	// }
 
 	float3 texcoord;
 	texcoord.xy = input.texcoord;
@@ -170,8 +201,8 @@ float4 PSMain( PS_Input input ) : SV_TARGET
 						/*color[ input.texID ] * */ao * ambientColorTex * 0.7;
 
 	float4 fragmentColor = fogFactor*fogColor + ( 1 - fogFactor )*finalColor;
+	// return fragmentColor*0.9 + cascadeColors[ sliceIndex ]*0.1;
 	return fragmentColor;
-	// return fragmentColor*0.7 + cascadeColors[ sliceIndex ]*0.3;
 }
 
 bool IsPointInsideProjectedVolume( float3 P )
