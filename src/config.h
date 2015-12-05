@@ -5,13 +5,13 @@ namespace Blocks
 {
 
 struct ConfigType {
-	bool fullscreen;
-	bool vsync;
-	int screenWidth;
-	int screenHeight;
-	int multisampling;
-	unsigned int filtering;
-	unsigned int viewDistanceChunks;
+	uint fullscreen;
+	uint vsync;
+	uint screenWidth;
+	uint screenHeight;
+	uint multisampling;
+	uint filtering;
+	uint viewDistanceChunks;
 };
 extern ConfigType Config;
 

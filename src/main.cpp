@@ -1,11 +1,15 @@
 #include <Windows.h>
 
 #define __BLOCKS_INPUT_IMPL__
+#include "lib/win32_file.h"
+#include "lib/tokenstream.h"
 #include "input.h"
 #include "types.h"
 #include "game.h"
 #include "config.h"
 #include "utils.h"
+
+#include <map>
 
 using namespace Blocks;
 
@@ -188,16 +192,75 @@ LRESULT CALLBACK WndProc( HWND windowHandle, UINT message, WPARAM wParam, LPARAM
 
 bool LoadConfig()
 {
-	// TODO: load config from file
+	// defaults
 	Config.fullscreen = FALSE;
 	Config.vsync = FALSE;
 	Config.screenWidth = 960;
 	Config.screenHeight = 540;
-//	Config.screenWidth = 1920;
-//	Config.screenHeight = 1080;
 	Config.multisampling = 2;
 	Config.filtering = 8;
 	Config.viewDistanceChunks = 12;
+
+	const char * name = "bin/config.cfg";
+	uint size = GetFileSize( name );
+	if( !size )
+	{
+		return false;
+	}
+
+	char *configData = new char[ size ];
+
+	if( ReadFile( name, (uint8*)configData ) != size )
+	{
+		delete[] configData;
+		return false;
+	}
+
+	std::map<std::string, uint> configMap;
+
+	char *line = new char[ _MAX_TOKEN_LENGTH_ ];
+	char *token = new char[ _MAX_TOKEN_LENGTH_ ];
+	TokenStream lines = TokenStream( configData, size );
+	while( lines.NextToken( line, "" ) )
+	{
+		if( line[0] == ';' )
+		{
+			continue;
+		}
+
+		else if( line[0] == '[' )
+		{
+			TokenStream ts = TokenStream( line, (unsigned int)strlen( line ) );
+			ts.NextToken( token, "[]" );
+			OutputDebugStringA( token );
+		}
+
+		else
+		{
+			TokenStream ts = TokenStream( line, (unsigned int)strlen( line ) );
+			ts.NextToken( token, " =" );
+			std::string key( token );
+			ts.NextToken( token, " =" );
+			uint value = atoi( token );
+
+			configMap[ key ] = value;
+		}
+	}
+
+	delete[] token;
+	token = 0;
+	delete[] line;
+	line = 0;
+	delete[] configData;
+	configData = 0;
+
+	Config.fullscreen			= configMap[ "fullscreen" ];
+	Config.vsync				= configMap[ "vsync" ];
+	Config.screenWidth			= configMap[ "screenWidth" ];
+	Config.screenHeight			= configMap[ "screenHeight" ];
+	Config.multisampling		= configMap[ "multisampling" ];
+	Config.filtering			= configMap[ "filtering" ];
+	Config.viewDistanceChunks	= configMap[ "viewDistanceChunks" ];
 
 	return true;
 }
