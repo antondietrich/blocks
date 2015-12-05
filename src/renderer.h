@@ -8,7 +8,7 @@
 #include <assert.h>
 
 #include "renderer_def.h"
-#include "DDSTextureLoader.h"
+#include "lib\DDSTextureLoader.h"
 #include "types.h"
 #include "world.h"
 #include "collision.h"
