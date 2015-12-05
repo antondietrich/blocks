@@ -319,6 +319,17 @@ bool Renderer::Start( HWND wnd )
 		return false;
 	}
 
+	samplerDesc.Filter = D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_MIRROR;
+	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_MIRROR;
+	samplerDesc.ComparisonFunc = D3D11_COMPARISON_GREATER;
+	hr = device_->CreateSamplerState( &samplerDesc, &samplers_[ SAMPLER_SHADOW ] );
+	if( FAILED( hr ) ) {
+		OutputDebugStringA( "Failed to create compare sampler state!" );
+		return false;
+	}
+
+
 	// blend modes
 	D3D11_BLEND_DESC blendDesc;
 	ZeroMemory( &blendDesc, sizeof( blendDesc ) );
@@ -529,6 +540,7 @@ void Renderer::Begin()
 	context_->VSSetConstantBuffers( 1, 1, &frameConstantBuffer_ );
 	context_->VSSetConstantBuffers( 2, 1, &modelConstantBuffer_ );
 	SetSampler( SAMPLER_ANISOTROPIC, ST_FRAGMENT );
+	SetSampler( SAMPLER_SHADOW, ST_FRAGMENT, 2 );
 
 	numBatches_ = 0;
 //	numCachedVerts_ = 0;
@@ -1152,7 +1164,7 @@ bool Shader::Load( wchar_t* filename, ID3D11Device *device )
 	RELEASE( vShaderBytecode );
 
 	ID3DBlob *pShaderBytecode = 0;
-	if( !LoadShader( filename, PIXEL_SHADER_ENTRY, "ps_4_0", &pShaderBytecode ) )
+	if( !LoadShader( filename, PIXEL_SHADER_ENTRY, "ps_4_1", &pShaderBytecode ) )
 	{
 		OutputDebugStringA( "No pixel shader!" );
 		RELEASE( pShaderBytecode );

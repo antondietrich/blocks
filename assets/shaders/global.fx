@@ -5,6 +5,7 @@ Texture2D lightColor : register( t5 );
 
 SamplerState samplerFiltered : register( s0 );
 SamplerState samplerPoint : register( s1 );
+SamplerComparisonState samplerShadow : register( s2 );
 
 cbuffer GlobalCB : register( b0 )
 {
@@ -82,7 +83,7 @@ PS_Input VSMain( VS_Input input )
 
 	float4 normal = normals[ normalIndex ];
 	float4 negLightDir = normalize( sunDir );
-	float normalOffset = 1.0;
+	float normalOffset = 1.1;
 	float normalOffsetScale = saturate( 1 - dot( normal, negLightDir ) );
 
 #if OFFSET_UV_ONLY
@@ -139,6 +140,8 @@ PS_Input VSMain( VS_Input input )
 }
 
 bool IsPointInsideProjectedVolume( float3 P );
+float CalculatePCFPercentage3x3( float3 tc, float bias, float screenDepth );
+float CalculatePCFPercentage4x4( float3 tc, float bias, float screenDepth );
 
 float4 PSMain( PS_Input input ) : SV_TARGET
 {
@@ -171,14 +174,18 @@ float4 PSMain( PS_Input input ) : SV_TARGET
 	tc.y = -input.lightViewPos[ sliceIndex ].y / input.lightViewPos[sliceIndex].w / 2.0f + 0.5f;
 	tc.z = sliceIndex;
 
-	float sm = shadowmap_.Sample( samplerPoint, tc );
-
 	float biases[4] = { 0.00005, 0.0001, 0.0005, 0.00085 };
-	if( input.lightViewPos[sliceIndex].z / input.lightViewPos[sliceIndex].w > sm + biases[sliceIndex] )
+	float biasesPCF[4] = { 0.00005, 0.0004, 0.0009, 0.00085 };
+
+	float screenDepth = input.lightViewPos[sliceIndex].z / input.lightViewPos[sliceIndex].w;
+	float shadowFactor = CalculatePCFPercentage3x3( tc, biasesPCF[sliceIndex], screenDepth );
+
+	if( sliceIndex == 3 )
 	{
-		// return float4( 1.0, 0.5, 0.1, 1.0 );
-		nDotL = 0;
+		shadowFactor = 1.0 - shadowmap_.SampleCmp( samplerShadow, tc, screenDepth - biases[sliceIndex] );
 	}
+
+	nDotL *= shadowFactor;
 
 	float3 texcoord;
 	texcoord.xy = input.texcoord;
@@ -194,8 +201,8 @@ float4 PSMain( PS_Input input ) : SV_TARGET
 
 	float fogFactor = input.linearDepth.x;
 
-	float4 finalColor = /*color[ input.texID ] * */nDotL * sunColorTex * 0.5 +
-						/*color[ input.texID ] * */ao * ambientColorTex * 0.7;
+	float4 finalColor = color[ input.texID ] * nDotL * sunColorTex * 0.5 +
+						color[ input.texID ] * ao * ambientColorTex * 0.7;
 
 	float4 fragmentColor = fogFactor*fogColor + ( 1 - fogFactor )*finalColor;
 	// return fragmentColor*0.9 + cascadeColors[ sliceIndex ]*0.1;
@@ -208,3 +215,44 @@ bool IsPointInsideProjectedVolume( float3 P )
 	       saturate( abs( P.y ) ) == abs( P.y ) &&
 	       saturate( P.z ) 		  == P.z;
 }
+
+float CalculatePCFPercentage3x3( float3 tc, float bias, float screenDepth )
+{
+	float result = 0.0;
+	for( float x = -1; x <= 1; x += 1.0 )
+	{
+		for( float y = -1; y <= 1; y += 1.0 )
+		{
+			float2 texScale = { 1.0 / 2048.0, 1.0 / 2048.0 };
+			float3 offset = { x, y, 0 };
+			offset.xy *= texScale;
+			// tc.xy += offset * texScale;
+			float shadowFactor = shadowmap_.SampleCmp( samplerShadow, tc + offset, screenDepth - bias );
+
+			result += shadowFactor;
+		}
+	}
+	result = result /= 9.0;
+	return 1.0 - result;
+}
+
+float CalculatePCFPercentage4x4( float3 tc, float bias, float screenDepth )
+{
+	float result = 0.0;
+	for( float x = -1.5; x <= 1.5; x += 1.0 )
+	{
+		for( float y = -1.5; y <= 1.5; y += 1.0 )
+		{
+			float2 texScale = { 1.0 / 2048.0, 1.0 / 2048.0 };
+			float3 offset = { x, y, 0 };
+			offset.xy *= texScale;
+			// tc.xy += offset * texScale;
+			float shadowFactor = shadowmap_.SampleCmp( samplerShadow, tc + offset, screenDepth - bias );
+
+			result += shadowFactor;
+		}
+	}
+	result = result /= 16.0;
+	return 1.0 - result;
+}
+

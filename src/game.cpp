@@ -147,7 +147,8 @@ bool Game::Start( HWND wnd )
 	//int biases[ gNumShadowCascades ] = { 100, 200, 400, 800 };
 	//float slopeBiases[ gNumShadowCascades ] = { 1.0f, 1.5f, 1.8f, 3.0f };
 	int biases[ gNumShadowCascades ] = { 0, 0, 0, 0 };
-	float slopeBiases[ gNumShadowCascades ] = { 0, 0, 0, 0 };
+	float slopeBiases[ gNumShadowCascades ] = { 0.35f, 0.5f, 0.5f, 0.5f };
+	// float slopeBiases[ gNumShadowCascades ] = { 0, 0, 0, 0 };
 	RasterizerStateDesc rasterizerStateDesc;
 	ZERO_MEMORY( rasterizerStateDesc );
 	rasterizerStateDesc.fillMode = FILL_MODE::SOLID;
