@@ -20,7 +20,7 @@ set profileEnable=-D_PROFILE_
 goto RELEASE
 
 :DEBUG
-set compilerFlags=-Od -Oi -Zi -EHsc -GR- -MTd -W4 -nologo -D_DEBUG_ -D_CRT_SECURE_NO_WARNINGS %profileEnable%
+set compilerFlags=-MP -Od -Oi -Zi -EHsc -GR- -MTd -W4 -nologo -D_DEBUG_ -D_CRT_SECURE_NO_WARNINGS %profileEnable%
 rem set suppressedWarnings=-wd4530
 set output=-Fdbin\ -Fobuild\ -Febin\blocks.exe
 if not exist "build" md build
@@ -28,7 +28,7 @@ if not exist "bin" md bin
 goto COMMON
 
 :RELEASE
-set compilerFlags=-Ox -Oi -EHsc -GR- -MT -W4 -nologo -D_RELEASE_ -DNDEBUG -D_CRT_SECURE_NO_WARNINGS %profileEnable%
+set compilerFlags=-MP -Ox -Oi -EHsc -GR- -MT -W4 -nologo -D_RELEASE_ -DNDEBUG -D_CRT_SECURE_NO_WARNINGS %profileEnable%
 rem set suppressedWarnings=-wd4530
 set output=-Fdbin\ -Fobuild\ -Febin\blocks.exe
 goto COMMON
