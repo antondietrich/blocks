@@ -295,9 +295,9 @@ void GenerateChunk( Chunk *chunk, int x, int z )
 
 void PrefillChunkCache( Chunk * cache, uint cacheDim )
 {
-	for( int z = 0; z < cacheDim; z++ )
+	for( uint z = 0; z < cacheDim; z++ )
 	{
-		for( int x = 0; x < cacheDim; x++ )
+		for( uint x = 0; x < cacheDim; x++ )
 		{
 			GenerateChunk( &cache[ z * cacheDim + x ], x, z );
 		}
