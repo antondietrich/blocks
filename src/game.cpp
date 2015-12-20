@@ -502,8 +502,6 @@ void Game::DoFrame( float dt )
 	playerEyePos.y += playerHeight;
 	XMVECTOR vEyePos = XMLoadFloat3( &playerEyePos );
 
-	// renderer.SetView( playerEyePos, playerLook, playerUp );
-
 	bool blockPicked = false;
 	XMFLOAT3 lookAtTarget;
 	XMFLOAT3 pickDirection;
@@ -1020,6 +1018,8 @@ void Game::DoFrame( float dt )
 	playerProj = XMMatrixPerspectiveFovLH( verticalFOV, screenAspect, gPlayerNearPlane, gPlayerFarPlane );
 	playerView =  XMMatrixLookToLH( vEyePos, vLook, vUp );
 	XMMATRIX vp = XMMatrixTranspose( XMMatrixMultiply( playerView, playerProj ) );
+
+	renderer.SetView( playerEyePos, playerLook, playerUp );
 
 	static float debugCameraHeight = 100.0f;
 	static float debugCameraViewHeight = 100.0f;

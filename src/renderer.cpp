@@ -769,22 +769,6 @@ void Renderer::SetView( XMFLOAT3 pos, XMFLOAT3 dir, XMFLOAT3 up )
 	viewPosition_ = pos;
 	viewDirection_ = dir;
 	viewUp_ = up;
-
-	XMVECTOR vPos, vDir, vUp;
-	vPos = XMLoadFloat3( &pos );
-	vDir = XMLoadFloat3( &dir );
-	vUp = XMLoadFloat3( &up );
-	XMMATRIX view =  XMMatrixLookToLH( vPos, vDir, vUp );
-
-	// XMStoreFloat4x4( &view_, view );
-
-	XMMATRIX proj = XMLoadFloat4x4( &projection_ );
-	XMMATRIX vp = XMMatrixTranspose( XMMatrixMultiply( view, proj ) );
-
-	FrameCB frameCBData;
-	XMStoreFloat4x4( &frameCBData.vp, vp );
-
-	context_->UpdateSubresource( frameConstantBuffer_, 0, NULL, &frameCBData, sizeof( FrameCB ), 0 );
 }
 
 void Renderer::SetViewport( D3D11_VIEWPORT *viewport )
