@@ -8,6 +8,7 @@
 #include <assert.h>
 
 #include "renderer_def.h"
+#include "asset_def.h"
 #include "lib\DDSTextureLoader.h"
 #include "types.h"
 #include "world.h"
@@ -80,18 +81,17 @@ private:
 	friend class Renderer;
 };
 
-class Texture
+struct Texture
 {
-public:
 	Texture();
 	~Texture();
 
 	bool LoadFile( wchar_t* filename, ID3D11Device *device );
+	bool Load( const TextureDefinition & textureDefinition,
+				  		ID3D11Device * device, bool generateMips = false );
 
-private:
-	ID3D11ShaderResourceView *textureView_;
-
-	friend class Renderer;
+	ID3D11Texture2D * texture_;
+	ID3D11ShaderResourceView * textureView_;
 };
 
 class RenderTarget
@@ -228,7 +228,10 @@ public:
 	void SetMesh( const Mesh& mesh );
 	void SetShader( const Shader& shader );
 	void SetShader( uint shaderID );
+	void SetTexture( TEXTURE id, SHADER_TYPE shader, uint slot = 0 );
+#if 0
 	void SetTexture( const Texture& texture, SHADER_TYPE shader, uint slot = 0 );
+#endif
 	void SetTexture( DepthBuffer& texture, SHADER_TYPE shader, uint slot = 0 );
 	void SetTexture( RenderTarget& texture, SHADER_TYPE shader, uint slot = 0 );
 	void RemoveTexture( SHADER_TYPE shader, uint slot = 0 );
@@ -262,7 +265,7 @@ private:
 //	uint numCachedVerts_;
 
 	Shader shaders_[ MAX_SHADERS ];
-	Texture textures_[ MAX_TEXTURES ];
+//	Texture textures_[ MAX_TEXTURES ];
 	Mesh meshes_[ MAX_MESHES ];
 
 	/* main view */
@@ -338,7 +341,7 @@ private:
 	Shader primitiveShader_;
 	ID3D11Buffer *textVB_;
 	ID3D11Buffer *primitiveVB_;
-	Texture texture_;
+//	Texture texture_;
 	ID3D11Buffer *constantBuffer_;
 
 	ResourceHandle depthStateRead_;

@@ -1,5 +1,9 @@
 #include "renderer.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#define STBI_ONLY_PNG
+#include "lib\stb_image.h"
+
 namespace Blocks
 {
 
@@ -12,13 +16,18 @@ extern int gChunkMeshCacheDim;
 ResourceHandle gDefaultDepthStencilState;
 ResourceHandle gDefaultRasterizerState;
 
+TextureDefinition gTextureDefinitions[ TEXTURE::COUNT ];
+static Texture gTempTextureStorage[ TEXTURE::COUNT ];
+
 bool Renderer::isInstantiated_ = false;
 
 
 /*** function declarations ***/
 void MakeGlobalCBInitData( GlobalCB *cbData, D3D11_SUBRESOURCE_DATA *cbInitData, float screenWidth, float screenHeight, float viewDistance );
-
-
+void LoadTextureDefinitions( TextureDefinition * textureDefinitions );
+void FreeTextureDefinitions( TextureDefinition * textureDefinitions );
+bool LoadTextures( ID3D11Device * device );
+void FreeTextures();
 
 Renderer::Renderer()
 {
@@ -57,24 +66,19 @@ Renderer::Renderer()
 		shaders_[i] = Shader();
 	}
 
-	for( int i = 0; i < MAX_TEXTURES; i++ )
-	{
-		textures_[i] = Texture();
-	}
-
 	for( int i = 0; i < MAX_MESHES; i++ )
 	{
 		meshes_[i] = Mesh();
 	}
 
-	//blockVB_ = 0;
-
-	// blockCache_ = new BlockVertex[ MAX_VERTS_PER_BATCH ];
-//	numCachedVerts_ = 0;
-
 	viewPosition_ = { 0, 0, 0 };
 	viewDirection_ = { 0, 0, 0 };
 	viewUp_ = { 0, 0, 0 };
+
+//	for( int i = 0; i < TEXTURE::COUNT; i++ )
+//	{
+//		gTempTextureStorage[i] = 0;
+//	}
 }
 
 Renderer::~Renderer()
@@ -85,6 +89,9 @@ Renderer::~Renderer()
 	ID3D11Debug* DebugDevice = nullptr;
 	device_->QueryInterface(__uuidof(ID3D11Debug), (void**)(&DebugDevice));
 #endif
+
+	FreeTextureDefinitions( gTextureDefinitions );
+	FreeTextures();
 
 	for( int i = 0; i < NUM_BLEND_MODES; i++ ) {
 		RELEASE( blendStates_[i] );
@@ -461,39 +468,12 @@ bool Renderer::Start( HWND wnd )
 	context_->VSSetConstantBuffers( 2, 1, &modelConstantBuffer_ );
 
 	// Load textures
-	if( !textures_[0].LoadFile( L"assets/textures/dirt.dds", device_ ) ) {
-		OutputDebugStringA( "Failed to load texture!" );
+	LoadTextureDefinitions( gTextureDefinitions );
+	if( !LoadTextures( device_ ) )
+	{
+		OutputDebugStringA( "Failed to load textures!" );
 		return false;
 	}
-	if( !textures_[1].LoadFile( L"assets/textures/grass.dds", device_ ) ) {
-		OutputDebugStringA( "Failed to load texture!" );
-		return false;
-	}
-	if( !textures_[2].LoadFile( L"assets/textures/test.dds", device_ ) ) {
-		OutputDebugStringA( "Failed to load texture!" );
-		return false;
-	}
-	if( !textures_[3].LoadFile( L"assets/textures/grass2.dds", device_ ) ) {
-		OutputDebugStringA( "Failed to load texture!" );
-		return false;
-	}
-	if( !textures_[4].LoadFile( L"assets/textures/rock.dds", device_ ) ) {
-		OutputDebugStringA( "Failed to load texture!" );
-		return false;
-	}
-	if( !textures_[5].LoadFile( L"assets/textures/wood.dds", device_ ) ) {
-		OutputDebugStringA( "Failed to load texture!" );
-		return false;
-	}
-	if( !textures_[6].LoadFile( L"assets/textures/atlas01.dds", device_ ) ) {
-		OutputDebugStringA( "Failed to load texture!" );
-		return false;
-	}
-	if( !textures_[7].LoadFile( L"assets/textures/lightColor.dds", device_ ) ) {
-		OutputDebugStringA( "Failed to load texture!" );
-		return false;
-	}
-
 
 	// Load shaders
 	if( !shaders_[0].Load( L"assets/shaders/global.fx", device_ ) ) {
@@ -548,70 +528,13 @@ void Renderer::Begin()
 
 void Renderer::SetChunkDrawingState()
 {
-	//SetTexture( textures_[3], ST_FRAGMENT, 0 );
-
-	SetTexture( textures_[3], ST_FRAGMENT, 0 );
-	SetTexture( textures_[0], ST_FRAGMENT, 1 );
-	SetTexture( textures_[4], ST_FRAGMENT, 2 );
-	SetTexture( textures_[5], ST_FRAGMENT, 3 );
-	SetTexture( textures_[7], ST_FRAGMENT, 5 );
+	SetTexture( TEXTURE::BLOCKS_OPAQUE, ST_FRAGMENT, 0 );
+	SetTexture( TEXTURE::LIGHT_COLOR, ST_FRAGMENT, 2 );
 
 	SetShader( shaders_[0] );
 	context_->PSSetConstantBuffers( 1, 1, &frameConstantBuffer_ );
-
-//	uint stride = sizeof( BlockVertex );
-//	uint offset = 0;
-//	context_->IASetVertexBuffers( 0, 1, &blockVB_, &stride, &offset );
 }
 
-#if 0
-bool Renderer::SubmitChunkMesh( int index, BlockVertex *vertices, uint numVertices )
-{
-	//TODO: don't release a buffer if the new chunk fits in it?
-	// Maybe set a size limit?
-	RELEASE( blockVB_[ index ] );
-
-	D3D11_BUFFER_DESC vertexBufferDesc;
-	ZeroMemory( &vertexBufferDesc, sizeof( vertexBufferDesc ) );
-	vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-	vertexBufferDesc.CPUAccessFlags = 0;
-	vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	vertexBufferDesc.ByteWidth = sizeof( BlockVertex ) * numVertices;
-
-	D3D11_SUBRESOURCE_DATA InitData;
-	InitData.pSysMem = vertices;
-	InitData.SysMemPitch = 0;
-	InitData.SysMemSlicePitch = 0;
-
-	HRESULT hr = device_->CreateBuffer( &vertexBufferDesc, &InitData, &blockVB_[ index ] );
-	if( FAILED( hr ) )
-	{
-		OutputDebugStringA( "Failed to create chunk mesh vertex buffer!" );
-		return false;
-	}
-
-	return true;
-}
-
-void Renderer::DrawChunkMeshBuffer( int x, int z, int bufferIndex, int numVertices )
-{
-	uint stride = sizeof( BlockVertex );
-	uint offset = 0;
-	context_->IASetVertexBuffers( 0, 1, &blockVB_[ bufferIndex ], &stride, &offset );
-
-	ModelCB modelCBData;
-	modelCBData.translate = XMFLOAT4( (float)x, 0.0f, (float)z, 0.0f );
-	context_->UpdateSubresource( modelConstantBuffer_, 0, NULL, &modelCBData, sizeof( ModelCB ), 0 );
-
-	ProfileStart( "Draw" );
-
-	context_->Draw( numVertices, 0 );
-
-	numBatches_++;
-
-	ProfileStop();
-}
-#endif
 void Renderer::DrawVertexBuffer( VertexBuffer * vBuffer, uint slot, int x, int z )
 {
 	uint stride = vBuffer->strides_[ slot ];
@@ -1030,16 +953,16 @@ void Renderer::SetShader( uint shaderID )
 	SetShader( shaders_[shaderID] );
 }
 
-void Renderer::SetTexture( const Texture& texture, SHADER_TYPE shader, uint slot )
+void Renderer::SetTexture( TEXTURE id, SHADER_TYPE shader, uint slot )
 {
 	if( ( shader & ST_VERTEX ) == ST_VERTEX ) {
-		context_->VSSetShaderResources( slot, 1, &texture.textureView_ );
+		context_->VSSetShaderResources( slot, 1, &gTempTextureStorage[id].textureView_ );
 	}
 	if( ( shader & ST_GEOMETRY ) == ST_GEOMETRY ) {
-		context_->GSSetShaderResources( slot, 1, &texture.textureView_ );
+		context_->GSSetShaderResources( slot, 1, &gTempTextureStorage[id].textureView_ );
 	}
 	if( ( shader & ST_FRAGMENT ) == ST_FRAGMENT ) {
-		context_->PSSetShaderResources( slot, 1, &texture.textureView_ );
+		context_->PSSetShaderResources( slot, 1, &gTempTextureStorage[id].textureView_ );
 	}
 }
 
@@ -1109,6 +1032,82 @@ void MakeGlobalCBInitData( GlobalCB *cbData, D3D11_SUBRESOURCE_DATA *cbInitData,
 	cbInitData->pSysMem = cbData;
 	cbInitData->SysMemPitch = sizeof( GlobalCB );
 	cbInitData->SysMemSlicePitch = 0;
+}
+
+void LoadTextureDefinitions( TextureDefinition * textureDefinitions )
+{
+	for( int i = 0; i < TEXTURE::COUNT; i++ )
+	{
+		textureDefinitions[ i ].type = (TEXTURE_TYPE)0;
+		textureDefinitions[ i ].arraySize = 0;
+		textureDefinitions[ i ].width = 0;
+		textureDefinitions[ i ].height = 0;
+		textureDefinitions[ i ].arraySize = 0;
+		textureDefinitions[ i ].filenames = 0;
+	}
+
+	textureDefinitions[ TEXTURE::BLOCKS_OPAQUE ].type = TEXTURE_TYPE::ARRAY;
+	textureDefinitions[ TEXTURE::BLOCKS_OPAQUE ].arraySize = 4;
+	textureDefinitions[ TEXTURE::BLOCKS_OPAQUE ].width = 512;
+	textureDefinitions[ TEXTURE::BLOCKS_OPAQUE ].height = 512;
+	textureDefinitions[ TEXTURE::BLOCKS_OPAQUE ].filenames = new char*[ 4 ];
+	textureDefinitions[ TEXTURE::BLOCKS_OPAQUE ].filenames[0] = "assets/textures/grass.png";
+	textureDefinitions[ TEXTURE::BLOCKS_OPAQUE ].filenames[1] = "assets/textures/dirt.png";
+	textureDefinitions[ TEXTURE::BLOCKS_OPAQUE ].filenames[2] = "assets/textures/rock.png";
+	textureDefinitions[ TEXTURE::BLOCKS_OPAQUE ].filenames[3] = "assets/textures/wood.png";
+
+	textureDefinitions[ TEXTURE::LIGHT_COLOR ].type = TEXTURE_TYPE::SINGLE;
+	textureDefinitions[ TEXTURE::LIGHT_COLOR ].arraySize = 1;
+	textureDefinitions[ TEXTURE::LIGHT_COLOR ].width = 256;
+	textureDefinitions[ TEXTURE::LIGHT_COLOR ].height = 8;
+	textureDefinitions[ TEXTURE::LIGHT_COLOR ].filenames = new char*[ 1 ];
+	textureDefinitions[ TEXTURE::LIGHT_COLOR ].filenames[0] = "assets/textures/light_color.png";
+
+	textureDefinitions[ TEXTURE::FONT ].type = TEXTURE_TYPE::SINGLE;
+	textureDefinitions[ TEXTURE::FONT ].arraySize = 1;
+	textureDefinitions[ TEXTURE::FONT ].width = 1024;
+	textureDefinitions[ TEXTURE::FONT ].height = 24;
+	textureDefinitions[ TEXTURE::FONT ].filenames = new char*[ 1 ];
+	textureDefinitions[ TEXTURE::FONT ].filenames[0] = "assets/textures/droid_mono.png";
+}
+
+void FreeTextureDefinitions( TextureDefinition * textureDefinitions )
+{
+	for( int i = 0; i < TEXTURE::COUNT; i++ )
+	{
+		if( textureDefinitions[ i ].filenames )
+		{
+			delete[] textureDefinitions[ i ].filenames;
+		}
+	}
+}
+
+bool LoadTextures( ID3D11Device * device )
+{
+	for( int i = 0; i < TEXTURE::COUNT; i++ )
+	{
+		if( !gTextureDefinitions[i].width )
+			continue;
+
+		// gTempTextureStorage[i] = new Texture();
+		gTempTextureStorage[i] = Texture();
+		if( !gTempTextureStorage[i].Load( gTextureDefinitions[i], device ) )
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+void FreeTextures()
+{
+	//for( int i = 0; i < TEXTURE::COUNT; i++ )
+	//{
+	//	if( gTempTextureStorage[i] )
+	//	{
+	//		delete gTempTextureStorage[i];
+	//	}
+	//}
 }
 
 
@@ -1189,11 +1188,13 @@ bool Shader::Load( wchar_t* filename, ID3D11Device *device )
 //********************************
 Texture::Texture()
 {
+	texture_ = 0;
 	textureView_ = 0;
 }
 
 Texture::~Texture()
 {
+	RELEASE( texture_ );
 	RELEASE( textureView_ );
 }
 
@@ -1208,6 +1209,128 @@ bool Texture::LoadFile( wchar_t* filename, ID3D11Device *device )
 		OutputDebugStringA( "Failed to load texture!" );
 		return false;
 	}
+
+	return true;
+}
+
+bool Texture::Load( const TextureDefinition & textureDefinition,
+				  	ID3D11Device * device, bool generateMips )
+{
+	HRESULT hr;
+
+	int arraySize = textureDefinition.arraySize;
+
+	D3D11_SUBRESOURCE_DATA * initData = new D3D11_SUBRESOURCE_DATA[ arraySize ];
+	uint8 ** textureData = new uint8*[ arraySize ];
+
+	int textureWidth = 0, textureHeight = 0, textureComponentsPerPixel = 0;
+	for( int i = 0; i < arraySize; i++ )
+	{
+		textureData[i] = stbi_load( textureDefinition.filenames[i], &textureWidth, &textureHeight,
+									&textureComponentsPerPixel, 4 );
+
+		if( textureData[i] == 0 )
+		{
+			OutputDebugStringA( "Failed to load PNG image" );
+
+			delete[] initData;
+			delete[] textureData;
+
+			return false;
+		}
+
+		// sanity check
+		if( (uint)textureWidth != textureDefinition.width ||
+			(uint)textureHeight != textureDefinition.height )
+		{
+			OutputDebugStringA( "Incorrect image size, can't load!" );
+
+			delete[] initData;
+			delete[] textureData;
+
+			return false;
+		}
+
+		initData[i].pSysMem = textureData[i];
+		initData[i].SysMemPitch = textureWidth * 4;
+		initData[i].SysMemSlicePitch = textureWidth * textureHeight * 4;
+	}
+
+	DXGI_FORMAT format;
+	switch( textureComponentsPerPixel )
+	{
+		case 1:
+			format = DXGI_FORMAT_R8_UNORM;
+			break;
+		case 3:
+			format = DXGI_FORMAT_R8G8B8A8_UNORM;
+			break;
+		case 4:
+			format = DXGI_FORMAT_R8G8B8A8_UNORM;
+			break;
+		default:
+			OutputDebugStringA( "Unsupported number of channels per pixel!" );
+			delete[] initData;
+			delete[] textureData;
+			return false;
+	}
+
+	D3D11_TEXTURE2D_DESC textureDesc;
+	ZeroMemory( &textureDesc, sizeof( textureDesc ) );
+
+	textureDesc.Width = textureWidth;
+	textureDesc.Height = textureHeight;
+	textureDesc.MipLevels = 1; //  0 - generate automatically
+	textureDesc.ArraySize = arraySize;
+	textureDesc.Format = format;
+	textureDesc.SampleDesc.Count = 1;
+	textureDesc.SampleDesc.Quality = 0;
+	textureDesc.Usage = D3D11_USAGE_DEFAULT;
+	textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	textureDesc.CPUAccessFlags = 0;
+	textureDesc.MiscFlags = 0; // D3D11_RESOURCE_MISC_GENERATE_MIPS (add D3D11_BIND_RENDER_TARGET)
+
+	hr = device->CreateTexture2D( &textureDesc, initData, &texture_ );
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "Failed to create block texture array" );
+		delete[] initData;
+		delete[] textureData;
+		return false;
+	}
+
+	D3D11_SHADER_RESOURCE_VIEW_DESC viewDesc;
+	ZeroMemory( &viewDesc, sizeof( viewDesc ) );
+
+	viewDesc.Format = textureDesc.Format;
+	switch( textureDefinition.type )
+	{
+		case TEXTURE_TYPE::SINGLE:
+			viewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+			viewDesc.Texture2D.MostDetailedMip = 0;
+			viewDesc.Texture2D.MipLevels = (UINT)-1;
+			break;
+		case TEXTURE_TYPE::ARRAY:
+			viewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
+			viewDesc.Texture2DArray.MostDetailedMip = 0;
+			viewDesc.Texture2DArray.MipLevels = (UINT)-1;
+			viewDesc.Texture2DArray.FirstArraySlice = 0;
+			viewDesc.Texture2DArray.ArraySize = textureDesc.ArraySize;
+			break;
+	}
+
+	hr = device->CreateShaderResourceView( texture_, &viewDesc, &textureView_ );
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "Failed to create block texture array view" );
+		delete[] initData;
+		return false;
+	}
+
+	delete[] initData;
+	for( int i = 0; i < arraySize; i++ )
+		stbi_image_free( textureData[i] );
+	delete[] textureData;
 
 	return true;
 }
@@ -1586,8 +1709,7 @@ void VertexBuffer::Release( uint slot )
 Overlay::Overlay()
 :
 textShader_(),
-primitiveShader_(),
-texture_()
+primitiveShader_()
 {
 	renderer_ = 0;
 	textVB_ = 0;
@@ -1653,11 +1775,11 @@ bool Overlay::Start( Renderer *renderer )
 	}
 
 	// load text texture
-	if( !texture_.LoadFile( L"assets/textures/droidMono.dds", renderer_->device_ ) )
-	{
-		OutputDebugStringA( "Failed to load Droid Mono texture!" );
-		return false;
-	}
+//	if( !texture_.LoadFile( L"assets/textures/droidMono.dds", renderer_->device_ ) )
+//	{
+//		OutputDebugStringA( "Failed to load Droid Mono texture!" );
+//		return false;
+//	}
 
 	// create vertex buffer for primitive drawing
 	ZeroMemory( &desc, sizeof( desc ) );
@@ -1852,7 +1974,8 @@ void Overlay::DisplayText( int x, int y, const char* text, XMFLOAT4 color )
 	renderer_->SetRasterizerState( gDefaultRasterizerState );
 	renderer_->SetBlendMode( BM_ALPHA );
 	renderer_->context_->IASetVertexBuffers( 0, 1, &textVB_, &stride, &offset );
-	renderer_->SetTexture( texture_, ST_FRAGMENT );
+//	renderer_->SetTexture( texture_, ST_FRAGMENT );
+	renderer_->SetTexture( TEXTURE::FONT, ST_FRAGMENT );
 	renderer_->SetSampler( SAMPLER_POINT, ST_FRAGMENT );
 	renderer_->context_->PSSetConstantBuffers( 1, 1, &constantBuffer_ );
 	renderer_->SetShader( textShader_ );
@@ -2081,3 +2204,5 @@ HRESULT CreateInputLayoutFromShaderBytecode( ID3DBlob* shaderBytecode, ID3D11Dev
 }
 
 }
+
+

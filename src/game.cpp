@@ -40,11 +40,7 @@ VertexBuffer * gChunkVertexBuffer;
 
 const int gNumShadowCascades = 4;
 
-// ResourceHandle gDefaultDepthStencilState;
-// ResourceHandle gDefaultRasterizerState;
 ResourceHandle gSMRasterizerState[ gNumShadowCascades ];
-//RenderTarget gShadowRT[ gNumShadowCascades ];
-//DepthBuffer gShadowDB[ gNumShadowCascades ];
 DepthBuffer gShadowDB(4);
 
 // XMFLOAT3 gSunDirection;
@@ -837,10 +833,10 @@ void Game::DoFrame( float dt )
 	renderer.SetDepthStencilState( gDefaultDepthStencilState );
 	renderer.SetSampler( SAMPLER_POINT, ST_FRAGMENT, 1 );
 	renderer.SetShader( 1 );
-	renderer.RemoveTexture( ST_FRAGMENT, 4 );
-	renderer.RemoveTexture( ST_FRAGMENT, 5 );
-	renderer.RemoveTexture( ST_FRAGMENT, 6 );
-	renderer.RemoveTexture( ST_FRAGMENT, 7 );
+	renderer.RemoveTexture( ST_FRAGMENT, 1 );
+	//renderer.RemoveTexture( ST_FRAGMENT, 5 );
+	//renderer.RemoveTexture( ST_FRAGMENT, 6 );
+	//renderer.RemoveTexture( ST_FRAGMENT, 7 );
 
 	D3D11_VIEWPORT smViewport;
 	smViewport.Width = SM_RESOLUTION;
@@ -1109,7 +1105,7 @@ void Game::DoFrame( float dt )
 		renderer.SetTexture( gShadowDB, ST_FRAGMENT, 4 + i );
 	}
 #else
-	renderer.SetTexture( gShadowDB, ST_FRAGMENT, 4 );
+	renderer.SetTexture( gShadowDB, ST_FRAGMENT, 1 );
 #endif
 
 	int numChunksToDrawRT = gChunkMeshCacheDim * gChunkMeshCacheDim;

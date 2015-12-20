@@ -30,6 +30,7 @@
 //#include <stdint.h>
 #include "utils.h"
 #include "types.h"
+#include "asset_def.h"
 
 namespace Blocks
 {

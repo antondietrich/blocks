@@ -1,7 +1,7 @@
-//Texture2DArray blockTexture : register( t0 );
-Texture2D blockTexture[4] : register( t0 );
-Texture2DArray shadowmap_ : register( t4 );
-Texture2D lightColor : register( t5 );
+Texture2DArray blockTexture : register( t0 );
+// Texture2D blockTexture[4] : register( t0 );
+Texture2DArray shadowmap_ : register( t1 );
+Texture2D lightColor : register( t2 );
 
 SamplerState samplerFiltered : register( s0 );
 SamplerState samplerPoint : register( s1 );
@@ -189,20 +189,16 @@ float4 PSMain( PS_Input input ) : SV_TARGET
 
 	float3 texcoord;
 	texcoord.xy = input.texcoord;
-	texcoord.z = 0.0;
+	texcoord.z = input.texID;
 
-	float4 color[4];
-	color[0] = blockTexture[0].Sample( samplerFiltered, input.texcoord );
-	color[1] = blockTexture[1].Sample( samplerFiltered, input.texcoord );
-	color[2] = blockTexture[2].Sample( samplerFiltered, input.texcoord );
-	color[3] = blockTexture[3].Sample( samplerFiltered, input.texcoord );
+	float4 color = blockTexture.Sample( samplerFiltered, texcoord );
 
 	float4 fogColor = float4( 0.5f, 0.5f, 0.5f, 1.0f );
 
 	float fogFactor = input.linearDepth.x;
 
-	float4 finalColor = color[ input.texID ] * nDotL * sunColorTex * 0.5 +
-						color[ input.texID ] * ao * ambientColorTex * 0.7;
+	float4 finalColor = color * nDotL * sunColorTex * 0.5 +
+						color * ao * ambientColorTex * 0.7;
 
 	float4 fragmentColor = fogFactor*fogColor + ( 1 - fogFactor )*finalColor;
 	// return fragmentColor*0.9 + cascadeColors[ sliceIndex ]*0.1;
