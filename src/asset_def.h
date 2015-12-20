@@ -24,6 +24,7 @@ struct TextureDefinition
 	uint arraySize;
 	uint width;
 	uint height;
+	bool generateMips;
 };
 
 // extern TextureDefinition gTextureDefinitions[ TEXTURE::COUNT ];

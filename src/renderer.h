@@ -88,7 +88,7 @@ struct Texture
 
 	bool LoadFile( wchar_t* filename, ID3D11Device *device );
 	bool Load( const TextureDefinition & textureDefinition,
-				  		ID3D11Device * device, bool generateMips = false );
+				  		ID3D11Device * device, ID3D11DeviceContext * context );
 
 	ID3D11Texture2D * texture_;
 	ID3D11ShaderResourceView * textureView_;

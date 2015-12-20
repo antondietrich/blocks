@@ -26,7 +26,7 @@ bool Renderer::isInstantiated_ = false;
 void MakeGlobalCBInitData( GlobalCB *cbData, D3D11_SUBRESOURCE_DATA *cbInitData, float screenWidth, float screenHeight, float viewDistance );
 void LoadTextureDefinitions( TextureDefinition * textureDefinitions );
 void FreeTextureDefinitions( TextureDefinition * textureDefinitions );
-bool LoadTextures( ID3D11Device * device );
+bool LoadTextures( ID3D11Device * device, ID3D11DeviceContext * context );
 void FreeTextures();
 
 Renderer::Renderer()
@@ -469,7 +469,7 @@ bool Renderer::Start( HWND wnd )
 
 	// Load textures
 	LoadTextureDefinitions( gTextureDefinitions );
-	if( !LoadTextures( device_ ) )
+	if( !LoadTextures( device_, context_ ) )
 	{
 		OutputDebugStringA( "Failed to load textures!" );
 		return false;
@@ -1050,6 +1050,7 @@ void LoadTextureDefinitions( TextureDefinition * textureDefinitions )
 	textureDefinitions[ TEXTURE::BLOCKS_OPAQUE ].arraySize = 4;
 	textureDefinitions[ TEXTURE::BLOCKS_OPAQUE ].width = 512;
 	textureDefinitions[ TEXTURE::BLOCKS_OPAQUE ].height = 512;
+	textureDefinitions[ TEXTURE::BLOCKS_OPAQUE ].generateMips = true;
 	textureDefinitions[ TEXTURE::BLOCKS_OPAQUE ].filenames = new char*[ 4 ];
 	textureDefinitions[ TEXTURE::BLOCKS_OPAQUE ].filenames[0] = "assets/textures/grass.png";
 	textureDefinitions[ TEXTURE::BLOCKS_OPAQUE ].filenames[1] = "assets/textures/dirt.png";
@@ -1060,6 +1061,7 @@ void LoadTextureDefinitions( TextureDefinition * textureDefinitions )
 	textureDefinitions[ TEXTURE::LIGHT_COLOR ].arraySize = 1;
 	textureDefinitions[ TEXTURE::LIGHT_COLOR ].width = 256;
 	textureDefinitions[ TEXTURE::LIGHT_COLOR ].height = 8;
+	textureDefinitions[ TEXTURE::LIGHT_COLOR ].generateMips = false;
 	textureDefinitions[ TEXTURE::LIGHT_COLOR ].filenames = new char*[ 1 ];
 	textureDefinitions[ TEXTURE::LIGHT_COLOR ].filenames[0] = "assets/textures/light_color.png";
 
@@ -1067,6 +1069,7 @@ void LoadTextureDefinitions( TextureDefinition * textureDefinitions )
 	textureDefinitions[ TEXTURE::FONT ].arraySize = 1;
 	textureDefinitions[ TEXTURE::FONT ].width = 1024;
 	textureDefinitions[ TEXTURE::FONT ].height = 24;
+	textureDefinitions[ TEXTURE::FONT ].generateMips = false;
 	textureDefinitions[ TEXTURE::FONT ].filenames = new char*[ 1 ];
 	textureDefinitions[ TEXTURE::FONT ].filenames[0] = "assets/textures/droid_mono.png";
 }
@@ -1082,7 +1085,7 @@ void FreeTextureDefinitions( TextureDefinition * textureDefinitions )
 	}
 }
 
-bool LoadTextures( ID3D11Device * device )
+bool LoadTextures( ID3D11Device * device, ID3D11DeviceContext * context )
 {
 	for( int i = 0; i < TEXTURE::COUNT; i++ )
 	{
@@ -1091,7 +1094,7 @@ bool LoadTextures( ID3D11Device * device )
 
 		// gTempTextureStorage[i] = new Texture();
 		gTempTextureStorage[i] = Texture();
-		if( !gTempTextureStorage[i].Load( gTextureDefinitions[i], device ) )
+		if( !gTempTextureStorage[i].Load( gTextureDefinitions[i], device, context ) )
 		{
 			return false;
 		}
@@ -1214,13 +1217,12 @@ bool Texture::LoadFile( wchar_t* filename, ID3D11Device *device )
 }
 
 bool Texture::Load( const TextureDefinition & textureDefinition,
-				  	ID3D11Device * device, bool generateMips )
+				  	ID3D11Device * device, ID3D11DeviceContext * context )
 {
 	HRESULT hr;
 
 	int arraySize = textureDefinition.arraySize;
 
-	D3D11_SUBRESOURCE_DATA * initData = new D3D11_SUBRESOURCE_DATA[ arraySize ];
 	uint8 ** textureData = new uint8*[ arraySize ];
 
 	int textureWidth = 0, textureHeight = 0, textureComponentsPerPixel = 0;
@@ -1233,7 +1235,6 @@ bool Texture::Load( const TextureDefinition & textureDefinition,
 		{
 			OutputDebugStringA( "Failed to load PNG image" );
 
-			delete[] initData;
 			delete[] textureData;
 
 			return false;
@@ -1245,15 +1246,10 @@ bool Texture::Load( const TextureDefinition & textureDefinition,
 		{
 			OutputDebugStringA( "Incorrect image size, can't load!" );
 
-			delete[] initData;
 			delete[] textureData;
 
 			return false;
 		}
-
-		initData[i].pSysMem = textureData[i];
-		initData[i].SysMemPitch = textureWidth * 4;
-		initData[i].SysMemSlicePitch = textureWidth * textureHeight * 4;
 	}
 
 	DXGI_FORMAT format;
@@ -1270,9 +1266,23 @@ bool Texture::Load( const TextureDefinition & textureDefinition,
 			break;
 		default:
 			OutputDebugStringA( "Unsupported number of channels per pixel!" );
-			delete[] initData;
 			delete[] textureData;
 			return false;
+	}
+
+	UINT mipLevels = 0;
+	UINT bindFlags = 0;
+	UINT miscFlags = 0;
+	if( textureDefinition.generateMips )
+	{
+		mipLevels = 0; // storage will be allocated for a full mip chain
+		bindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+		miscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
+	}
+	else
+	{
+		mipLevels = 1;
+		bindFlags = D3D11_BIND_SHADER_RESOURCE;
 	}
 
 	D3D11_TEXTURE2D_DESC textureDesc;
@@ -1280,23 +1290,42 @@ bool Texture::Load( const TextureDefinition & textureDefinition,
 
 	textureDesc.Width = textureWidth;
 	textureDesc.Height = textureHeight;
-	textureDesc.MipLevels = 1; //  0 - generate automatically
+	textureDesc.MipLevels = mipLevels;
 	textureDesc.ArraySize = arraySize;
 	textureDesc.Format = format;
 	textureDesc.SampleDesc.Count = 1;
 	textureDesc.SampleDesc.Quality = 0;
 	textureDesc.Usage = D3D11_USAGE_DEFAULT;
-	textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	textureDesc.BindFlags = bindFlags;
 	textureDesc.CPUAccessFlags = 0;
-	textureDesc.MiscFlags = 0; // D3D11_RESOURCE_MISC_GENERATE_MIPS (add D3D11_BIND_RENDER_TARGET)
+	textureDesc.MiscFlags = miscFlags;
 
-	hr = device->CreateTexture2D( &textureDesc, initData, &texture_ );
+	hr = device->CreateTexture2D( &textureDesc, NULL, &texture_ );
 	if( FAILED( hr ) )
 	{
 		OutputDebugStringA( "Failed to create block texture array" );
-		delete[] initData;
 		delete[] textureData;
 		return false;
+	}
+
+	// get the actual number of mip levels in a texture
+	D3D11_TEXTURE2D_DESC createdDesc;
+	texture_->GetDesc( &createdDesc );
+	mipLevels = createdDesc.MipLevels;
+
+	// update data for mip level 0 for every array slice
+	for( int i = 0; i < arraySize; i++ )
+	{
+		UINT subresourceIndex =  D3D11CalcSubresource( 0, i, mipLevels );
+
+		context->UpdateSubresource(
+			texture_,
+			subresourceIndex,
+			NULL,
+			textureData[i],
+			textureWidth * 4,
+			textureWidth * textureHeight * 4
+		);
 	}
 
 	D3D11_SHADER_RESOURCE_VIEW_DESC viewDesc;
@@ -1323,11 +1352,14 @@ bool Texture::Load( const TextureDefinition & textureDefinition,
 	if( FAILED( hr ) )
 	{
 		OutputDebugStringA( "Failed to create block texture array view" );
-		delete[] initData;
 		return false;
 	}
 
-	delete[] initData;
+	if( textureDefinition.generateMips )
+	{
+		context->GenerateMips( textureView_ );
+	}
+
 	for( int i = 0; i < arraySize; i++ )
 		stbi_image_free( textureData[i] );
 	delete[] textureData;
