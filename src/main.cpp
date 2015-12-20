@@ -15,10 +15,15 @@ using namespace Blocks;
 
 ConfigType Blocks::Config;
 
+RECT gClipRect;
+RECT gOldClipRect;
+bool gWindowMinimized = false;
+
 LRESULT CALLBACK WndProc( HWND windowHandle, UINT message, WPARAM wParam, LPARAM lParam );
 bool LoadConfig();
 bool RegisterRawInputDevices( HWND hwnd );
 void TranslateUserInput( UserInput &userInput, LPARAM lparam );
+void GetScreenSpaceClientRect( HWND hwnd, RECT * rect );
 
 int __stdcall wWinMain( HINSTANCE thisInstance, HINSTANCE prevInstance, LPWSTR cmdLine, int cmdShow )
 {
@@ -76,6 +81,11 @@ int __stdcall wWinMain( HINSTANCE thisInstance, HINSTANCE prevInstance, LPWSTR c
 	ShowWindow( window, cmdShow );
 	UpdateWindow( window );
 
+	// clip cursor
+	GetClipCursor( &gOldClipRect );
+	GetScreenSpaceClientRect( window, &gClipRect );
+	ClipCursor( &gClipRect );
+
 	if( !RegisterRawInputDevices( window ) ) {
 		OutputDebugStringA( "Failed to register raw input devices!" );
 		return 1;
@@ -127,6 +137,7 @@ int __stdcall wWinMain( HINSTANCE thisInstance, HINSTANCE prevInstance, LPWSTR c
 }
 
 // TODO: need better way to communicate with game
+// TODO: handle maximize command properly
 LRESULT CALLBACK WndProc( HWND windowHandle, UINT message, WPARAM wParam, LPARAM lParam )
 {
 	PAINTSTRUCT paintStruct;
@@ -154,19 +165,48 @@ LRESULT CALLBACK WndProc( HWND windowHandle, UINT message, WPARAM wParam, LPARAM
 				case VK_RETURN:
 					game = (Game*)GetWindowLong( windowHandle, GWLP_USERDATA );
 					game->renderer.ToggleFullscreen();
+
+					GetScreenSpaceClientRect( windowHandle, &gClipRect );
+					ClipCursor(&gClipRect);
+
 					return 0;
 					break;
 			}
 			break;
+		case WM_SIZE:
+			if( wParam == SIZE_MINIMIZED )
+			{
+				gWindowMinimized = true;
+			}
+			else if( wParam == SIZE_RESTORED && gWindowMinimized )
+			{
+				gWindowMinimized = false;
+				GetScreenSpaceClientRect( windowHandle, &gClipRect );
+				ClipCursor(&gClipRect);
+			}
+			return DefWindowProc( windowHandle, message, wParam, lParam );
+			break;
 		case WM_ACTIVATEAPP:
-			if( !wParam ) {
+			if( !wParam ) // window deactivated
+			{
 				game = (Game*)GetWindowLong( windowHandle, GWLP_USERDATA );
 				if( game->renderer.Fullscreen() ) {
 					game->renderer.ToggleFullscreen();
 				}
 			}
+			else // window activated
+			{
+				GetScreenSpaceClientRect( windowHandle, &gClipRect );
+				ClipCursor(&gClipRect);
+			}
+			break;
+		case WM_SETCURSOR:
+			SetCursor(0);
+			return 0;
 			break;
 		case WM_EXITSIZEMOVE:
+			GetScreenSpaceClientRect( windowHandle, &gClipRect );
+			ClipCursor(&gClipRect);
 			if( wParam == SIZE_RESTORED )
 			{
 				game = (Game*)GetWindowLong( windowHandle, GWLP_USERDATA );
@@ -499,4 +539,17 @@ void TranslateUserInput( UserInput &userInput, LPARAM lParam )
 	}
 
 	delete[] buffer;
+}
+
+void GetScreenSpaceClientRect( HWND hwnd, RECT * rect )
+{
+	GetClientRect( hwnd, rect );
+	POINT min = { rect->left, rect->bottom };
+	POINT max = { rect->right, rect->top };
+	ClientToScreen( hwnd, &min );
+	ClientToScreen( hwnd, &max );
+	rect->left = min.x;
+	rect->bottom = min.y;
+	rect->right = max.x;
+	rect->top = max.y;
 }
