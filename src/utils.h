@@ -14,6 +14,11 @@
 #define RELEASE(p) if(p) { p->Release(); p = 0; }
 
 //
+// Calculates the number of elements in a static array
+//
+#define ARRAY_SIZE(a) ( sizeof( a ) / sizeof( a[0] ) )
+
+//
 // Useful math
 //
 float Saturate( float f );
