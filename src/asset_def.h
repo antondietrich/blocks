@@ -7,6 +7,7 @@ enum TEXTURE
 	BLOCKS_TRANSPARENT,
 	LIGHT_COLOR,
 	FONT,
+	CROSSHAIR,
 
 	COUNT
 };
@@ -70,6 +71,14 @@ void LoadTextureDefinitions( TextureDefinition * textureDefinitions )
 	textureDefinitions[ TEXTURE::FONT ].generateMips = false;
 	textureDefinitions[ TEXTURE::FONT ].filenames = new char*[ 1 ];
 	textureDefinitions[ TEXTURE::FONT ].filenames[0] = "assets/textures/droid_mono.png";
+
+	textureDefinitions[ TEXTURE::CROSSHAIR ].type = TEXTURE_TYPE::SINGLE;
+	textureDefinitions[ TEXTURE::CROSSHAIR ].arraySize = 1;
+	textureDefinitions[ TEXTURE::CROSSHAIR ].width = 16;
+	textureDefinitions[ TEXTURE::CROSSHAIR ].height = 8;
+	textureDefinitions[ TEXTURE::CROSSHAIR ].generateMips = false;
+	textureDefinitions[ TEXTURE::CROSSHAIR ].filenames = new char*[ 1 ];
+	textureDefinitions[ TEXTURE::CROSSHAIR ].filenames[0] = "assets/textures/crosshair.png";
 }
 
 void FreeTextureDefinitions( TextureDefinition * textureDefinitions )

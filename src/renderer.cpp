@@ -1681,6 +1681,9 @@ primitiveShader_()
 	primitiveVB_ = 0;
 	constantBuffer_ = 0;
 
+	depthStateRead_ = 0;
+	depthStateDisabled_ = 0;
+
 	lineNumber_ = 0;
 	lineOffset_ = 0;
 
@@ -1738,13 +1741,6 @@ bool Overlay::Start( Renderer *renderer )
 		OutputDebugStringA( "Failed to create overlay vertex buffer!" );
 		return false;
 	}
-
-	// load text texture
-//	if( !texture_.LoadFile( L"assets/textures/droidMono.dds", renderer_->device_ ) )
-//	{
-//		OutputDebugStringA( "Failed to load Droid Mono texture!" );
-//		return false;
-//	}
 
 	// create vertex buffer for primitive drawing
 	ZeroMemory( &desc, sizeof( desc ) );
@@ -1957,6 +1953,59 @@ float Overlay::GetCharOffset( char c )
 	int index = (int)alpha.find_first_of( c );
 
 	return (float)index * NORMALIZED_CHAR_WIDTH;
+}
+
+void Overlay::DrawCrosshair( int x, int y, CROSSHAIR_STATE state )
+{
+	float textureOffset = 0.0f;
+	switch( state )
+	{
+		case CROSSHAIR_STATE::INACTIVE:
+			textureOffset = 0.0f / CROSSHAIR_STATE::CHS_COUNT;
+			break;
+		case CROSSHAIR_STATE::ACTIVE:
+			textureOffset = 1.0f / CROSSHAIR_STATE::CHS_COUNT;
+			break;
+	}
+	OverlayVertex2D vertices[6];
+	vertices[0] = { { x - 4.0f, y - 4.0f }, { 0.0f + textureOffset, 0.0f } };
+	vertices[1] = { { x + 4.0f, y + 4.0f }, { 0.5f + textureOffset, 1.0f } };
+	vertices[2] = { { x + 4.0f, y - 4.0f }, { 0.5f + textureOffset, 0.0f } };
+	vertices[3] = { { x - 4.0f, y - 4.0f }, { 0.0f + textureOffset, 0.0f } };
+	vertices[4] = { { x - 4.0f, y + 4.0f }, { 0.0f + textureOffset, 1.0f } };
+	vertices[5] = { { x + 4.0f, y + 4.0f }, { 0.5f + textureOffset, 1.0f } };
+
+	D3D11_MAPPED_SUBRESOURCE mapResource;
+	HRESULT hr = renderer_->context_->Map( textVB_, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource );
+	if( FAILED( hr ) )
+	{
+		OutputDebugStringA( "Failed to map subresource!");
+		return;
+	}
+	memcpy( mapResource.pData, vertices, sizeof( OverlayVertex2D ) * 6 );
+	renderer_->context_->Unmap( textVB_, 0 );
+
+	OverlayShaderCB	cbData;
+	cbData.color = { 1.0f, 1.0f, 1.0f, 1.0f };
+	currentColor_ = { 1.0f, 1.0f, 1.0f, 1.0f };
+	renderer_->context_->UpdateSubresource( constantBuffer_, 0, NULL, &cbData, sizeof( OverlayShaderCB ), 0 );
+
+	uint stride = sizeof( OverlayVertex2D );
+	uint offset = 0;
+
+	renderer_->SetDepthStencilState( depthStateDisabled_ );
+	renderer_->SetRasterizerState( gDefaultRasterizerState );
+	renderer_->SetBlendMode( BM_ALPHA );
+	renderer_->context_->IASetVertexBuffers( 0, 1, &textVB_, &stride, &offset );
+	renderer_->SetTexture( TEXTURE::CROSSHAIR, ST_FRAGMENT );
+	renderer_->SetSampler( SAMPLER_POINT, ST_FRAGMENT );
+	renderer_->context_->PSSetConstantBuffers( 1, 1, &constantBuffer_ );
+	renderer_->SetShader( textShader_ );
+
+
+	renderer_->context_->Draw( 6, 0 );
+
+	renderer_->SetBlendMode( BM_DEFAULT );
 }
 
 void Overlay::DrawLine( XMFLOAT3 A, XMFLOAT3 B, XMFLOAT4 color )

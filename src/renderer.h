@@ -313,6 +313,14 @@ struct OverlayShaderCB
 	DirectX::XMFLOAT4 color;
 };
 
+enum CROSSHAIR_STATE
+{
+	INACTIVE,
+	ACTIVE,
+
+	CHS_COUNT
+};
+
 class Overlay
 {
 public:
@@ -326,6 +334,8 @@ public:
 	void WriteUnformatted( const char* text );
 	void WriteLineUnformatted( const char* text );
 	void DisplayText( int x, int y, const char* text, DirectX::XMFLOAT4 color );
+
+	void DrawCrosshair( int x, int y, CROSSHAIR_STATE state );
 
 	void DrawLine( DirectX::XMFLOAT3 A, DirectX::XMFLOAT3 B, DirectX::XMFLOAT4 color );
 	void DrawLineDir( DirectX::XMFLOAT3 start, DirectX::XMFLOAT3 dir, DirectX::XMFLOAT4 color );

@@ -1149,14 +1149,20 @@ void Game::DoFrame( float dt )
 #endif
 	ProfileStop();
 
+	CROSSHAIR_STATE chState = CROSSHAIR_STATE::INACTIVE;
 	if( blockPicked )
 	{
+		chState = CROSSHAIR_STATE::ACTIVE;
 		overlay.OulineBlock( 	pickedBlock.chunkX,
 								pickedBlock.chunkZ,
 								pickedBlock.x,
 								pickedBlock.y,
 								pickedBlock.z );
 	}
+
+	overlay.DrawCrosshair( (int)( renderer.GetViewportWidth()*0.5f ),
+						   (int)( renderer.GetViewportHeight()*0.5f ),
+						   chState );
 
 	if( gDrawOverlay )
 	{
@@ -1234,6 +1240,7 @@ void Game::DoFrame( float dt )
 		{
 			overlay.DrawPoint( intersection.point, { 0.0f, 1.0f, 1.0f, 1.0f } );
 		}
+		// overlay.DisplayText( renderer.GetViewportWidth()*0.5f, renderer.GetViewportHeight()*0.5f, "+", { 1.0f, 1.0f, 1.0f, 0.1f } );
 
 //		XMFLOAT3 lightPos;
 //		XMStoreFloat3( &lightPos, vLightPos );
