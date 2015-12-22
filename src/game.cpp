@@ -34,9 +34,9 @@ int gChunkCacheHalfDim = 0;
 int gChunkCacheDim = 0;
 int gChunkMeshCacheHalfDim = 0;
 int gChunkMeshCacheDim = 0;
-Chunk * gChunkCache;
-ChunkMesh * gChunkMeshCache;
-VertexBuffer * gChunkVertexBuffer;
+Chunk * gChunkCache = 0;
+ChunkMesh * gChunkMeshCache = 0;
+VertexBuffer * gChunkVertexBuffer = 0;
 
 const int gNumShadowCascades = 4;
 
@@ -128,9 +128,12 @@ Game::~Game()
 	//{
 	//	gChunkVertexBuffer.Release();
 	//}
-	delete gChunkVertexBuffer;
-	delete[] gChunkCache;
-	delete[] gChunkMeshCache;
+	if( gChunkVertexBuffer )
+		delete gChunkVertexBuffer;
+	if( gChunkCache )
+		delete[] gChunkCache;
+	if( gChunkMeshCache )
+		delete[] gChunkMeshCache;
 }
 
 bool Game::Start( HWND wnd )
