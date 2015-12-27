@@ -1,6 +1,12 @@
 #ifndef __ASSET_DEF__
 #define __ASSET_DEF__
 
+enum TEXTURE_TYPE
+{
+	SINGLE,
+	ARRAY,
+};
+
 enum TEXTURE
 {
 	BLOCKS_OPAQUE,
@@ -12,10 +18,17 @@ enum TEXTURE
 	COUNT
 };
 
-enum TEXTURE_TYPE
+enum BLOCK_TEXTURE
 {
-	SINGLE,
-	ARRAY,
+	GRASS,
+	DIRT,
+	ROCK,
+	WOOD,
+	TREE_BARK,
+	TREE_TRUNK,
+	LEAVES,
+
+	BLOCK_TEXTURE_COUNT
 };
 
 struct TextureDefinition
@@ -46,15 +59,18 @@ void LoadTextureDefinitions( TextureDefinition * textureDefinitions )
 	}
 
 	textureDefinitions[ TEXTURE::BLOCKS_OPAQUE ].type = TEXTURE_TYPE::ARRAY;
-	textureDefinitions[ TEXTURE::BLOCKS_OPAQUE ].arraySize = 4;
+	textureDefinitions[ TEXTURE::BLOCKS_OPAQUE ].arraySize = BLOCK_TEXTURE_COUNT;
 	textureDefinitions[ TEXTURE::BLOCKS_OPAQUE ].width = 512;
 	textureDefinitions[ TEXTURE::BLOCKS_OPAQUE ].height = 512;
 	textureDefinitions[ TEXTURE::BLOCKS_OPAQUE ].generateMips = true;
-	textureDefinitions[ TEXTURE::BLOCKS_OPAQUE ].filenames = new char*[ 4 ];
+	textureDefinitions[ TEXTURE::BLOCKS_OPAQUE ].filenames = new char*[ BLOCK_TEXTURE_COUNT ];
 	textureDefinitions[ TEXTURE::BLOCKS_OPAQUE ].filenames[0] = "assets/textures/grass.png";
 	textureDefinitions[ TEXTURE::BLOCKS_OPAQUE ].filenames[1] = "assets/textures/dirt.png";
 	textureDefinitions[ TEXTURE::BLOCKS_OPAQUE ].filenames[2] = "assets/textures/rock.png";
 	textureDefinitions[ TEXTURE::BLOCKS_OPAQUE ].filenames[3] = "assets/textures/wood.png";
+	textureDefinitions[ TEXTURE::BLOCKS_OPAQUE ].filenames[4] = "assets/textures/tree_bark.png";
+	textureDefinitions[ TEXTURE::BLOCKS_OPAQUE ].filenames[5] = "assets/textures/wood_trunk.png";
+	textureDefinitions[ TEXTURE::BLOCKS_OPAQUE ].filenames[6] = "assets/textures/leaves.png";
 
 	textureDefinitions[ TEXTURE::LIGHT_COLOR ].type = TEXTURE_TYPE::SINGLE;
 	textureDefinitions[ TEXTURE::LIGHT_COLOR ].arraySize = 1;
