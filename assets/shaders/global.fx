@@ -200,6 +200,10 @@ float4 PSMain( PS_Input input ) : SV_TARGET
 	float4 finalColor = color * nDotL * sunColorTex * 0.5 +
 						color * ao * ambientColorTex * 0.7;
 
+    // finalColor.a = color.a;
+    if( color.a < 0.5 )
+    	discard;
+
 	float4 fragmentColor = fogFactor*fogColor + ( 1 - fogFactor )*finalColor;
 	// return fragmentColor*0.9 + cascadeColors[ sliceIndex ]*0.1;
 	return fragmentColor;
