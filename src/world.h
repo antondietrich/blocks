@@ -32,6 +32,8 @@
 #include "types.h"
 #include "asset_def.h"
 
+#include "block_def.h"
+
 namespace Blocks
 {
 
@@ -50,15 +52,6 @@ namespace Blocks
 
 
 #define MAX_VERTS_PER_CHUNK_MESH (CHUNK_WIDTH * CHUNK_WIDTH * CHUNK_HEIGHT * FACES_PER_BLOCK * VERTS_PER_FACE)
-
-enum BLOCK_TYPE
-{
-	BT_AIR,
-	BT_DIRT,
-	BT_GRASS,
-	BT_STONE,
-	BT_WOOD
-};
 
 struct BlockPosition
 {
