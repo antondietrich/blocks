@@ -27,6 +27,12 @@ inline float Lerp( float a, float b, float t )
 {
 	return a * ( 1 - t ) + b * t;
 }
+inline bool InRange( int x, int a, int b )
+{
+	if( x < a || x >= b )
+		return false;
+	return true;
+}
 
 
 //
