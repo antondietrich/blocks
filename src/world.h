@@ -53,6 +53,14 @@ namespace Blocks
 
 #define MAX_VERTS_PER_CHUNK_MESH (CHUNK_WIDTH * CHUNK_WIDTH * CHUNK_HEIGHT * FACES_PER_BLOCK * VERTS_PER_FACE)
 
+enum BIOME
+{
+	BIOME_PLAINS,
+	BIOME_MOUNTAINS,
+
+	BIOME_COUNT
+};
+
 struct BlockPosition
 {
 	int chunkX;
@@ -69,6 +77,7 @@ struct BlockVertex
 struct Chunk
 {
 	int pos[2];
+	BIOME biomeMap[CHUNK_WIDTH][CHUNK_WIDTH];
 	BLOCK_TYPE blocks[CHUNK_WIDTH][CHUNK_HEIGHT][CHUNK_WIDTH];
 };
 

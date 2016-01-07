@@ -24,11 +24,12 @@ float Noise2D( int x, int y )
 	return Noise1( input );
 }
 
+// Return a random value in the range [min, max)
 // TODO: rand() may cause data races in threaded code.
-//  Need a different RNG in the futere
+//  Need a different RNG in the future
 int Random( int min, int max )
 {
-	return (rand() % ( max - min + 1 )) + min;
+	return (rand() % ( max - min ) ) + min;
 }
 
 float Cubic( float pL, float p0, float p3, float pR, float t )
@@ -184,10 +185,12 @@ void GenerateChunk( Chunk *chunk, int x, int z )
 			BLOCK_TYPE biomeBlockType;
 			if( pbiome > 0.4f )
 			{
+				chunk->biomeMap[ blockX ][ blockZ ] = BIOME_PLAINS;
 				biomeBlockType = BT_GRASS;
 			}
 			else
 			{
+				chunk->biomeMap[ blockX ][ blockZ ] = BIOME_MOUNTAINS;
 				biomeBlockType = BT_STONE;
 			}
 
@@ -214,6 +217,7 @@ void GenerateChunk( Chunk *chunk, int x, int z )
 				}
 			}
 
+			#if 0
 			if( biomeBlockType == BT_GRASS )
 			{
 				if( blockZ == Random( 3, CHUNK_WIDTH - 3 ) &&
@@ -245,8 +249,93 @@ void GenerateChunk( Chunk *chunk, int x, int z )
 					}
 				}
 			}
+			#endif
 		}
-	}
+	} // end generate landscape
+
+	// generate trees
+	for( int blockZ = 0; blockZ < CHUNK_WIDTH; blockZ++ )
+	{
+		for( int blockX = 0; blockX < CHUNK_WIDTH; blockX++ )
+		{
+			if( chunk->biomeMap[blockX][blockZ] == BIOME_PLAINS )
+			{
+				if( ( blockX % 6 == 2 ) &&
+					( blockZ % 6 == 2 ) )
+				{
+
+					int offsetX = Random( 0, 5 ) - 2;
+					int offsetZ = Random( 0, 5 ) - 2;
+
+					if( !InRange( blockX + offsetX, 0, CHUNK_WIDTH ) ||
+						!InRange( blockZ + offsetZ, 0, CHUNK_WIDTH ) )
+						continue;
+
+					int groundHeight = CHUNK_HEIGHT - 1;
+					for( ; groundHeight >= 0; groundHeight-- )
+					{
+						if( chunk->blocks[ blockX + offsetX ][ groundHeight ][ blockZ + offsetZ ] != BT_AIR )
+							break;
+					}
+
+					if( chunk->blocks[ blockX + offsetX ][ groundHeight ][ blockZ + offsetZ ] != BT_GRASS )
+						continue;
+
+					int treeHeight = Random( 8, 14 );
+					for( int height = 1; height <= treeHeight; height++ )
+					{
+						chunk->blocks[ blockX + offsetX ][ groundHeight + height ][ blockZ + offsetZ ] = BT_TREE_TRUNK;
+
+						if( height == treeHeight )
+							chunk->blocks[ blockX + offsetX ][ groundHeight + height ][ blockZ + offsetZ ] = BT_TREE_LEAVES;
+
+						if( height >= treeHeight - 4 )
+						{
+							int leafRadius = 0;
+
+							if( height == treeHeight - 4 )
+								leafRadius = 3;
+							else if( height == treeHeight - 3 ||
+									 height == treeHeight - 2 )
+								leafRadius = 2;
+							else
+								leafRadius = 1;
+
+							for( int leafX = -leafRadius;
+									 leafX <= leafRadius;
+									 leafX++ )
+							{
+								for( int leafZ = -leafRadius;
+										 leafZ <= leafRadius;
+										 leafZ++ )
+								{
+									if( leafX == 0 && leafZ == 0 )
+										continue;
+
+									// remove corners
+									if( ( leafX == -leafRadius && leafZ == -leafRadius ) ||
+										( leafX ==  leafRadius && leafZ == -leafRadius ) ||
+										( leafX == -leafRadius && leafZ ==  leafRadius ) ||
+										( leafX ==  leafRadius && leafZ ==  leafRadius ) )
+										continue;
+
+									if( !InRange( blockX + offsetX + leafX, 0, CHUNK_WIDTH ) ||
+										!InRange( blockZ + offsetZ + leafZ, 0, CHUNK_WIDTH ) )
+										continue;
+
+									if( chunk->blocks[blockX + offsetX + leafX][groundHeight + height][blockZ + offsetZ + leafZ] == BT_AIR )
+									{
+										chunk->blocks[blockX + offsetX + leafX][groundHeight + height][blockZ + offsetZ + leafZ] = BT_TREE_LEAVES;
+										//chunk->blocks[blockX + leafX][height + currentHeight][blockZ  + leafZ] = BT_TREE_LEAVES;
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	} // end generate trees
 }
 
 #else
@@ -606,35 +695,43 @@ BlockVertex standardBlock[] =
 
 BlockVertex * blockMeshes[] = { standardBlock };
 
-void AddFace( BlockVertex *vertexBuffer, int startVertexIndex, uint8 blockX, uint8 blockY, uint8 blockZ, FACE_INDEX faceIndex, uint8 occluded[4], BlockDefinition blockDefinition )
+void AddFace( BlockVertex *vertexBuffer, int startVertexIndex,
+			  uint8 blockX, uint8 blockY, uint8 blockZ,
+			  FACE_INDEX faceIndex, uint8 occluded[4], BlockDefinition blockDefinition )
 {
+	uint textureSide = BFD_SIDE;
+	if( faceIndex == FACE_POS_Y ||
+		faceIndex == FACE_NEG_Y )
+	{
+		textureSide = BFD_TOP;
+	}
 	vertexBuffer[ startVertexIndex + 0 ] = blockMeshes[ blockDefinition.meshID ][ faceIndex + 0];
 		vertexBuffer[ startVertexIndex + 0 ].data1[0] += blockX;
 		vertexBuffer[ startVertexIndex + 0 ].data1[1] += blockY;
 		vertexBuffer[ startVertexIndex + 0 ].data1[2] += blockZ;
 		// vertexBuffer[ startVertexIndex + 0 ].data[3] |= SET_TEXCOORD( 0 + blockDefinition.textureCoordsArrayOffset );
-		vertexBuffer[ startVertexIndex + 0 ].data2[0] = PACK_OCCLUSION_AND_TEXID( occluded[0], blockDefinition.textureID );
+		vertexBuffer[ startVertexIndex + 0 ].data2[0] = PACK_OCCLUSION_AND_TEXID( occluded[0], blockDefinition.textureID[ textureSide ] );
 
 	vertexBuffer[ startVertexIndex + 1 ] = blockMeshes[ blockDefinition.meshID ][ faceIndex + 1];
 		vertexBuffer[ startVertexIndex + 1 ].data1[0] += blockX;
 		vertexBuffer[ startVertexIndex + 1 ].data1[1] += blockY;
 		vertexBuffer[ startVertexIndex + 1 ].data1[2] += blockZ;
 		// vertexBuffer[ startVertexIndex + 1 ].data[3] |= SET_TEXCOORD( 1 + blockDefinition.textureCoordsArrayOffset );
-		vertexBuffer[ startVertexIndex + 1 ].data2[0] = PACK_OCCLUSION_AND_TEXID( occluded[1], blockDefinition.textureID );
+		vertexBuffer[ startVertexIndex + 1 ].data2[0] = PACK_OCCLUSION_AND_TEXID( occluded[1], blockDefinition.textureID[ textureSide ] );
 
 	vertexBuffer[ startVertexIndex + 4 ] = blockMeshes[ blockDefinition.meshID ][ faceIndex + 2];
 		vertexBuffer[ startVertexIndex + 4 ].data1[0] += blockX;
 		vertexBuffer[ startVertexIndex + 4 ].data1[1] += blockY;
 		vertexBuffer[ startVertexIndex + 4 ].data1[2] += blockZ;
 		// vertexBuffer[ startVertexIndex + 4 ].data[3] |= SET_TEXCOORD( 3 + blockDefinition.textureCoordsArrayOffset );
-		vertexBuffer[ startVertexIndex + 4 ].data2[0] = PACK_OCCLUSION_AND_TEXID( occluded[2], blockDefinition.textureID );
+		vertexBuffer[ startVertexIndex + 4 ].data2[0] = PACK_OCCLUSION_AND_TEXID( occluded[2], blockDefinition.textureID[ textureSide ] );
 
 	vertexBuffer[ startVertexIndex + 5 ] = blockMeshes[ blockDefinition.meshID ][ faceIndex + 3];
 		vertexBuffer[ startVertexIndex + 5 ].data1[0] += blockX;
 		vertexBuffer[ startVertexIndex + 5 ].data1[1] += blockY;
 		vertexBuffer[ startVertexIndex + 5 ].data1[2] += blockZ;
 		// vertexBuffer[ startVertexIndex + 5 ].data[3] |= SET_TEXCOORD( 2 + blockDefinition.textureCoordsArrayOffset );
-		vertexBuffer[ startVertexIndex + 5 ].data2[0] = PACK_OCCLUSION_AND_TEXID( occluded[3], blockDefinition.textureID );
+		vertexBuffer[ startVertexIndex + 5 ].data2[0] = PACK_OCCLUSION_AND_TEXID( occluded[3], blockDefinition.textureID[ textureSide ] );
 
 	if( occluded[0] + occluded[2] <= occluded[1] + occluded[3] ) // normal quad
 	{

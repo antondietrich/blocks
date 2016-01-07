@@ -14,9 +14,15 @@ enum BLOCK_TYPE
 	BT_COUNT
 };
 
+enum BLOCK_FACE_DIRECTION
+{
+	BFD_SIDE,
+	BFD_TOP
+};
+
 struct BlockDefinition
 {
-	int textureID;
+	int textureID[2];
 	int meshID;
 	int transparent;
 };
@@ -27,13 +33,13 @@ extern BlockDefinition blockDefinitions[ BT_COUNT ];
 
 BlockDefinition blockDefinitions[ BT_COUNT ] =
 {
-	{ 0, 0, 1 },
-	{ BLOCK_TEXTURE::DIRT,			0, 		0 },
-	{ BLOCK_TEXTURE::GRASS,			0, 		0 },
-	{ BLOCK_TEXTURE::ROCK,			0, 		0 },
-	{ BLOCK_TEXTURE::WOOD,			0, 		0 },
-	{ BLOCK_TEXTURE::TREE_BARK,		0, 		0 },
-	{ BLOCK_TEXTURE::LEAVES,		0, 		1 },
+	{ { 0, 0 }, 0, 1 },
+	{ { BLOCK_TEXTURE::DIRT,		BLOCK_TEXTURE::DIRT },			0, 		0 },
+	{ { BLOCK_TEXTURE::GRASS,		BLOCK_TEXTURE::GRASS },			0, 		0 },
+	{ { BLOCK_TEXTURE::ROCK,		BLOCK_TEXTURE::ROCK },			0, 		0 },
+	{ { BLOCK_TEXTURE::WOOD,		BLOCK_TEXTURE::WOOD },			0, 		0 },
+	{ { BLOCK_TEXTURE::TREE_BARK,	BLOCK_TEXTURE::TREE_TRUNK },	0, 		0 },
+	{ { BLOCK_TEXTURE::LEAVES,		BLOCK_TEXTURE::LEAVES },		0, 		1 },
 };
 
 //blockDefinitions[ BT_AIR ]				= {0, 0};
