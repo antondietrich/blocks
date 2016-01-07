@@ -145,6 +145,14 @@ float CalculatePCFPercentage4x4( float3 tc, float bias, float screenDepth );
 
 float4 PSMain( PS_Input input ) : SV_TARGET
 {
+	float3 texcoord;
+	texcoord.xy = input.texcoord;
+	texcoord.z = input.texID;
+
+	float4 color = blockTexture.Sample( samplerFiltered, texcoord );
+    if( color.a < 0.5 )
+    	discard;
+
 	float4 negLightDir = normalize( sunDir );
 	float ao = ( 1.0 - input.occlusion ) * 0.7 + 0.3;
 
@@ -187,12 +195,6 @@ float4 PSMain( PS_Input input ) : SV_TARGET
 
 	nDotL *= shadowFactor;
 
-	float3 texcoord;
-	texcoord.xy = input.texcoord;
-	texcoord.z = input.texID;
-
-	float4 color = blockTexture.Sample( samplerFiltered, texcoord );
-
 	float4 fogColor = float4( 0.5f, 0.5f, 0.5f, 1.0f );
 
 	float fogFactor = input.linearDepth.x;
@@ -200,9 +202,6 @@ float4 PSMain( PS_Input input ) : SV_TARGET
 	float4 finalColor = color * nDotL * sunColorTex * 0.5 +
 						color * ao * ambientColorTex * 0.7;
 
-    // finalColor.a = color.a;
-    if( color.a < 0.5 )
-    	discard;
 
 	float4 fragmentColor = fogFactor*fogColor + ( 1 - fogFactor )*finalColor;
 	// return fragmentColor*0.9 + cascadeColors[ sliceIndex ]*0.1;
