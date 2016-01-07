@@ -1,3 +1,6 @@
+Texture2DArray blockTexture : register( t0 );
+SamplerState samplerFiltered : register( s0 );
+
 cbuffer GlobalCB : register( b0 )
 {
 	matrix screenToNDC;
@@ -17,13 +20,15 @@ cbuffer ModelCB : register( b2 )
 
 struct VS_Input
 {
-	uint pos : POSITION;
-	uint texID : TEXCOORD0;
+	uint data1 : POSITION;
+	uint data2 : TEXCOORD0;
 };
 
 struct PS_Input
 {
-	float4 pos : SV_POSITION;
+	float4 pos 		: SV_POSITION;
+	float2 texcoord : TEXCOORD0;
+	int texID 		: TEXCOORD1;
 };
 
 float ShowTexel( float4 fragmentPos );
@@ -32,9 +37,9 @@ PS_Input VSMain( VS_Input input )
 {
 	// unpack position, normal texcoord
 	float3 unpackedPos;
-	unpackedPos.x = ( input.pos & 0x000000ff );
-	unpackedPos.y = ( input.pos & 0x0000ff00 ) >> 8;
-	unpackedPos.z = ( input.pos & 0x00ff0000 ) >> 16;
+	unpackedPos.x = ( input.data1 & 0x000000ff );
+	unpackedPos.y = ( input.data1 & 0x0000ff00 ) >> 8;
+	unpackedPos.z = ( input.data1 & 0x00ff0000 ) >> 16;
 
 	PS_Input output;
 
@@ -44,14 +49,28 @@ PS_Input VSMain( VS_Input input )
 	output.pos += translate;
 	output.pos = mul( output.pos, vp );
 
+	int temp = ( input.data1 & 0xff000000 ) >> 24;
+	int texcoordIndex = ( temp & 0x18 ) >> 3;
+	output.texcoord = texcoords[ texcoordIndex ];
+
+	temp = (input.data2 & 0x000000ff );
+	output.texID = temp & 0x3f;
+
 	return output;
 }
 
-//float PSMain( PS_Input input ) : SV_DEPTH
-//{
-//	return ShowTexel( input.pos );
-//	return input.pos.z;
-//}
+float PSMain( PS_Input input ) : SV_DEPTH
+{
+	//return ShowTexel( input.pos );
+	float3 texcoord;
+	texcoord.xy = input.texcoord;
+	texcoord.z = input.texID;
+	float4 color = blockTexture.Sample( samplerFiltered, texcoord );
+
+	if( color.a < 0.5 )
+		discard;
+	return input.pos.z;
+}
 
 //
 // Produces a checkered map to inspect shadow map texel size
