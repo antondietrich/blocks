@@ -515,131 +515,52 @@ enum BLOCK_OFFSET_DIRECTION
 	BOD_COUNT
 };
 
-void GetNeighbouringBlocks( BLOCK_TYPE neighbours[][BOD_COUNT][BOD_COUNT],
-							int x, int y, int z,
-							Chunk* chunkNegXPosZ, Chunk* chunkPosZ, Chunk* chunkPosXPosZ,
-							Chunk* chunkNegX, Chunk* chunk, Chunk* chunkPosX,
-							Chunk* chunkNegXNegZ, Chunk* chunkNegZ, Chunk* chunkPosXNegZ )
+ChunkContext::ChunkContext( Chunk * chunkNegZNegX, Chunk * chunkNegZSamX, Chunk * chunkNegZPosX,
+							Chunk * chunkSamZNegX, Chunk * chunkSamZSamX, Chunk * chunkSamZPosX,
+							Chunk * chunkPosZNegX, Chunk * chunkPosZSamX, Chunk * chunkPosZPosX )
 {
-	BLOCK_OFFSET_DIRECTION yBOD = BOD_SAM;
+	chunks_[0] = chunkNegZNegX;
+	chunks_[1] = chunkNegZSamX;
+	chunks_[2] = chunkNegZPosX;
+	chunks_[3] = chunkSamZNegX;
+	chunks_[4] = chunkSamZSamX;
+	chunks_[5] = chunkSamZPosX;
+	chunks_[6] = chunkPosZNegX;
+	chunks_[7] = chunkPosZSamX;
+	chunks_[8] = chunkPosZPosX;
+}
 
-	for( int yOffset = y - 1; yOffset <= y + 1; yOffset++ )
+BLOCK_TYPE ChunkContext::GetBlockAt( int x, int y, int z )
+{
+	assert( "Block index out of bounds" && x >= (0 - CHUNK_WIDTH) && x <= (CHUNK_WIDTH + CHUNK_WIDTH - 1) );
+	assert( "Block index out of bounds" && z >= (0 - CHUNK_WIDTH) && z <= (CHUNK_WIDTH + CHUNK_WIDTH - 1) );
+
+	Chunk * chunkToAccess = 0;
+	int offsetX = 1, offsetZ = 1;
+	if( x < 0 )
 	{
-		if( yOffset == y-1 ) {
-			yBOD = BOD_NEG;
-		}
-		else if( yOffset == y+1 ) {
-			yBOD = BOD_POS;
-		}
-		else {
-			yBOD = BOD_SAM;
-		}
+		offsetX -= 1;
+		x = CHUNK_WIDTH + x;
+	}
+	if( x >= CHUNK_WIDTH )
+	{
+		offsetX += 1;
+		x = x - CHUNK_WIDTH;
+	}
+	if( z < 0 )
+	{
+		offsetZ -= 1;
+		z = CHUNK_WIDTH + z;
+	}
+	if( z >= CHUNK_WIDTH )
+	{
+		offsetZ += 1;
+		z = z - CHUNK_WIDTH;
+	}
 
-		if( yOffset == -1 ) // bottom layer
-		{
-			neighbours[BOD_SAM][BOD_NEG][BOD_SAM] = BT_DIRT;
-			neighbours[BOD_SAM][BOD_NEG][BOD_NEG] = BT_DIRT;
-			neighbours[BOD_SAM][BOD_NEG][BOD_POS] = BT_DIRT;
-			neighbours[BOD_NEG][BOD_NEG][BOD_SAM] = BT_DIRT;
-			neighbours[BOD_NEG][BOD_NEG][BOD_NEG] = BT_DIRT;
-			neighbours[BOD_NEG][BOD_NEG][BOD_POS] = BT_DIRT;
-			neighbours[BOD_POS][BOD_NEG][BOD_SAM] = BT_DIRT;
-			neighbours[BOD_POS][BOD_NEG][BOD_NEG] = BT_DIRT;
-			neighbours[BOD_POS][BOD_NEG][BOD_POS] = BT_DIRT;
-		}
-		else if( yOffset == CHUNK_HEIGHT ) // top layer
-		{
-			neighbours[BOD_SAM][BOD_POS][BOD_SAM] = BT_AIR;
-			neighbours[BOD_SAM][BOD_POS][BOD_NEG] = BT_AIR;
-			neighbours[BOD_SAM][BOD_POS][BOD_POS] = BT_AIR;
-			neighbours[BOD_NEG][BOD_POS][BOD_SAM] = BT_AIR;
-			neighbours[BOD_NEG][BOD_POS][BOD_NEG] = BT_AIR;
-			neighbours[BOD_NEG][BOD_POS][BOD_POS] = BT_AIR;
-			neighbours[BOD_POS][BOD_POS][BOD_SAM] = BT_AIR;
-			neighbours[BOD_POS][BOD_POS][BOD_NEG] = BT_AIR;
-			neighbours[BOD_POS][BOD_POS][BOD_POS] = BT_AIR;
-		}
-		else
-		{
-			// center
-			neighbours[BOD_SAM][yBOD][BOD_SAM] = chunk->blocks[x][yOffset][z];
+	chunkToAccess = chunks_[ 3*offsetZ + offsetX ];
 
-			// sides
-			neighbours[BOD_POS][yBOD][BOD_SAM] = x == CHUNK_WIDTH-1	? chunkPosX->blocks[0][yOffset][z]				: chunk->blocks[x+1][yOffset][z];
-			neighbours[BOD_NEG][yBOD][BOD_SAM] = x == 0				? chunkNegX->blocks[CHUNK_WIDTH-1][yOffset][z]	: chunk->blocks[x-1][yOffset][z];
-			neighbours[BOD_SAM][yBOD][BOD_POS] = z == CHUNK_WIDTH-1	? chunkPosZ->blocks[x][yOffset][0]				: chunk->blocks[x][yOffset][z+1];
-			neighbours[BOD_SAM][yBOD][BOD_NEG] = z == 0				? chunkNegZ->blocks[x][yOffset][CHUNK_WIDTH-1]	: chunk->blocks[x][yOffset][z-1];
-
-			// corners
-			if( x == CHUNK_WIDTH-1 && z == CHUNK_WIDTH-1 )
-			{
-				neighbours[BOD_POS][yBOD][BOD_POS] = chunkPosXPosZ->blocks[0][yOffset][0];
-			}
-			else
-			{
-				if( x == CHUNK_WIDTH-1 ) {
-					neighbours[BOD_POS][yBOD][BOD_POS] = chunkPosX->blocks[0][yOffset][z+1];
-				}
-				else if( z == CHUNK_WIDTH-1 ) {
-					neighbours[BOD_POS][yBOD][BOD_POS] = chunkPosZ->blocks[x+1][yOffset][0];
-				}
-				else {
-					neighbours[BOD_POS][yBOD][BOD_POS] = chunk->blocks[x+1][yOffset][z+1];
-				}
-			}
-
-			if( x == 0 && z == CHUNK_WIDTH-1 )
-			{
-				neighbours[BOD_NEG][yBOD][BOD_POS] = chunkNegXPosZ->blocks[CHUNK_WIDTH-1][yOffset][0];
-			}
-			else
-			{
-				if( x == 0 ) {
-					neighbours[BOD_NEG][yBOD][BOD_POS] = chunkNegX->blocks[CHUNK_WIDTH-1][yOffset][z+1];
-				}
-				else if( z == CHUNK_WIDTH-1 ) {
-					neighbours[BOD_NEG][yBOD][BOD_POS] = chunkPosZ->blocks[x-1][yOffset][0];
-				}
-				else {
-					neighbours[BOD_NEG][yBOD][BOD_POS] = chunk->blocks[x-1][yOffset][z+1];
-				}
-			}
-
-			if( x == CHUNK_WIDTH-1 && z == 0 )
-			{
-				neighbours[BOD_POS][yBOD][BOD_NEG] = chunkPosXNegZ->blocks[0][yOffset][CHUNK_WIDTH-1];
-			}
-			else
-			{
-				if( x == CHUNK_WIDTH-1 ) {
-					neighbours[BOD_POS][yBOD][BOD_NEG] = chunkPosX->blocks[0][yOffset][z-1];
-				}
-				else if( z == 0 ) {
-					neighbours[BOD_POS][yBOD][BOD_NEG] = chunkNegZ->blocks[x+1][yOffset][CHUNK_WIDTH-1];
-				}
-				else {
-					neighbours[BOD_POS][yBOD][BOD_NEG] = chunk->blocks[x+1][yOffset][z-1];
-				}
-			}
-
-			if( x == 0 && z == 0 )
-			{
-				neighbours[BOD_NEG][yBOD][BOD_NEG] = chunkNegXNegZ->blocks[CHUNK_WIDTH-1][yOffset][CHUNK_WIDTH-1];
-			}
-			else
-			{
-				if( x == 0 ) {
-					neighbours[BOD_NEG][yBOD][BOD_NEG] = chunkNegX->blocks[CHUNK_WIDTH-1][yOffset][z-1];
-				}
-				else if( z == 0 ) {
-					neighbours[BOD_NEG][yBOD][BOD_NEG] = chunkNegZ->blocks[x-1][yOffset][CHUNK_WIDTH-1];
-				}
-				else {
-					neighbours[BOD_NEG][yBOD][BOD_NEG] = chunk->blocks[x-1][yOffset][z-1];
-				}
-			}
-		} // else
-	} // for yOffset
+	return chunkToAccess->blocks[x][y][z];
 }
 
 //cbData.normals[0] = {  0.0f,  0.0f, -1.0f, 0.0f }; // -Z
@@ -759,9 +680,7 @@ uint8 VertexAO( BLOCK_TYPE side1, BLOCK_TYPE side2, BLOCK_TYPE corner )
 	return a1 + a2 + a3;
 }
 
-int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkPosZ, Chunk* chunkPosXPosZ,
-											 Chunk* chunkNegX, Chunk* chunk, Chunk* chunkPosX,
-											 Chunk* chunkNegXNegZ, Chunk* chunkNegZ, Chunk* chunkPosXNegZ )
+int GenerateChunkMesh( ChunkMesh *chunkMesh, ChunkContext chunks )
 {
 	int vertexIndex = 0;
 	for( uint8 blockY = 0; blockY < CHUNK_HEIGHT; blockY++ )
@@ -770,132 +689,124 @@ int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkP
 		{
 			for( uint8 blockZ = 0; blockZ < CHUNK_WIDTH; blockZ++ )
 			{
-				if( chunk->blocks[blockX][blockY][blockZ] == BT_AIR ) {
+				if( chunks.GetBlockAt( blockX, blockY, blockZ ) == BT_AIR ) {
 					continue;
 				}
 
-				// get neighbouring blocks
-				BLOCK_TYPE neighbours[BOD_COUNT][BOD_COUNT][BOD_COUNT];
-				GetNeighbouringBlocks( neighbours,
-									   blockX, blockY, blockZ,
-									   chunkNegXPosZ,	chunkPosZ,	chunkPosXPosZ,
-									   chunkNegX,		chunk,		chunkPosX,
-									   chunkNegXNegZ,	chunkNegZ,	chunkPosXNegZ );
-
-				BlockDefinition blockDefinition = blockDefinitions[ chunk->blocks[blockX][blockY][blockZ] ];
+				BlockDefinition blockDefinition = blockDefinitions[ chunks.GetBlockAt( blockX, blockY, blockZ ) ];
 
 				uint8 occlusion[] = { 0, 0, 0, 0 };
 
 				// X+
-				if( blockDefinitions[ neighbours[BOD_POS][BOD_SAM][BOD_SAM] ].transparent )
+				if( blockDefinitions[ chunks.GetBlockAt( blockX + 1, blockY + 0, blockZ + 0 ) ].transparent )
 				{
-					occlusion[0] = VertexAO( neighbours[BOD_POS][BOD_POS][BOD_SAM],
-											 neighbours[BOD_POS][BOD_SAM][BOD_NEG],
-											 neighbours[BOD_POS][BOD_POS][BOD_NEG] );
-					occlusion[1] = VertexAO( neighbours[BOD_POS][BOD_NEG][BOD_SAM],
-											 neighbours[BOD_POS][BOD_SAM][BOD_NEG],
-											 neighbours[BOD_POS][BOD_NEG][BOD_NEG] );
-					occlusion[2] = VertexAO( neighbours[BOD_POS][BOD_NEG][BOD_SAM],
-											 neighbours[BOD_POS][BOD_SAM][BOD_POS],
-											 neighbours[BOD_POS][BOD_NEG][BOD_POS] );
-					occlusion[3] = VertexAO( neighbours[BOD_POS][BOD_POS][BOD_SAM],
-											 neighbours[BOD_POS][BOD_SAM][BOD_POS],
-											 neighbours[BOD_POS][BOD_POS][BOD_POS] );
+					occlusion[0] = VertexAO( chunks.GetBlockAt( blockX + 1, blockY + 1, blockZ + 0 ),
+											 chunks.GetBlockAt( blockX + 1, blockY + 0, blockZ - 1 ),
+											 chunks.GetBlockAt( blockX + 1, blockY + 1, blockZ - 1 ) );
+					occlusion[1] = VertexAO( chunks.GetBlockAt( blockX + 1, blockY - 1, blockZ + 0 ),
+											 chunks.GetBlockAt( blockX + 1, blockY + 0, blockZ - 1 ),
+											 chunks.GetBlockAt( blockX + 1, blockY - 1, blockZ - 1 ) );
+					occlusion[2] = VertexAO( chunks.GetBlockAt( blockX + 1, blockY - 1, blockZ + 0 ),
+											 chunks.GetBlockAt( blockX + 1, blockY + 0, blockZ + 1 ),
+											 chunks.GetBlockAt( blockX + 1, blockY - 1, blockZ + 1 ) );
+					occlusion[3] = VertexAO( chunks.GetBlockAt( blockX + 1, blockY + 1, blockZ + 0 ),
+											 chunks.GetBlockAt( blockX + 1, blockY + 0, blockZ + 1 ),
+											 chunks.GetBlockAt( blockX + 1, blockY + 1, blockZ + 1 ) );
 					AddFace( gChunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_X, occlusion, blockDefinition );
 					vertexIndex += VERTS_PER_FACE;
 				}
 
 				// X-
-				if( blockDefinitions[ neighbours[BOD_NEG][BOD_SAM][BOD_SAM] ].transparent )
+				if( blockDefinitions[ chunks.GetBlockAt( blockX - 1, blockY + 0, blockZ + 0 ) ].transparent )
 				{
-					occlusion[0] = VertexAO( neighbours[BOD_NEG][BOD_POS][BOD_SAM],
-											 neighbours[BOD_NEG][BOD_SAM][BOD_POS],
-											 neighbours[BOD_NEG][BOD_POS][BOD_POS] );
-					occlusion[3] = VertexAO( neighbours[BOD_NEG][BOD_POS][BOD_SAM],
-											 neighbours[BOD_NEG][BOD_SAM][BOD_NEG],
-											 neighbours[BOD_NEG][BOD_POS][BOD_NEG] );
-					occlusion[2] = VertexAO( neighbours[BOD_NEG][BOD_NEG][BOD_SAM],
-											 neighbours[BOD_NEG][BOD_SAM][BOD_NEG],
-											 neighbours[BOD_NEG][BOD_NEG][BOD_NEG] );
-					occlusion[1] = VertexAO( neighbours[BOD_NEG][BOD_NEG][BOD_SAM],
-											 neighbours[BOD_NEG][BOD_SAM][BOD_POS],
-											 neighbours[BOD_NEG][BOD_NEG][BOD_POS] );
+					occlusion[0] = VertexAO( chunks.GetBlockAt( blockX - 1, blockY + 1, blockZ + 0 ),
+											 chunks.GetBlockAt( blockX - 1, blockY + 0, blockZ + 1 ),
+											 chunks.GetBlockAt( blockX - 1, blockY + 1, blockZ + 1 ) );
+					occlusion[1] = VertexAO( chunks.GetBlockAt( blockX - 1, blockY - 1, blockZ + 0 ),
+											 chunks.GetBlockAt( blockX - 1, blockY + 0, blockZ + 1 ),
+											 chunks.GetBlockAt( blockX - 1, blockY - 1, blockZ + 1 ) );
+					occlusion[2] = VertexAO( chunks.GetBlockAt( blockX - 1, blockY - 1, blockZ + 0 ),
+											 chunks.GetBlockAt( blockX - 1, blockY + 0, blockZ - 1 ),
+											 chunks.GetBlockAt( blockX - 1, blockY - 1, blockZ - 1 ) );
+					occlusion[3] = VertexAO( chunks.GetBlockAt( blockX - 1, blockY + 1, blockZ + 0 ),
+											 chunks.GetBlockAt( blockX - 1, blockY + 0, blockZ - 1 ),
+											 chunks.GetBlockAt( blockX - 1, blockY + 1, blockZ - 1 ) );
 					AddFace( gChunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_NEG_X, occlusion, blockDefinition );
 					vertexIndex += VERTS_PER_FACE;
 				}
 
 				// Z+
-				if( blockDefinitions[ neighbours[BOD_SAM][BOD_SAM][BOD_POS] ].transparent )
+				if( blockDefinitions[ chunks.GetBlockAt( blockX + 0, blockY + 0, blockZ + 1 ) ].transparent )
 				{
-					occlusion[0] = VertexAO( neighbours[BOD_POS][BOD_SAM][BOD_POS],
-											 neighbours[BOD_SAM][BOD_POS][BOD_POS],
-											 neighbours[BOD_POS][BOD_POS][BOD_POS] );
-					occlusion[1] = VertexAO( neighbours[BOD_POS][BOD_SAM][BOD_POS],
-											 neighbours[BOD_SAM][BOD_NEG][BOD_POS],
-											 neighbours[BOD_POS][BOD_NEG][BOD_POS] );
-					occlusion[2] = VertexAO( neighbours[BOD_NEG][BOD_SAM][BOD_POS],
-											 neighbours[BOD_SAM][BOD_NEG][BOD_POS],
-											 neighbours[BOD_NEG][BOD_NEG][BOD_POS] );
-					occlusion[3] = VertexAO( neighbours[BOD_NEG][BOD_SAM][BOD_POS],
-											 neighbours[BOD_SAM][BOD_POS][BOD_POS],
-											 neighbours[BOD_NEG][BOD_POS][BOD_POS] );
+					occlusion[0] = VertexAO( chunks.GetBlockAt( blockX + 1, blockY + 0, blockZ + 1 ),
+											 chunks.GetBlockAt( blockX + 0, blockY + 1, blockZ + 1 ),
+											 chunks.GetBlockAt( blockX + 1, blockY + 1, blockZ + 1 ) );
+					occlusion[1] = VertexAO( chunks.GetBlockAt( blockX + 1, blockY + 0, blockZ + 1 ),
+											 chunks.GetBlockAt( blockX + 0, blockY - 1, blockZ + 1 ),
+											 chunks.GetBlockAt( blockX + 1, blockY - 1, blockZ + 1 ) );
+					occlusion[2] = VertexAO( chunks.GetBlockAt( blockX - 1, blockY + 0, blockZ + 1 ),
+											 chunks.GetBlockAt( blockX + 0, blockY - 1, blockZ + 1 ),
+											 chunks.GetBlockAt( blockX - 1, blockY - 1, blockZ + 1 ) );
+					occlusion[3] = VertexAO( chunks.GetBlockAt( blockX - 1, blockY + 0, blockZ + 1 ),
+											 chunks.GetBlockAt( blockX + 0, blockY + 1, blockZ + 1 ),
+											 chunks.GetBlockAt( blockX - 1, blockY + 1, blockZ + 1 ) );
 					AddFace( gChunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_Z, occlusion, blockDefinition );
 					vertexIndex += VERTS_PER_FACE;
 				}
 
 				// Z-
-				if( blockDefinitions[ neighbours[BOD_SAM][BOD_SAM][BOD_NEG] ].transparent )
+				if( blockDefinitions[ chunks.GetBlockAt( blockX + 0, blockY + 0, blockZ - 1 ) ].transparent )
 				{
-					occlusion[0] = VertexAO( neighbours[BOD_NEG][BOD_SAM][BOD_NEG],
-											 neighbours[BOD_SAM][BOD_POS][BOD_NEG],
-											 neighbours[BOD_NEG][BOD_POS][BOD_NEG] );
-					occlusion[1] = VertexAO( neighbours[BOD_NEG][BOD_SAM][BOD_NEG],
-											 neighbours[BOD_SAM][BOD_NEG][BOD_NEG],
-											 neighbours[BOD_NEG][BOD_NEG][BOD_NEG] );
-					occlusion[2] = VertexAO( neighbours[BOD_POS][BOD_SAM][BOD_NEG],
-											 neighbours[BOD_SAM][BOD_NEG][BOD_NEG],
-											 neighbours[BOD_POS][BOD_NEG][BOD_NEG] );
-					occlusion[3] = VertexAO( neighbours[BOD_POS][BOD_SAM][BOD_NEG],
-											 neighbours[BOD_SAM][BOD_POS][BOD_NEG],
-											 neighbours[BOD_POS][BOD_POS][BOD_NEG] );
+					occlusion[0] = VertexAO( chunks.GetBlockAt( blockX - 1, blockY + 0, blockZ - 1 ),
+											 chunks.GetBlockAt( blockX + 0, blockY + 1, blockZ - 1 ),
+											 chunks.GetBlockAt( blockX - 1, blockY + 1, blockZ - 1 ) );
+					occlusion[1] = VertexAO( chunks.GetBlockAt( blockX - 1, blockY + 0, blockZ - 1 ),
+											 chunks.GetBlockAt( blockX + 0, blockY - 1, blockZ - 1 ),
+											 chunks.GetBlockAt( blockX - 1, blockY - 1, blockZ - 1 ) );
+					occlusion[2] = VertexAO( chunks.GetBlockAt( blockX + 1, blockY + 0, blockZ - 1 ),
+											 chunks.GetBlockAt( blockX + 0, blockY - 1, blockZ - 1 ),
+											 chunks.GetBlockAt( blockX + 1, blockY - 1, blockZ - 1 ) );
+					occlusion[3] = VertexAO( chunks.GetBlockAt( blockX + 1, blockY + 0, blockZ - 1 ),
+											 chunks.GetBlockAt( blockX + 0, blockY + 1, blockZ - 1 ),
+											 chunks.GetBlockAt( blockX + 1, blockY + 1, blockZ - 1 ) );
 					AddFace( gChunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_NEG_Z, occlusion, blockDefinition );
 					vertexIndex += VERTS_PER_FACE;
 				}
 
 				// Y+
-				if( blockDefinitions[ neighbours[BOD_SAM][BOD_POS][BOD_SAM] ].transparent )
+				if( blockDefinitions[ chunks.GetBlockAt( blockX + 0, blockY + 1, blockZ + 0 ) ].transparent )
 				{
-					occlusion[0] = VertexAO( neighbours[BOD_NEG][BOD_POS][BOD_SAM],
-											 neighbours[BOD_SAM][BOD_POS][BOD_POS],
-											 neighbours[BOD_NEG][BOD_POS][BOD_POS] );
-					occlusion[1] = VertexAO( neighbours[BOD_NEG][BOD_POS][BOD_SAM],
-											 neighbours[BOD_SAM][BOD_POS][BOD_NEG],
-											 neighbours[BOD_NEG][BOD_POS][BOD_NEG] );
-					occlusion[2] = VertexAO( neighbours[BOD_POS][BOD_POS][BOD_SAM],
-											 neighbours[BOD_SAM][BOD_POS][BOD_NEG],
-											 neighbours[BOD_POS][BOD_POS][BOD_NEG] );
-					occlusion[3] = VertexAO( neighbours[BOD_POS][BOD_POS][BOD_SAM],
-											 neighbours[BOD_SAM][BOD_POS][BOD_POS],
-											 neighbours[BOD_POS][BOD_POS][BOD_POS] );
+					occlusion[0] = VertexAO( chunks.GetBlockAt( blockX - 1, blockY + 1, blockZ + 0 ),
+											 chunks.GetBlockAt( blockX + 0, blockY + 1, blockZ + 1 ),
+											 chunks.GetBlockAt( blockX - 1, blockY + 1, blockZ + 1 ) );
+					occlusion[1] = VertexAO( chunks.GetBlockAt( blockX - 1, blockY + 1, blockZ + 0 ),
+											 chunks.GetBlockAt( blockX + 0, blockY + 1, blockZ - 1 ),
+											 chunks.GetBlockAt( blockX - 1, blockY + 1, blockZ - 1 ) );
+					occlusion[2] = VertexAO( chunks.GetBlockAt( blockX + 1, blockY + 1, blockZ + 0 ),
+											 chunks.GetBlockAt( blockX + 0, blockY + 1, blockZ - 1 ),
+											 chunks.GetBlockAt( blockX + 1, blockY + 1, blockZ - 1 ) );
+					occlusion[3] = VertexAO( chunks.GetBlockAt( blockX + 1, blockY + 1, blockZ + 0 ),
+											 chunks.GetBlockAt( blockX + 0, blockY + 1, blockZ + 1 ),
+											 chunks.GetBlockAt( blockX + 1, blockY + 1, blockZ + 1 ) );
 					AddFace( gChunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_POS_Y, occlusion, blockDefinition );
 					vertexIndex += VERTS_PER_FACE;
 				}
 
 				// Y-
-				if( blockDefinitions[ neighbours[BOD_SAM][BOD_NEG][BOD_SAM] ].transparent )
+				if( blockDefinitions[ chunks.GetBlockAt( blockX + 0, blockY - 1, blockZ + 0 ) ].transparent )
 				{
-					occlusion[0] = VertexAO( neighbours[BOD_NEG][BOD_NEG][BOD_SAM],
-											 neighbours[BOD_SAM][BOD_NEG][BOD_NEG],
-											 neighbours[BOD_NEG][BOD_NEG][BOD_NEG] );
-					occlusion[1] = VertexAO( neighbours[BOD_NEG][BOD_NEG][BOD_SAM],
-											 neighbours[BOD_SAM][BOD_NEG][BOD_POS],
-											 neighbours[BOD_NEG][BOD_NEG][BOD_POS] );
-					occlusion[2] = VertexAO( neighbours[BOD_POS][BOD_NEG][BOD_SAM],
-											 neighbours[BOD_SAM][BOD_NEG][BOD_POS],
-											 neighbours[BOD_POS][BOD_NEG][BOD_POS] );
-					occlusion[3] = VertexAO( neighbours[BOD_POS][BOD_NEG][BOD_SAM],
-											 neighbours[BOD_SAM][BOD_NEG][BOD_NEG],
-											 neighbours[BOD_POS][BOD_NEG][BOD_NEG] );
+					occlusion[0] = VertexAO( chunks.GetBlockAt( blockX - 1, blockY - 1, blockZ + 0 ),
+											 chunks.GetBlockAt( blockX + 0, blockY - 1, blockZ - 1 ),
+											 chunks.GetBlockAt( blockX - 1, blockY - 1, blockZ - 1 ) );
+					occlusion[1] = VertexAO( chunks.GetBlockAt( blockX - 1, blockY - 1, blockZ + 0 ),
+											 chunks.GetBlockAt( blockX + 0, blockY - 1, blockZ + 1 ),
+											 chunks.GetBlockAt( blockX - 1, blockY - 1, blockZ + 1 ) );
+					occlusion[2] = VertexAO( chunks.GetBlockAt( blockX + 1, blockY - 1, blockZ + 0 ),
+											 chunks.GetBlockAt( blockX + 0, blockY - 1, blockZ + 1 ),
+											 chunks.GetBlockAt( blockX + 1, blockY - 1, blockZ + 1 ) );
+					occlusion[3] = VertexAO( chunks.GetBlockAt( blockX + 1, blockY - 1, blockZ + 0 ),
+											 chunks.GetBlockAt( blockX + 0, blockY - 1, blockZ - 1 ),
+											 chunks.GetBlockAt( blockX + 1, blockY - 1, blockZ - 1 ) );
 					AddFace( gChunkVertexBuffer, vertexIndex, blockX, blockY, blockZ, FACE_NEG_Y, occlusion, blockDefinition );
 					vertexIndex += VERTS_PER_FACE;
 				}

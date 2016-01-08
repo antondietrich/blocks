@@ -35,6 +35,7 @@ int gChunkCacheDim = 0;
 int gChunkMeshCacheHalfDim = 0;
 int gChunkMeshCacheDim = 0;
 Chunk * gChunkCache = 0;
+Chunk * gChunkMetaCache = 0;
 ChunkMesh * gChunkMeshCache = 0;
 VertexBuffer * gChunkVertexBuffer = 0;
 
@@ -132,6 +133,8 @@ Game::~Game()
 		delete gChunkVertexBuffer;
 	if( gChunkCache )
 		delete[] gChunkCache;
+	if( gChunkMetaCache )
+		delete[] gChunkMetaCache;
 	if( gChunkMeshCache )
 		delete[] gChunkMeshCache;
 }
@@ -188,6 +191,7 @@ bool Game::Start( HWND wnd )
 	gChunkMeshCacheDim = gChunkMeshCacheHalfDim * 2 + 1;
 
 	gChunkCache = new Chunk[ gChunkCacheDim * gChunkCacheDim ];
+	gChunkMetaCache = new Chunk[ gChunkCacheDim * gChunkCacheDim ];
 	gChunkMeshCache = new ChunkMesh[ gChunkMeshCacheDim * gChunkMeshCacheDim ];
 	gChunkVertexBuffer = new VertexBuffer( gChunkMeshCacheDim * gChunkMeshCacheDim );
 
@@ -777,19 +781,27 @@ void Game::DoFrame( float dt )
 
 				Chunk* chunk = &gChunkCache[ ChunkCacheIndexFromChunkPos( x, z, gChunkCacheDim ) ];
 
-				Chunk* chunkPosX = &gChunkCache[ ChunkCacheIndexFromChunkPos( x+1, z, gChunkCacheDim ) ];
-				Chunk* chunkNegX = &gChunkCache[ ChunkCacheIndexFromChunkPos( x-1, z, gChunkCacheDim ) ];
-				Chunk* chunkPosZ = &gChunkCache[ ChunkCacheIndexFromChunkPos( x, z+1, gChunkCacheDim ) ];
-				Chunk* chunkNegZ = &gChunkCache[ ChunkCacheIndexFromChunkPos( x, z-1, gChunkCacheDim ) ];
+				Chunk* chunkSamZPosX = &gChunkCache[ ChunkCacheIndexFromChunkPos( x+1, z, gChunkCacheDim ) ];
+				Chunk* chunkSamZNegX = &gChunkCache[ ChunkCacheIndexFromChunkPos( x-1, z, gChunkCacheDim ) ];
+				Chunk* chunkPosZSamX = &gChunkCache[ ChunkCacheIndexFromChunkPos( x, z+1, gChunkCacheDim ) ];
+				Chunk* chunkNegZSamX = &gChunkCache[ ChunkCacheIndexFromChunkPos( x, z-1, gChunkCacheDim ) ];
 
-				Chunk* chunkPosXPosZ = &gChunkCache[ ChunkCacheIndexFromChunkPos( x+1, z+1, gChunkCacheDim ) ];
-				Chunk* chunkNegXPosZ = &gChunkCache[ ChunkCacheIndexFromChunkPos( x-1, z+1, gChunkCacheDim ) ];
-				Chunk* chunkPosXNegZ = &gChunkCache[ ChunkCacheIndexFromChunkPos( x+1, z-1, gChunkCacheDim ) ];
-				Chunk* chunkNegXNegZ = &gChunkCache[ ChunkCacheIndexFromChunkPos( x-1, z-1, gChunkCacheDim ) ];
+				Chunk* chunkPosZPosX = &gChunkCache[ ChunkCacheIndexFromChunkPos( x+1, z+1, gChunkCacheDim ) ];
+				Chunk* chunkPosZNegX = &gChunkCache[ ChunkCacheIndexFromChunkPos( x-1, z+1, gChunkCacheDim ) ];
+				Chunk* chunkNegZPosX = &gChunkCache[ ChunkCacheIndexFromChunkPos( x+1, z-1, gChunkCacheDim ) ];
+				Chunk* chunkNegZNegX = &gChunkCache[ ChunkCacheIndexFromChunkPos( x-1, z-1, gChunkCacheDim ) ];
 
+				ChunkContext adjacentChunks = ChunkContext( chunkNegZNegX, chunkNegZSamX, chunkNegZPosX,
+															chunkSamZNegX, chunk,		  chunkSamZPosX,
+															chunkPosZNegX, chunkPosZSamX, chunkPosZPosX );
+
+#if 0
 				GenerateChunkMesh( chunkMesh, chunkNegXPosZ,	chunkPosZ,	chunkPosXPosZ,
 											  chunkNegX,		chunk,		chunkPosX,
 											  chunkNegXNegZ,	chunkNegZ,	chunkPosXNegZ );
+#else
+				GenerateChunkMesh( chunkMesh, adjacentChunks );
+#endif
 				int meshIndex = MeshCacheIndexFromChunkPos( x, z, gChunkMeshCacheDim );
 
 				// renderer.SubmitChunkMesh( MeshCacheIndexFromChunkPos( x, z, gChunkMeshCacheDim ), chunkMesh->vertices, chunkMesh->numVertices );

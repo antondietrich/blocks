@@ -89,6 +89,17 @@ struct ChunkMesh
 	BlockVertex* vertices;
 };
 
+struct ChunkContext
+{
+	ChunkContext( Chunk * chunkNegZNegX, Chunk * chunkNegZSamX, Chunk * chunkNegZPosX,
+				  Chunk * chunkSamZNegX, Chunk * chunkSamZSamX, Chunk * chunkSamZPosX,
+				  Chunk * chunkPosZNegX, Chunk * chunkPosZSamX, Chunk * chunkPosZPosX );
+
+	BLOCK_TYPE GetBlockAt( int x, int y, int z );
+
+	Chunk * chunks_[ 9 ];
+};
+
 //struct World
 //{
 //	Chunk chunks[CHUNK_CACHE_DIM * CHUNK_CACHE_DIM];
@@ -101,6 +112,8 @@ void GenerateChunk( Chunk *chunk, int x, int z );
 int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkPosZ, Chunk* chunkPosXPosZ,
 											 Chunk* chunkNegX, Chunk* chunk, Chunk* chunkPosX,
 											 Chunk* chunkNegXNegZ, Chunk* chunkNegZ, Chunk* chunkPosXNegZ );
+
+int GenerateChunkMesh( ChunkMesh *chunkMesh, ChunkContext chunks );
 
 DirectX::XMINT3 GetPlayerChunkPos( DirectX::XMFLOAT3 playerPos );
 DirectX::XMINT3 GetPlayerBlockPos( DirectX::XMFLOAT3 playerPos );
