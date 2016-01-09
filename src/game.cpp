@@ -32,6 +32,8 @@ bool Game::isInstantiated_ = false;
 // caches
 int gChunkCacheHalfDim = 0;
 int gChunkCacheDim = 0;
+int gChunkMetaCacheHalfDim = 0;
+int gChunkMetaCacheDim = 0;
 int gChunkMeshCacheHalfDim = 0;
 int gChunkMeshCacheDim = 0;
 Chunk * gChunkCache = 0;
@@ -187,16 +189,21 @@ bool Game::Start( HWND wnd )
 
 	gChunkCacheHalfDim = Config.viewDistanceChunks + 1;
 	gChunkCacheDim = gChunkCacheHalfDim * 2 + 1;
+
+	gChunkMetaCacheHalfDim = gChunkCacheHalfDim + 1;
+	gChunkMetaCacheDim = gChunkCacheDim + 2;
+
 	gChunkMeshCacheHalfDim = Config.viewDistanceChunks;
 	gChunkMeshCacheDim = gChunkMeshCacheHalfDim * 2 + 1;
 
 	gChunkCache = new Chunk[ gChunkCacheDim * gChunkCacheDim ];
-	gChunkMetaCache = new Chunk[ gChunkCacheDim * gChunkCacheDim ];
+	gChunkMetaCache = new Chunk[ gChunkMetaCacheDim * gChunkMetaCacheDim ];
 	gChunkMeshCache = new ChunkMesh[ gChunkMeshCacheDim * gChunkMeshCacheDim ];
 	gChunkVertexBuffer = new VertexBuffer( gChunkMeshCacheDim * gChunkMeshCacheDim );
 
 	InitWorldGen();
-	PrefillChunkCache( gChunkCache, gChunkCacheDim );
+	InitChunkCache( gChunkCache, gChunkCacheDim );
+	InitChunkCache( gChunkMetaCache, gChunkMetaCacheDim );
 
 	for( int i = 0; i < gChunkMeshCacheDim * gChunkMeshCacheDim; i++ ) {
 		gChunkMeshCache[i].dirty = true;
@@ -314,6 +321,53 @@ void Game::DoFrame( float dt )
 	XMINT3 playerBlockPos = GetPlayerBlockPos( playerPos );
 
 	// Generate chunks around player
+
+	// Invalidate Chunk Cache on demand
+	if( input.key[ KEY::ALT ].Down && input.key[ KEY::R ].Pressed )
+	{
+		for( int z = playerChunkPos.z - gChunkMetaCacheHalfDim; z <= playerChunkPos.z + gChunkMetaCacheHalfDim; z++ )
+		{
+			for( int x = playerChunkPos.x - gChunkMetaCacheHalfDim; x <= playerChunkPos.x + gChunkMetaCacheHalfDim; x++ )
+			{
+				int index = ChunkCacheIndexFromChunkPos( x, z, gChunkCacheDim );
+				Chunk *chunk = &gChunkCache[ index ];
+
+				chunk->pos[0] = INT_MAX;
+				chunk->pos[1] = INT_MAX;
+			}
+		}
+
+		for( int z = playerChunkPos.z - gChunkMeshCacheHalfDim; z <= playerChunkPos.z + gChunkMeshCacheHalfDim; z++ )
+		{
+			for( int x = playerChunkPos.x - gChunkMeshCacheHalfDim; x <= playerChunkPos.x + gChunkMeshCacheHalfDim; x++ )
+			{
+				ChunkMesh *chunkMesh = &gChunkMeshCache[ MeshCacheIndexFromChunkPos( x, z, gChunkMeshCacheDim ) ];
+				chunkMesh->dirty = true;
+			}
+		}
+	}
+
+	// clear outdated meta data
+	for( int z = playerChunkPos.z - gChunkMetaCacheHalfDim; z <= playerChunkPos.z + gChunkMetaCacheHalfDim; z++ )
+	{
+		for( int x = playerChunkPos.x - gChunkMetaCacheHalfDim; x <= playerChunkPos.x + gChunkMetaCacheHalfDim; x++ )
+		{
+			Chunk * meta = &gChunkMetaCache[ ChunkCacheIndexFromChunkPos( x, z, gChunkMetaCacheDim ) ];
+
+			if( meta->pos[0] == INT_MAX &&
+				meta->pos[1] == INT_MAX )
+				continue;
+
+			if( !( meta->pos[0] == x && meta->pos[1] == z ) )
+			{
+				ClearChunk( meta );
+				meta->terrainGenerated = false;
+				meta->pos[0] = INT_MAX;
+				meta->pos[1] = INT_MAX;
+			}
+		}
+	}
+
 	int chunksGenerated = 0;
 	for( int z = playerChunkPos.z - gChunkCacheHalfDim; z <= playerChunkPos.z + gChunkCacheHalfDim; z++ )
 	{
@@ -330,11 +384,45 @@ void Game::DoFrame( float dt )
 			{
 				// generate new chunk
 				chunksGenerated++;
+
+				Chunk * chunkSamZPosX = &gChunkMetaCache[ ChunkCacheIndexFromChunkPos( x+1, z, gChunkMetaCacheDim ) ];
+				Chunk * chunkSamZNegX = &gChunkMetaCache[ ChunkCacheIndexFromChunkPos( x-1, z, gChunkMetaCacheDim ) ];
+				Chunk * chunkPosZSamX = &gChunkMetaCache[ ChunkCacheIndexFromChunkPos( x, z+1, gChunkMetaCacheDim ) ];
+				Chunk * chunkNegZSamX = &gChunkMetaCache[ ChunkCacheIndexFromChunkPos( x, z-1, gChunkMetaCacheDim ) ];
+				Chunk * chunkPosZPosX = &gChunkMetaCache[ ChunkCacheIndexFromChunkPos( x+1, z+1, gChunkMetaCacheDim ) ];
+				Chunk * chunkPosZNegX = &gChunkMetaCache[ ChunkCacheIndexFromChunkPos( x-1, z+1, gChunkMetaCacheDim ) ];
+				Chunk * chunkNegZPosX = &gChunkMetaCache[ ChunkCacheIndexFromChunkPos( x+1, z-1, gChunkMetaCacheDim ) ];
+				Chunk * chunkNegZNegX = &gChunkMetaCache[ ChunkCacheIndexFromChunkPos( x-1, z-1, gChunkMetaCacheDim ) ];
+
+				ChunkContext adjacentChunks = ChunkContext( chunkNegZNegX, chunkNegZSamX, chunkNegZPosX,
+															chunkSamZNegX, chunk,		  chunkSamZPosX,
+															chunkPosZNegX, chunkPosZSamX, chunkPosZPosX );
+
 				GenerateChunk( chunk, x, z );
+				GenerateChunkStructures( chunk, adjacentChunks );
 			}
 		}
 	}
 
+	for( int z = playerChunkPos.z - gChunkCacheHalfDim; z <= playerChunkPos.z + gChunkCacheHalfDim; z++ )
+	{
+		for( int x = playerChunkPos.x - gChunkCacheHalfDim; x <= playerChunkPos.x + gChunkCacheHalfDim; x++ )
+		{
+			Chunk * chunk = &gChunkCache[ ChunkCacheIndexFromChunkPos( x, z, gChunkCacheDim ) ];
+			Chunk * meta  = &gChunkMetaCache[ ChunkCacheIndexFromChunkPos( x, z, gChunkMetaCacheDim ) ];
+
+			// add data from adjacent chunks if any
+			if( meta->pos[0] == x &&
+				meta->pos[1] == z &&
+				chunk->terrainGenerated &&
+				meta->terrainGenerated )
+			{
+				assert( chunk->pos[0] == meta->pos[0] && chunk->pos[1] == meta->pos[1] );
+				MergeChunks( chunk, meta );
+				meta->terrainGenerated = false;
+			}
+		}
+	}
 
 	// player movement
 	float dTSec = dt / 1000.0f;
@@ -362,16 +450,6 @@ void Game::DoFrame( float dt )
 	if( input.key[ KEY::A ].Down ) {
 		force -= vRight;
 	}
-//	if( input.key[ KEY::LCTRL ].Pressed ) {
-//		if( fabs( gravity.y - 0.0f ) < 0.000001f )
-//		{
-//			gravity.y = -9.8f;
-//		}
-//		else
-//		{
-//			gravity.y = 0.0f;
-//		}
-//	}
 
 	force = XMVector4Normalize( force ) * 1900.0f;
 
@@ -382,9 +460,9 @@ void Game::DoFrame( float dt )
 		}
 	}
 
-//	if( input.key[ KEY::LSHIFT ].Down ) {
-//		force *= 10;
-//	}
+	if( input.key[ KEY::LSHIFT ].Down ) {
+		force *= 5;
+	}
 
 	force += vGravity;
 

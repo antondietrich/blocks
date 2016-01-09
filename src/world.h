@@ -77,6 +77,7 @@ struct BlockVertex
 struct Chunk
 {
 	int pos[2];
+	bool terrainGenerated;
 	BIOME biomeMap[CHUNK_WIDTH][CHUNK_WIDTH];
 	BLOCK_TYPE blocks[CHUNK_WIDTH][CHUNK_HEIGHT][CHUNK_WIDTH];
 };
@@ -95,7 +96,8 @@ struct ChunkContext
 				  Chunk * chunkSamZNegX, Chunk * chunkSamZSamX, Chunk * chunkSamZPosX,
 				  Chunk * chunkPosZNegX, Chunk * chunkPosZSamX, Chunk * chunkPosZPosX );
 
-	BLOCK_TYPE GetBlockAt( int x, int y, int z );
+	BLOCK_TYPE GetBlockAt( int x, int y, int z ) const;
+	void SetBlockAt( int x, int y, int z, BLOCK_TYPE block );
 
 	Chunk * chunks_[ 9 ];
 };
@@ -107,8 +109,11 @@ struct ChunkContext
 
 void InitWorldGen();
 //void GenerateWorld( World *world );
-void PrefillChunkCache( Chunk * cache, uint cacheDim );
+void InitChunkCache( Chunk * cache, uint cacheDim );
 void GenerateChunk( Chunk *chunk, int x, int z );
+void GenerateChunkStructures( Chunk * chunk, ChunkContext chunkContext );
+void ClearChunk( Chunk * chunk );
+void MergeChunks( Chunk * target, Chunk * source );
 int GenerateChunkMesh( ChunkMesh *chunkMesh, Chunk* chunkNegXPosZ, Chunk* chunkPosZ, Chunk* chunkPosXPosZ,
 											 Chunk* chunkNegX, Chunk* chunk, Chunk* chunkPosX,
 											 Chunk* chunkNegXNegZ, Chunk* chunkNegZ, Chunk* chunkPosXNegZ );

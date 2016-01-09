@@ -171,6 +171,7 @@ void GenerateChunk( Chunk *chunk, int x, int z )
 {
 	chunk->pos[0] = x;
 	chunk->pos[1] = z;
+	chunk->terrainGenerated = true;
 
 	ZeroMemory( chunk->blocks, sizeof( BLOCK_TYPE ) * CHUNK_WIDTH * CHUNK_WIDTH * CHUNK_HEIGHT );
 
@@ -216,42 +217,49 @@ void GenerateChunk( Chunk *chunk, int x, int z )
 					chunk->blocks[blockX][blockY][blockZ] = BT_AIR;
 				}
 			}
+		}
+	} // end generate landscape
+}
+
+void GenerateChunkStructures( Chunk * chunk, ChunkContext chunkContext )
+{
+	for( int offsetZ = -1; offsetZ <= 1; offsetZ++ )
+	{
+		for( int offsetX = -1; offsetX <= 1; offsetX++ )
+		{
+			if( offsetZ == 0 && offsetX == 0 )
+				continue;
+
+			int baseX = 1, baseZ = 1;
+			// ClearChunk( chunkContext.chunks_[ (baseZ + offsetZ)*3 + (baseX + offsetX) ] );
+			int index = (baseZ + offsetZ)*3 + (baseX + offsetX);
+			Chunk * meta = chunkContext.chunks_[ index ];
+
+			assert( "Invalid meta chunk!" && ( meta->pos[0] == chunk->pos[0] + offsetX || meta->pos[0] == INT_MAX ) );
+			assert( "Invalid meta chunk!" && ( meta->pos[1] == chunk->pos[1] + offsetZ || meta->pos[1] == INT_MAX ) );
 
 			#if 0
-			if( biomeBlockType == BT_GRASS )
+			if( meta->pos[0] == INT_MAX && meta->pos[1] == INT_MAX )
 			{
-				if( blockZ == Random( 3, CHUNK_WIDTH - 3 ) &&
-					blockX == Random( 3, CHUNK_WIDTH - 3 ) )
+				for( int x = 0; x < CHUNK_WIDTH; x++ )
 				{
-					int treeHeight = Random( 6, 12 );
-					for( int currentHeight = 1; currentHeight <= treeHeight; currentHeight++ )
+					for( int z = 0; z < CHUNK_WIDTH; z++ )
 					{
-						// TODO: may need access to adjacent chunks
-						chunk->blocks[blockX][height + currentHeight][blockZ] = BT_TREE_TRUNK;
-					}
-
-					for( int currentHeight = treeHeight - 3; currentHeight <= treeHeight; currentHeight++ )
-					{
-						for( int leafX = -( treeHeight - currentHeight );
-								 leafX < treeHeight - currentHeight;
-								 leafX++ )
+						for( int y = 0; y < CHUNK_HEIGHT; y++ )
 						{
-							for( int leafZ = -( treeHeight - currentHeight );
-								 leafZ < treeHeight - currentHeight;
-								 leafZ++ )
-							{
-								if( leafX == 0 && leafZ == 0 )
-									continue;
-								chunk->blocks[blockX - leafX][height + currentHeight][blockZ  - leafZ] = BT_TREE_LEAVES;
-								chunk->blocks[blockX + leafX][height + currentHeight][blockZ  + leafZ] = BT_TREE_LEAVES;
-							}
+							if( meta->blocks[x][y][z] != BT_AIR )
+								assert( !"Non empty meta with invalid coords" );
 						}
 					}
 				}
 			}
 			#endif
+
+			meta->terrainGenerated = true;
+			meta->pos[0] = chunk->pos[0] + offsetX;
+			meta->pos[1] = chunk->pos[1] + offsetZ;
 		}
-	} // end generate landscape
+	}
 
 	// generate trees
 	for( int blockZ = 0; blockZ < CHUNK_WIDTH; blockZ++ )
@@ -260,12 +268,15 @@ void GenerateChunk( Chunk *chunk, int x, int z )
 		{
 			if( chunk->biomeMap[blockX][blockZ] == BIOME_PLAINS )
 			{
-				if( ( blockX % 6 == 2 ) &&
-					( blockZ % 6 == 2 ) )
+				if( ( blockX % 16 == 0 ) &&
+					( blockZ % 16 == 0 ) )
 				{
 
 					int offsetX = Random( 0, 5 ) - 2;
 					int offsetZ = Random( 0, 5 ) - 2;
+
+					offsetX = 0;
+					offsetZ = 0;
 
 					if( !InRange( blockX + offsetX, 0, CHUNK_WIDTH ) ||
 						!InRange( blockZ + offsetZ, 0, CHUNK_WIDTH ) )
@@ -281,7 +292,11 @@ void GenerateChunk( Chunk *chunk, int x, int z )
 					if( chunk->blocks[ blockX + offsetX ][ groundHeight ][ blockZ + offsetZ ] != BT_GRASS )
 						continue;
 
-					int treeHeight = Random( 8, 14 );
+					// int treeHeight = Random( 8, 14 );
+					int treeHeight = 11;
+					int treeHeightOffset = (int)floor( Noise2D( blockX, blockZ ) * 4.0f - 4.0f);
+					treeHeight += treeHeightOffset;
+
 					for( int height = 1; height <= treeHeight; height++ )
 					{
 						chunk->blocks[ blockX + offsetX ][ groundHeight + height ][ blockZ + offsetZ ] = BT_TREE_TRUNK;
@@ -319,14 +334,16 @@ void GenerateChunk( Chunk *chunk, int x, int z )
 										( leafX ==  leafRadius && leafZ ==  leafRadius ) )
 										continue;
 
+									#if 0
 									if( !InRange( blockX + offsetX + leafX, 0, CHUNK_WIDTH ) ||
 										!InRange( blockZ + offsetZ + leafZ, 0, CHUNK_WIDTH ) )
 										continue;
+									#endif
 
-									if( chunk->blocks[blockX + offsetX + leafX][groundHeight + height][blockZ + offsetZ + leafZ] == BT_AIR )
+									if( chunkContext.GetBlockAt( blockX + offsetX + leafX, groundHeight + height, blockZ + offsetZ + leafZ ) == BT_AIR )
 									{
-										chunk->blocks[blockX + offsetX + leafX][groundHeight + height][blockZ + offsetZ + leafZ] = BT_TREE_LEAVES;
-										//chunk->blocks[blockX + leafX][height + currentHeight][blockZ  + leafZ] = BT_TREE_LEAVES;
+										// chunk->blocks[blockX + offsetX + leafX][groundHeight + height][blockZ + offsetZ + leafZ] = BT_TREE_LEAVES;
+										chunkContext.SetBlockAt( blockX + offsetX + leafX, groundHeight + height, blockZ + offsetZ + leafZ, BT_TREE_LEAVES );
 									}
 								}
 							}
@@ -336,6 +353,30 @@ void GenerateChunk( Chunk *chunk, int x, int z )
 			}
 		}
 	} // end generate trees
+}
+
+void MergeChunks( Chunk * target, Chunk * source )
+{
+	for( int blockZ = 0; blockZ < CHUNK_WIDTH; blockZ++ )
+	{
+		for( int blockX = 0; blockX < CHUNK_WIDTH; blockX++ )
+		{
+			for( int blockY = 0; blockY < CHUNK_HEIGHT; blockY++ )
+			{
+				if( target->blocks[blockX][blockY][blockZ] == BT_AIR &&
+					source->blocks[blockX][blockY][blockZ] != BT_AIR )
+				{
+					target->blocks[blockX][blockY][blockZ] = source->blocks[blockX][blockY][blockZ];
+				}
+			}
+		}
+	}
+}
+
+void ClearChunk( Chunk * chunk )
+{
+	memset( chunk->blocks, BT_AIR, CHUNK_WIDTH * CHUNK_WIDTH * CHUNK_HEIGHT * sizeof( BLOCK_TYPE ) );
+	//chunk->terrainGenerated = false;
 }
 
 #else
@@ -429,14 +470,13 @@ void GenerateChunk( Chunk *chunk, int x, int z )
 }
 #endif
 
-void PrefillChunkCache( Chunk * cache, uint cacheDim )
+void InitChunkCache( Chunk * cache, uint cacheDim )
 {
-	for( uint z = 0; z < cacheDim; z++ )
+	for( uint i = 0; i < cacheDim * cacheDim; i++ )
 	{
-		for( uint x = 0; x < cacheDim; x++ )
-		{
-			GenerateChunk( &cache[ z * cacheDim + x ], x, z );
-		}
+		ClearChunk( &cache[i] );
+		cache[i].pos[0] = INT_MAX;
+		cache[i].pos[1] = INT_MAX;
 	}
 }
 
@@ -530,7 +570,7 @@ ChunkContext::ChunkContext( Chunk * chunkNegZNegX, Chunk * chunkNegZSamX, Chunk 
 	chunks_[8] = chunkPosZPosX;
 }
 
-BLOCK_TYPE ChunkContext::GetBlockAt( int x, int y, int z )
+BLOCK_TYPE ChunkContext::GetBlockAt( int x, int y, int z ) const
 {
 	assert( "Block index out of bounds" && x >= (0 - CHUNK_WIDTH) && x <= (CHUNK_WIDTH + CHUNK_WIDTH - 1) );
 	assert( "Block index out of bounds" && z >= (0 - CHUNK_WIDTH) && z <= (CHUNK_WIDTH + CHUNK_WIDTH - 1) );
@@ -561,6 +601,39 @@ BLOCK_TYPE ChunkContext::GetBlockAt( int x, int y, int z )
 	chunkToAccess = chunks_[ 3*offsetZ + offsetX ];
 
 	return chunkToAccess->blocks[x][y][z];
+}
+
+void ChunkContext::SetBlockAt( int x, int y, int z, BLOCK_TYPE block )
+{
+	assert( "Block index out of bounds" && x >= (0 - CHUNK_WIDTH) && x <= (CHUNK_WIDTH + CHUNK_WIDTH - 1) );
+	assert( "Block index out of bounds" && z >= (0 - CHUNK_WIDTH) && z <= (CHUNK_WIDTH + CHUNK_WIDTH - 1) );
+
+	Chunk * chunkToAccess = 0;
+	int offsetX = 1, offsetZ = 1;
+	if( x < 0 )
+	{
+		offsetX -= 1;
+		x = CHUNK_WIDTH + x;
+	}
+	if( x >= CHUNK_WIDTH )
+	{
+		offsetX += 1;
+		x = x - CHUNK_WIDTH;
+	}
+	if( z < 0 )
+	{
+		offsetZ -= 1;
+		z = CHUNK_WIDTH + z;
+	}
+	if( z >= CHUNK_WIDTH )
+	{
+		offsetZ += 1;
+		z = z - CHUNK_WIDTH;
+	}
+
+	chunkToAccess = chunks_[ 3*offsetZ + offsetX ];
+
+	chunkToAccess->blocks[x][y][z] = block;
 }
 
 //cbData.normals[0] = {  0.0f,  0.0f, -1.0f, 0.0f }; // -Z
