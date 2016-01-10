@@ -7,21 +7,29 @@ namespace Blocks
 
 using namespace DirectX;
 
+// Prime numbers to seed the RNG
+int primeSets[][4] =
+{
+	{ 15731, 789221, 1376312589, 1073741824 },
+	{ 21001, 703631, 1386312601, 1071234589 },
+	{ 17359, 749863, 1364298527, 1112843513 },
+};
+
 // http://freespace.virgin.net/hugo.elias/models/m_perlin.htm
 //
 // returns a random float in the 0.0 - 1.0 range
 //
-float Noise1( int x )
+float Noise1( int x, int seedIndex )
 {
     x = (x<<13) ^ x;
-    float noise = 1.0f - ( (x * (x * x * 15731 + 789221) + 1376312589) & 0x7fffffff) / 1073741824.0f;
+    float noise = 1.0f - ( (x * (x * x * primeSets[seedIndex][0] + primeSets[seedIndex][1]) + primeSets[seedIndex][2]) & 0x7fffffff) / (float)(primeSets[seedIndex][3]);
     return noise / 2.0f + 0.5f;
 }
 
-float Noise2D( int x, int y )
+float Noise2D( int x, int y, int seedIndex = 0 )
 {
 	int input = ( x*383 ) + y;
-	return Noise1( input );
+	return Noise1( input, seedIndex );
 }
 
 // Return a random value in the range [min, max)
@@ -261,6 +269,8 @@ void GenerateChunkStructures( Chunk * chunk, ChunkContext chunkContext )
 		}
 	}
 
+	int treeSparseness = 8;
+
 	// generate trees
 	for( int blockZ = 0; blockZ < CHUNK_WIDTH; blockZ++ )
 	{
@@ -268,15 +278,15 @@ void GenerateChunkStructures( Chunk * chunk, ChunkContext chunkContext )
 		{
 			if( chunk->biomeMap[blockX][blockZ] == BIOME_PLAINS )
 			{
-				if( ( blockX % 16 == 0 ) &&
-					( blockZ % 16 == 0 ) )
+				if( ( blockX % treeSparseness == 0 ) &&
+					( blockZ % treeSparseness == 0 ) )
 				{
 
-					int offsetX = Random( 0, 5 ) - 2;
-					int offsetZ = Random( 0, 5 ) - 2;
+					int offsetX = (int)floor( Noise2D( chunk->pos[0] * CHUNK_WIDTH + blockX, chunk->pos[1] * CHUNK_WIDTH + blockZ, 1 ) * treeSparseness );
+					int offsetZ = (int)floor( Noise2D( chunk->pos[0] * CHUNK_WIDTH + blockX, chunk->pos[1] * CHUNK_WIDTH + blockZ, 1 ) * treeSparseness );
 
-					offsetX = 0;
-					offsetZ = 0;
+					//offsetX = 0;
+					//offsetZ = 0;
 
 					if( !InRange( blockX + offsetX, 0, CHUNK_WIDTH ) ||
 						!InRange( blockZ + offsetZ, 0, CHUNK_WIDTH ) )
@@ -294,7 +304,7 @@ void GenerateChunkStructures( Chunk * chunk, ChunkContext chunkContext )
 
 					// int treeHeight = Random( 8, 14 );
 					int treeHeight = 11;
-					int treeHeightOffset = (int)floor( Noise2D( blockX, blockZ ) * 4.0f - 4.0f);
+					int treeHeightOffset = (int)floor( Noise2D( chunk->pos[0] * CHUNK_WIDTH + blockX, chunk->pos[1] * CHUNK_WIDTH + blockZ, 2 ) * 4.0f - 4.0f);
 					treeHeight += treeHeightOffset;
 
 					for( int height = 1; height <= treeHeight; height++ )
