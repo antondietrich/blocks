@@ -34,7 +34,7 @@ set output=-Fdbin\ -Fobuild\ -Febin\blocks.exe
 goto COMMON
 
 :COMMON
-set source=src\main.cpp src\lib\DDSTextureLoader.cpp src\lib\win32_file.cpp src\lib\tokenstream.cpp src\game.cpp src\renderer.cpp src\world.cpp src\utils.cpp src\input.cpp src\collision.cpp
+set source=src\main.cpp src\lib\obj_importer.cpp src\lib\DDSTextureLoader.cpp src\lib\win32_file.cpp src\lib\tokenstream.cpp src\game.cpp src\renderer.cpp src\world.cpp src\utils.cpp src\input.cpp src\collision.cpp
 goto BUILD
 
 :BUILD
