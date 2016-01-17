@@ -29,6 +29,11 @@ float gPlayerFarPlane = 1.0f;
 
 bool Game::isInstantiated_ = false;
 
+// scene manager?
+GameObject gGameObjects[ MAX_GAME_OBJECTS ];
+Mesh gFireMesh;
+Material gFireMaterial;
+
 // caches
 int gChunkCacheHalfDim = 0;
 int gChunkCacheDim = 0;
@@ -238,6 +243,42 @@ bool Game::Start( HWND wnd )
 	gSunColor = 	{ 1.0f, 0.9f, 0.8f, 1.0f };
 
 	playerProj = XMMatrixPerspectiveFovLH( XMConvertToRadians( 60.0f ), (float)Config.screenWidth / (float)Config.screenHeight, 0.1f, 1000.0f );
+
+
+	uint filesize = GetFileSize( "assets/models/fire.obj" );
+	uint8 * blob = new uint8[ filesize ];
+	ReadFile( "assets/models/fire.obj", blob );
+
+	float positions[ 4096 * 3 * 3 ];
+	float normals[ 4096 * 3 * 3 ];
+	float texcoords[ 4096 * 3 * 2 ];
+	int vertexCount = LoadObjFromMemory( blob, filesize, positions, normals, texcoords );
+
+	delete[] blob;
+
+	gFireMesh = Mesh();
+	gFireMesh.Create( positions, normals, texcoords, vertexCount );
+
+	ResourceHandle meshVB = renderer.CreateVertexBufferForMesh( &gFireMesh );
+	if( meshVB == INVALID_HANDLE )
+	{
+		OutputDebugStringA( "Failed to create mesh vertex buffer" );
+		return false;
+	}
+
+	gFireMesh.vertexBufferID = meshVB;
+
+	TEXTURE fireTextureID = TEXTURE::FIRE;
+
+	gFireMaterial.shaderID = 2; // standard shader
+	gFireMaterial.textureID = fireTextureID;
+
+	gGameObjects[0] = GameObject();
+	gGameObjects[0].mesh = &gFireMesh;
+	gGameObjects[0].transform.position = { 0.0f, 0.0f, 0.0f };
+	gGameObjects[0].transform.rotation = { 0.0f, 0.0f, 0.0f };
+	gGameObjects[0].transform.scale = 1.0f;
+	gGameObjects[0].material = &gFireMaterial;
 
 	return true;
 }
@@ -1241,6 +1282,50 @@ void Game::DoFrame( float dt )
 
 #endif
 	ProfileStop();
+
+	// Draw game objects
+	for( int i = 0; i < 1; i++ )
+	{
+		renderer.SetShader( gGameObjects[i].material->shaderID );
+		renderer.SetTexture( gGameObjects[i].material->textureID, ST_FRAGMENT, 0 );
+		renderer.SetVertexBuffer( gGameObjects[i].mesh->vertexBufferID );
+		// TODO: generic constant buffer handling
+
+		gGameObjects[i].transform.position = { 134.5f, 33.0f, 21.5f };
+		if( blockPicked )
+		{
+			gGameObjects[i].transform.position = { pickedBlock.chunkX * CHUNK_WIDTH + pickedBlock.x + 0.5f,
+												   (float)(pickedBlock.y + 1),
+												   pickedBlock.chunkZ * CHUNK_WIDTH + pickedBlock.z + 0.5f  };
+		}
+		gGameObjects[i].transform.rotation = { 0.0f, 0.0f, 0.0f };
+		gGameObjects[i].transform.scale = 1.0f;
+
+		XMMATRIX rot = XMMatrixRotationRollPitchYaw( gGameObjects[i].transform.rotation.x,
+													 gGameObjects[i].transform.rotation.y,
+													 gGameObjects[i].transform.rotation.z );
+		XMMATRIX pos = XMMatrixTranslation( gGameObjects[i].transform.position.x,
+											gGameObjects[i].transform.position.y,
+											gGameObjects[i].transform.position.z );
+		XMMATRIX scale = XMMatrixScaling( gGameObjects[i].transform.scale,
+										  gGameObjects[i].transform.scale,
+										  gGameObjects[i].transform.scale );
+		// XMMATRIX world = scale * rot * pos;
+		XMMATRIX world = scale * pos;
+		world = XMMatrixTranspose( world );
+
+		GameObjectCB gameObjectCBData;
+		XMStoreFloat4x4( &gameObjectCBData.world, world );
+		XMStoreFloat4x4( &gameObjectCBData.rotation, rot );
+		gameObjectCBData.translation = gGameObjects[i].transform.position;
+		gameObjectCBData.rotationEuler = gGameObjects[i].transform.rotation;
+		gameObjectCBData.scale = gGameObjects[i].transform.scale;
+
+		renderer.SetGameObjectCBuffer( gameObjectCBData );
+
+		renderer.Draw( gGameObjects[i].mesh->vertexCount );
+
+	}
 
 	CROSSHAIR_STATE chState = CROSSHAIR_STATE::INACTIVE;
 	if( blockPicked )

@@ -5,6 +5,9 @@
 #include <DirectXMath.h>
 #include <limits.h>
 
+
+#include "lib/win32_file.h"
+#include "lib/obj_importer.h"
 #include "types.h"
 #include "directxmathex.h"
 #include "input.h"
@@ -23,6 +26,15 @@ namespace Blocks
 #define NUM_VKEYS 256
 
 #define UPDATE_DELTA_FRAMES 30
+
+#define MAX_GAME_OBJECTS 128
+
+struct GameObject
+{
+	Transform transform;
+	Mesh * mesh;
+	Material * material;
+};
 
 struct GameTime
 {

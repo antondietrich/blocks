@@ -21,6 +21,11 @@ ResourceHandle gDefaultRasterizerState;
 TextureDefinition gTextureDefinitions[ TEXTURE::COUNT ];
 static Texture gTempTextureStorage[ TEXTURE::COUNT ];
 
+static ResourceHandle nextFreeVBSlot = 0;
+
+#define VB_STORAGE_SIZE 64
+VertexBuffer * gTempVBStorage[ VB_STORAGE_SIZE ];
+
 bool Renderer::isInstantiated_ = false;
 
 
@@ -44,6 +49,7 @@ Renderer::Renderer()
 	frameConstantBuffer_ = 0;
 	lightConstantBuffer_ = 0;
 	modelConstantBuffer_ = 0;
+	gameObjectConstantBuffer_ = 0;
 
 	nextFreeDepthStencilSlot = 0;
 	nextFreeRasterizerSlot = 0;
@@ -66,9 +72,14 @@ Renderer::Renderer()
 		shaders_[i] = Shader();
 	}
 
-	for( int i = 0; i < MAX_MESHES; i++ )
+//	for( int i = 0; i < MAX_MESHES; i++ )
+//	{
+//		meshes_[i] = Mesh();
+//	}
+
+	for( int i = 0; i < VB_STORAGE_SIZE; i++ )
 	{
-		meshes_[i] = Mesh();
+		gTempVBStorage[i] = 0;
 	}
 
 	viewPosition_ = { 0, 0, 0 };
@@ -93,6 +104,12 @@ Renderer::~Renderer()
 	FreeTextureDefinitions( gTextureDefinitions );
 	FreeTextures();
 
+	for( int i = 0; i < VB_STORAGE_SIZE; i++ )
+	{
+		if( gTempVBStorage[i] )
+			delete gTempVBStorage[i];
+	}
+
 	for( int i = 0; i < NUM_BLEND_MODES; i++ ) {
 		RELEASE( blendStates_[i] );
 	}
@@ -105,6 +122,7 @@ Renderer::~Renderer()
 	for( int i = 0; i < MAX_DEPTH_STENCIL_STATES; i++ ) {
 		RELEASE( depthStencilStates_[i] );
 	}
+	RELEASE( gameObjectConstantBuffer_ );
 	RELEASE( modelConstantBuffer_ );
 	RELEASE( lightConstantBuffer_ );
 	RELEASE( frameConstantBuffer_ );
@@ -467,6 +485,21 @@ bool Renderer::Start( HWND wnd )
 
 	context_->VSSetConstantBuffers( 2, 1, &modelConstantBuffer_ );
 
+	// game object constant buffer
+	ZeroMemory( &cbDesc, sizeof( cbDesc ) );
+	cbDesc.ByteWidth = sizeof( GameObjectCB );
+	cbDesc.Usage = D3D11_USAGE_DEFAULT;
+	cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	cbDesc.CPUAccessFlags = 0;
+	cbDesc.MiscFlags = 0;
+	cbDesc.StructureByteStride = 0;
+
+	hr = device_->CreateBuffer( &cbDesc, NULL, &gameObjectConstantBuffer_ );
+	if( FAILED( hr ) ) {
+		OutputDebugStringA( "Failed to create game object constant buffer!" );
+		return false;
+	}
+
 	// Load textures
 	LoadTextureDefinitions( gTextureDefinitions );
 	if( !LoadTextures( device_, context_ ) )
@@ -481,6 +514,10 @@ bool Renderer::Start( HWND wnd )
 		return false;
 	}
 	if( !shaders_[1].Load( L"assets/shaders/shadowmap.fx", device_ ) ) {
+		OutputDebugStringA( "Failed to load global shader!" );
+		return false;
+	}
+	if( !shaders_[2].Load( L"assets/shaders/standard.fx", device_ ) ) {
 		OutputDebugStringA( "Failed to load global shader!" );
 		return false;
 	}
@@ -547,6 +584,11 @@ void Renderer::DrawVertexBuffer( VertexBuffer * vBuffer, uint slot, int x, int z
 	context_->UpdateSubresource( modelConstantBuffer_, 0, NULL, &modelCBData, sizeof( ModelCB ), 0 );
 
 	context_->Draw( numVertices, 0 );
+}
+
+void Renderer::Draw( uint vertexCount )
+{
+	context_->Draw( vertexCount, 0 );
 }
 
 #if 0
@@ -795,6 +837,21 @@ void Renderer::SetLightCBuffer( LightCB data )
 	context_->VSSetConstantBuffers( 1, 1, &lightConstantBuffer_ );
 }
 
+void Renderer::SetGameObjectCBuffer( GameObjectCB &data )
+{
+	context_->UpdateSubresource( gameObjectConstantBuffer_, 0, NULL, &data, sizeof( GameObjectCB ), 0 );
+	context_->VSSetConstantBuffers( 2, 1, &gameObjectConstantBuffer_ );
+}
+
+void Renderer::SetVertexBuffer( ResourceHandle id, uint slot )
+{
+	VertexBuffer * vBuffer = gTempVBStorage[ id ];
+	uint stride = vBuffer->strides_[ slot ];
+	uint numVertices = vBuffer->sizes_[ slot ];
+	uint offset = 0;
+	context_->IASetVertexBuffers( 0, 1, vBuffer->GetBuffer( slot ), &stride, &offset );
+}
+
 // Render state
 
 ResourceHandle Renderer::CreateDepthStencilState( DepthStateDesc depthStateDesc, StencilStateDesc stencilStateDesc )
@@ -866,6 +923,20 @@ ResourceHandle Renderer::CreateRasterizerState( RasterizerStateDesc rasterizerSt
 	return result;
 }
 
+ResourceHandle Renderer::CreateVertexBufferForMesh( Mesh * mesh )
+{
+	ResourceHandle result = nextFreeVBSlot;
+	gTempVBStorage[ nextFreeVBSlot ] = new VertexBuffer();
+	if( !gTempVBStorage[ nextFreeVBSlot ]->Create( 0, sizeof( VertexPosNormalTexcoord ), mesh->vertexCount, device_, mesh->vertices ) )
+	{
+		return INVALID_HANDLE;
+	}
+
+	nextFreeVBSlot++;
+
+	return result;
+}
+
 void Renderer::SetDepthStencilState( ResourceHandle handle, uint stencilReference )
 {
 	context_->OMSetDepthStencilState( depthStencilStates_[ handle ], stencilReference );
@@ -918,12 +989,14 @@ void Renderer::SetBlendMode( BLEND_MODE bm )
 	context_->OMSetBlendState( blendStates_[ bm ], NULL, sampleMask );
 }
 
+#if 0
 void Renderer::SetMesh( const Mesh& mesh )
 {
 	uint stride = sizeof( VertexPosNormalTexcoord );
 	uint offset = 0;
 	context_->IASetVertexBuffers( 0, 1, &mesh.vertexBuffer_, &stride, &offset );
 }
+#endif
 
 void Renderer::SetShader( const Shader& shader )
 {
@@ -1552,33 +1625,36 @@ bool DepthBuffer::Init( uint width, uint height, DXGI_FORMAT format, uint msCoun
 //********************************
 Mesh::Mesh()
 {
-	vertexBuffer_ = 0;
+	vertexCount = 0;
+	vertices = 0;
+	vertexBufferID = INVALID_HANDLE;
 }
 
 Mesh::~Mesh()
 {
-	RELEASE( vertexBuffer_ );
+	if( vertices )
+		delete[] vertices;
 }
 
-bool Mesh::Load( const VertexPosNormalTexcoord *vertices, int numVertices, ID3D11Device *device )
+bool Mesh::Create( float * positions, float * normals, float * texcoords, uint numVertices )
 {
-	D3D11_BUFFER_DESC desc;
-	ZeroMemory( &desc, sizeof( desc ) );
-	desc.Usage = D3D11_USAGE_DEFAULT;
-	desc.CPUAccessFlags = 0;
-	desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	desc.ByteWidth = sizeof( VertexPosNormalTexcoord ) * numVertices;
+	vertexCount = numVertices;
+	vertices = new VertexPosNormalTexcoord[ numVertices ];
 
-	D3D11_SUBRESOURCE_DATA resourceData;
-	ZeroMemory( &resourceData, sizeof( resourceData ) );
-	resourceData.pSysMem = vertices;
-
-	HRESULT hr = device->CreateBuffer( &desc, &resourceData, &vertexBuffer_ );
-	if( FAILED( hr ) )
+	for( uint i = 0; i < numVertices; i++ )
 	{
-		OutputDebugStringA( "Failed to create vertex buffer!" );
-		return false;
+		vertices[i].position[0] = positions[ i*3 + 0 ];
+		vertices[i].position[1] = positions[ i*3 + 1 ];
+		vertices[i].position[2] = positions[ i*3 + 2 ];
+
+		vertices[i].normal[0] = normals[ i*3 + 0 ];
+		vertices[i].normal[1] = normals[ i*3 + 1 ];
+		vertices[i].normal[2] = normals[ i*3 + 2 ];
+
+		vertices[i].texcoord[0] = texcoords[ i*2 + 0 ];
+		vertices[i].texcoord[1] = texcoords[ i*2 + 1 ];
 	}
+
 	return true;
 }
 

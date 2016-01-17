@@ -30,7 +30,7 @@ struct VertexPosition
 
 struct VertexPosNormalTexcoord
 {
-	float pos[3];
+	float position[3];
 	float normal[3];
 	float texcoord[2];
 };
@@ -63,6 +63,28 @@ struct LightCB {
 
 struct ModelCB {
 	DirectX::XMFLOAT4 translate;
+};
+
+struct GameObjectCB {
+	DirectX::XMFLOAT4X4 world;
+	DirectX::XMFLOAT4X4 rotation;
+	DirectX::XMFLOAT3 translation;
+	DirectX::XMFLOAT3 rotationEuler;
+	float scale;
+	float padding;
+};
+
+struct Transform
+{
+	DirectX::XMFLOAT3 position;
+	DirectX::XMFLOAT3 rotation;
+	float scale;
+};
+
+struct Material
+{
+	uint shaderID;
+	TEXTURE textureID;
 };
 
 class Shader
@@ -133,11 +155,12 @@ public:
 	Mesh();
 	~Mesh();
 
-	bool Load( const VertexPosNormalTexcoord *vertices, int numVertices, ID3D11Device *device );
-private:
-	ID3D11Buffer *vertexBuffer_;
+	bool Create( float * positions, float * normals, float * texcoords, uint numVertices );
 
-	friend class Renderer;
+	uint vertexCount;
+	VertexPosNormalTexcoord * vertices;
+
+	ResourceHandle vertexBufferID;
 };
 
 class VertexBuffer
@@ -191,6 +214,7 @@ public:
 	void DrawChunkMeshBuffer( int x, int z, int bufferIndex, int numVertices );
 
 	void DrawVertexBuffer( VertexBuffer * buffer, uint slot, int x, int z );
+	void Draw( uint vertexCount );
 
 	void ClearTexture( RenderTarget *rt, float r = 1.0f, float g = 0.0f, float b = 1.0f, float a = 1.0f );
 	void ClearTexture( DepthBuffer *db, float d = 1.0f );
@@ -215,6 +239,7 @@ public:
 
 	ResourceHandle CreateDepthStencilState( DepthStateDesc depthStateDesc, StencilStateDesc stencilStateDesc );
 	ResourceHandle CreateRasterizerState( RasterizerStateDesc rasterizerStateDesc );
+	ResourceHandle CreateVertexBufferForMesh( Mesh * mesh );
 
 	void SetDepthStencilState( ResourceHandle handle, uint stencilReference = 0 );
 	void SetRasterizerState( ResourceHandle handle );
@@ -225,7 +250,11 @@ public:
 	void SetViewport( D3D11_VIEWPORT *viewport );
 	void SetFrameCBuffer( FrameCB data );
 	void SetLightCBuffer( LightCB data );
-	void SetMesh( const Mesh& mesh );
+	void SetGameObjectCBuffer( GameObjectCB &data );
+
+	void SetVertexBuffer( ResourceHandle id, uint slot = 0 );
+
+//	void SetMesh( const Mesh& mesh );
 	void SetShader( const Shader& shader );
 	void SetShader( uint shaderID );
 	void SetTexture( TEXTURE id, SHADER_TYPE shader, uint slot = 0 );
@@ -253,6 +282,7 @@ private:
 	ID3D11Buffer *frameConstantBuffer_;
 	ID3D11Buffer *lightConstantBuffer_;
 	ID3D11Buffer *modelConstantBuffer_;
+	ID3D11Buffer *gameObjectConstantBuffer_;
 
 	ResourceHandle nextFreeDepthStencilSlot;
 	ResourceHandle nextFreeRasterizerSlot;
@@ -266,7 +296,7 @@ private:
 
 	Shader shaders_[ MAX_SHADERS ];
 //	Texture textures_[ MAX_TEXTURES ];
-	Mesh meshes_[ MAX_MESHES ];
+//	Mesh meshes_[ MAX_MESHES ];
 
 	/* main view */
 	DirectX::XMFLOAT3 viewPosition_;
