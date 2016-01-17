@@ -14,6 +14,7 @@ enum TEXTURE
 	LIGHT_COLOR,
 	FONT,
 	CROSSHAIR,
+	FIRE,
 
 	COUNT
 };
@@ -95,6 +96,14 @@ void LoadTextureDefinitions( TextureDefinition * textureDefinitions )
 	textureDefinitions[ TEXTURE::CROSSHAIR ].generateMips = false;
 	textureDefinitions[ TEXTURE::CROSSHAIR ].filenames = new char*[ 1 ];
 	textureDefinitions[ TEXTURE::CROSSHAIR ].filenames[0] = "assets/textures/crosshair.png";
+
+	textureDefinitions[ TEXTURE::FIRE ].type = TEXTURE_TYPE::SINGLE;
+	textureDefinitions[ TEXTURE::FIRE ].arraySize = 1;
+	textureDefinitions[ TEXTURE::FIRE ].width = 512;
+	textureDefinitions[ TEXTURE::FIRE ].height = 512;
+	textureDefinitions[ TEXTURE::FIRE ].generateMips = true;
+	textureDefinitions[ TEXTURE::FIRE ].filenames = new char*[ 1 ];
+	textureDefinitions[ TEXTURE::FIRE ].filenames[0] = "assets/textures/fire01.png";
 }
 
 void FreeTextureDefinitions( TextureDefinition * textureDefinitions )
