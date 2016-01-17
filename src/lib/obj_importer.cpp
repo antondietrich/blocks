@@ -129,6 +129,38 @@ int LoadObjFromMemory( uint8 * blob, uint length, float * positions, float * nor
 	for( int i = 0; i < numFaces; i++ )
 	{
 		// vertex 1
+		#if FLIP_WINDING_ORDER
+
+		positions[ i * 9 + 0 ] = tempPositions[ faces[ i ].v1_.vIndex_ * 3 + 0 ];
+		positions[ i * 9 + 1 ] = tempPositions[ faces[ i ].v1_.vIndex_ * 3 + 1 ];
+		positions[ i * 9 + 2 ] = tempPositions[ faces[ i ].v1_.vIndex_ * 3 + 2 ];
+
+		positions[ i * 9 + 3 ] = tempPositions[ faces[ i ].v3_.vIndex_ * 3 + 0 ];
+		positions[ i * 9 + 4 ] = tempPositions[ faces[ i ].v3_.vIndex_ * 3 + 1 ];
+		positions[ i * 9 + 5 ] = tempPositions[ faces[ i ].v3_.vIndex_ * 3 + 2 ];
+
+		positions[ i * 9 + 6 ] = tempPositions[ faces[ i ].v2_.vIndex_ * 3 + 0 ];
+		positions[ i * 9 + 7 ] = tempPositions[ faces[ i ].v2_.vIndex_ * 3 + 1 ];
+		positions[ i * 9 + 8 ] = tempPositions[ faces[ i ].v2_.vIndex_ * 3 + 2 ];
+
+		normals[ i * 9 + 0 ] = tempNormals[ faces[ i ].v1_.nIndex_ * 3 + 0 ];
+		normals[ i * 9 + 1 ] = tempNormals[ faces[ i ].v1_.nIndex_ * 3 + 1 ];
+		normals[ i * 9 + 2 ] = tempNormals[ faces[ i ].v1_.nIndex_ * 3 + 2 ];
+		normals[ i * 9 + 3 ] = tempNormals[ faces[ i ].v3_.nIndex_ * 3 + 0 ];
+		normals[ i * 9 + 4 ] = tempNormals[ faces[ i ].v3_.nIndex_ * 3 + 1 ];
+		normals[ i * 9 + 5 ] = tempNormals[ faces[ i ].v3_.nIndex_ * 3 + 2 ];
+		normals[ i * 9 + 6 ] = tempNormals[ faces[ i ].v2_.nIndex_ * 3 + 0 ];
+		normals[ i * 9 + 7 ] = tempNormals[ faces[ i ].v2_.nIndex_ * 3 + 1 ];
+		normals[ i * 9 + 8 ] = tempNormals[ faces[ i ].v2_.nIndex_ * 3 + 2 ];
+
+		texcoords[ i * 6 + 0 ] =  tempTexcoords[ faces[ i ].v1_.tIndex_ * 2 + 0 ];
+		texcoords[ i * 6 + 1 ] =  1.0f - (tempTexcoords[ faces[ i ].v1_.tIndex_ * 2 + 1 ]);
+		texcoords[ i * 6 + 2 ] =  tempTexcoords[ faces[ i ].v3_.tIndex_ * 2 + 0 ];
+		texcoords[ i * 6 + 3 ] =  1.0f - (tempTexcoords[ faces[ i ].v3_.tIndex_ * 2 + 1 ]);
+		texcoords[ i * 6 + 4 ] =  tempTexcoords[ faces[ i ].v2_.tIndex_ * 2 + 0 ];
+		texcoords[ i * 6 + 5 ] =  1.0f - (tempTexcoords[ faces[ i ].v2_.tIndex_ * 2 + 1 ]);
+
+		#else
 		positions[ i * 9 + 0 ] = tempPositions[ faces[ i ].v1_.vIndex_ * 3 + 0 ];
 		positions[ i * 9 + 1 ] = tempPositions[ faces[ i ].v1_.vIndex_ * 3 + 1 ];
 		positions[ i * 9 + 2 ] = tempPositions[ faces[ i ].v1_.vIndex_ * 3 + 2 ];
@@ -151,12 +183,13 @@ int LoadObjFromMemory( uint8 * blob, uint length, float * positions, float * nor
 		normals[ i * 9 + 7 ] = tempNormals[ faces[ i ].v3_.nIndex_ * 3 + 1 ];
 		normals[ i * 9 + 8 ] = tempNormals[ faces[ i ].v3_.nIndex_ * 3 + 2 ];
 
-		texcoords[ i * 6 + 0 ] = tempTexcoords[ faces[ i ].v1_.tIndex_ * 2 + 0 ];
+		texcoords[ i * 6 + 0 ] =  tempTexcoords[ faces[ i ].v1_.tIndex_ * 2 + 0 ];
 		texcoords[ i * 6 + 1 ] = -tempTexcoords[ faces[ i ].v1_.tIndex_ * 2 + 1 ];
-		texcoords[ i * 6 + 2 ] = tempTexcoords[ faces[ i ].v2_.tIndex_ * 2 + 0 ];
+		texcoords[ i * 6 + 2 ] =  tempTexcoords[ faces[ i ].v2_.tIndex_ * 2 + 0 ];
 		texcoords[ i * 6 + 3 ] = -tempTexcoords[ faces[ i ].v2_.tIndex_ * 2 + 1 ];
-		texcoords[ i * 6 + 4 ] = tempTexcoords[ faces[ i ].v3_.tIndex_ * 2 + 0 ];
+		texcoords[ i * 6 + 4 ] =  tempTexcoords[ faces[ i ].v3_.tIndex_ * 2 + 0 ];
 		texcoords[ i * 6 + 5 ] = -tempTexcoords[ faces[ i ].v3_.tIndex_ * 2 + 1 ];
+		#endif
 	}
 
 	delete[] line;
