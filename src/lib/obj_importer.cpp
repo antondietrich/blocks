@@ -14,6 +14,19 @@ struct Face
 	FaceVertex v3_;
 };
 
+int LoadObjFromFile( const char * filename, float * positions, float * normals, float * texcoords )
+{
+	uint filesize = GetFileSize( filename );
+	uint8 * blob = new uint8[ filesize ];
+	ReadFile( filename, blob );
+
+	int vertexCount = LoadObjFromMemory( blob, filesize, positions, normals, texcoords );
+
+	delete[] blob;
+
+	return vertexCount;
+}
+
 int LoadObjFromMemory( uint8 * blob, uint length, float * positions, float * normals, float * texcoords )
 {
 	int vertexCount = 0;

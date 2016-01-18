@@ -245,16 +245,10 @@ bool Game::Start( HWND wnd )
 	playerProj = XMMatrixPerspectiveFovLH( XMConvertToRadians( 60.0f ), (float)Config.screenWidth / (float)Config.screenHeight, 0.1f, 1000.0f );
 
 
-	uint filesize = GetFileSize( "assets/models/fire.obj" );
-	uint8 * blob = new uint8[ filesize ];
-	ReadFile( "assets/models/fire.obj", blob );
-
-	float positions[ 4096 * 3 * 3 ];
-	float normals[ 4096 * 3 * 3 ];
-	float texcoords[ 4096 * 3 * 2 ];
-	int vertexCount = LoadObjFromMemory( blob, filesize, positions, normals, texcoords );
-
-	delete[] blob;
+	float positions[ MAX_VERTS_PER_MESH * 3 ];
+	float normals[ MAX_VERTS_PER_MESH * 3 ];
+	float texcoords[ MAX_VERTS_PER_MESH * 2 ];
+	int vertexCount = LoadObjFromFile( "assets/models/fire.obj", positions, normals, texcoords );
 
 	gFireMesh = Mesh();
 	gFireMesh.Create( positions, normals, texcoords, vertexCount );
