@@ -18,8 +18,10 @@ extern int gChunkMeshCacheDim;
 ResourceHandle gDefaultDepthStencilState;
 ResourceHandle gDefaultRasterizerState;
 
-TextureDefinition gTextureDefinitions[ TEXTURE::COUNT ];
-static Texture gTempTextureStorage[ TEXTURE::COUNT ];
+TextureDefinition gTextureDefinitions[ TEXTURE::TEXTURE_COUNT ];
+static Texture gTempTextureStorage[ TEXTURE::TEXTURE_COUNT ];
+static Shader gTempShaderStorage[ SHADER::SHADER_COUNT ];
+static Mesh gTempMeshStorage[ MESH::MESH_COUNT ];
 
 static ResourceHandle nextFreeVBSlot = 0;
 
@@ -32,7 +34,13 @@ bool Renderer::isInstantiated_ = false;
 /*** function declarations ***/
 void MakeGlobalCBInitData( GlobalCB *cbData, D3D11_SUBRESOURCE_DATA *cbInitData, float screenWidth, float screenHeight, float viewDistance );
 bool LoadTextures( ID3D11Device * device, ID3D11DeviceContext * context );
-void FreeTextures();
+bool LoadShaders( ID3D11Device * device );
+bool LoadMeshes( Renderer * renderer );
+
+Mesh * GetMeshByID( MESH id )
+{
+	return &gTempMeshStorage[ id ];
+}
 
 Renderer::Renderer()
 {
@@ -67,10 +75,10 @@ Renderer::Renderer()
 		blendStates_[i] = 0;
 	}
 
-	for( int i = 0; i < MAX_SHADERS; i++ )
-	{
-		shaders_[i] = Shader();
-	}
+//	for( int i = 0; i < MAX_SHADERS; i++ )
+//	{
+//		shaders_[i] = Shader();
+//	}
 
 //	for( int i = 0; i < MAX_MESHES; i++ )
 //	{
@@ -102,7 +110,6 @@ Renderer::~Renderer()
 #endif
 
 	FreeTextureDefinitions( gTextureDefinitions );
-	FreeTextures();
 
 	for( int i = 0; i < VB_STORAGE_SIZE; i++ )
 	{
@@ -509,16 +516,16 @@ bool Renderer::Start( HWND wnd )
 	}
 
 	// Load shaders
-	if( !shaders_[0].Load( L"assets/shaders/global.fx", device_ ) ) {
-		OutputDebugStringA( "Failed to load global shader!" );
+	if( !LoadShaders( device_ ) )
+	{
+		OutputDebugStringA( "Failed to load shaders!" );
 		return false;
 	}
-	if( !shaders_[1].Load( L"assets/shaders/shadowmap.fx", device_ ) ) {
-		OutputDebugStringA( "Failed to load global shader!" );
-		return false;
-	}
-	if( !shaders_[2].Load( L"assets/shaders/standard.fx", device_ ) ) {
-		OutputDebugStringA( "Failed to load global shader!" );
+
+	// Load meshes
+	if( !LoadMeshes( this ) )
+	{
+		OutputDebugStringA( "Failed to load meshes!" );
 		return false;
 	}
 
@@ -568,7 +575,7 @@ void Renderer::SetChunkDrawingState()
 	SetTexture( TEXTURE::BLOCKS_OPAQUE, ST_FRAGMENT, 0 );
 	SetTexture( TEXTURE::LIGHT_COLOR, ST_FRAGMENT, 2 );
 
-	SetShader( shaders_[0] );
+	SetShader( SHADER::SHADER_BLOCK );
 	context_->PSSetConstantBuffers( 1, 1, &frameConstantBuffer_ );
 }
 
@@ -847,7 +854,7 @@ void Renderer::SetVertexBuffer( ResourceHandle id, uint slot )
 {
 	VertexBuffer * vBuffer = gTempVBStorage[ id ];
 	uint stride = vBuffer->strides_[ slot ];
-	uint numVertices = vBuffer->sizes_[ slot ];
+	//uint numVertices = vBuffer->sizes_[ slot ];
 	uint offset = 0;
 	context_->IASetVertexBuffers( 0, 1, vBuffer->GetBuffer( slot ), &stride, &offset );
 }
@@ -998,16 +1005,20 @@ void Renderer::SetMesh( const Mesh& mesh )
 }
 #endif
 
+#if 0
 void Renderer::SetShader( const Shader& shader )
 {
 	context_->IASetInputLayout( shader.inputLayout_ );
 	context_->VSSetShader( shader.vertexShader_, NULL, 0 );
 	context_->PSSetShader( shader.pixelShader_, NULL, 0 );
 }
+#endif
 
-void Renderer::SetShader( uint shaderID )
+void Renderer::SetShader( SHADER shaderID )
 {
-	SetShader( shaders_[shaderID] );
+	context_->IASetInputLayout( gTempShaderStorage[ shaderID ].inputLayout_ );
+	context_->VSSetShader( gTempShaderStorage[ shaderID ].vertexShader_, NULL, 0 );
+	context_->PSSetShader( gTempShaderStorage[ shaderID ].pixelShader_, NULL, 0 );
 }
 
 void Renderer::SetTexture( TEXTURE id, SHADER_TYPE shader, uint slot )
@@ -1093,7 +1104,7 @@ void MakeGlobalCBInitData( GlobalCB *cbData, D3D11_SUBRESOURCE_DATA *cbInitData,
 
 bool LoadTextures( ID3D11Device * device, ID3D11DeviceContext * context )
 {
-	for( int i = 0; i < TEXTURE::COUNT; i++ )
+	for( int i = 0; i < TEXTURE::TEXTURE_COUNT; i++ )
 	{
 		if( !gTextureDefinitions[i].width )
 			continue;
@@ -1108,17 +1119,46 @@ bool LoadTextures( ID3D11Device * device, ID3D11DeviceContext * context )
 	return true;
 }
 
-void FreeTextures()
+bool LoadShaders( ID3D11Device * device )
 {
-	//for( int i = 0; i < TEXTURE::COUNT; i++ )
-	//{
-	//	if( gTempTextureStorage[i] )
-	//	{
-	//		delete gTempTextureStorage[i];
-	//	}
-	//}
+	for( int i = 0; i < SHADER::SHADER_COUNT; i++ )
+	{
+		gTempShaderStorage[i] = Shader();
+		if( !gTempShaderStorage[i].Load( gShaderDefinitions[i].filename, device ) )
+		{
+			return false;
+		}
+	}
+	return true;
 }
 
+bool LoadMeshes( Renderer * renderer )
+{
+	float positions[ MAX_VERTS_PER_MESH * 3 ];
+	float normals[ MAX_VERTS_PER_MESH * 3 ];
+	float texcoords[ MAX_VERTS_PER_MESH * 2 ];
+
+	for( int i = 0; i < MESH::MESH_COUNT; i++ )
+	{
+		int vertexCount = LoadObjFromFile( gMeshDefinitions[i].filename, positions, normals, texcoords );
+		gTempMeshStorage[i] = Mesh();
+		gTempMeshStorage[i].Create( positions, normals, texcoords, vertexCount );
+
+		ResourceHandle meshVB = renderer->CreateVertexBufferForMesh( &gTempMeshStorage[i] );
+		if( meshVB == INVALID_HANDLE )
+		{
+			OutputDebugStringA( "Failed to create mesh vertex buffer" );
+			return false;
+		}
+
+		gTempMeshStorage[i].vertexBufferID = meshVB;
+
+		gTempMeshStorage[i].material.shaderID = gMaterialDefinitions[ gMeshDefinitions[i].material ].shaderID;
+		gTempMeshStorage[i].material.textureID = gMaterialDefinitions[ gMeshDefinitions[i].material ].diffuseTextureID;
+	}
+
+	return true;
+}
 
 //******************
 // Shader
@@ -1748,9 +1788,6 @@ void VertexBuffer::Release( uint slot )
 // Debug overlay
 //********************************
 Overlay::Overlay()
-:
-textShader_(),
-primitiveShader_()
 {
 	renderer_ = 0;
 	textVB_ = 0;
@@ -1778,10 +1815,6 @@ bool Overlay::Start( Renderer *renderer )
 	HRESULT hr;
 
 	renderer_ = renderer;
-	if( !textShader_.Load( L"assets/shaders/overlay.fx", renderer_->device_ ) )
-		return false;
-	if( !primitiveShader_.Load( L"assets/shaders/primitive.fx", renderer_->device_ ) )
-		return false;
 
 	// Create depth states
 	DepthStateDesc depthStateDesc = {0};
@@ -2015,7 +2048,7 @@ void Overlay::DisplayText( int x, int y, const char* text, XMFLOAT4 color )
 	renderer_->SetTexture( TEXTURE::FONT, ST_FRAGMENT );
 	renderer_->SetSampler( SAMPLER_POINT, ST_FRAGMENT );
 	renderer_->context_->PSSetConstantBuffers( 1, 1, &constantBuffer_ );
-	renderer_->SetShader( textShader_ );
+	renderer_->SetShader( SHADER_TEXT );
 
 	renderer_->context_->Draw( textLength * 6, 0 );
 
@@ -2076,7 +2109,7 @@ void Overlay::DrawCrosshair( int x, int y, CROSSHAIR_STATE state )
 	renderer_->SetTexture( TEXTURE::CROSSHAIR, ST_FRAGMENT );
 	renderer_->SetSampler( SAMPLER_POINT, ST_FRAGMENT );
 	renderer_->context_->PSSetConstantBuffers( 1, 1, &constantBuffer_ );
-	renderer_->SetShader( textShader_ );
+	renderer_->SetShader( SHADER_TEXT );
 
 
 	renderer_->context_->Draw( 6, 0 );
@@ -2122,7 +2155,7 @@ void Overlay::DrawLine( XMFLOAT3 A, XMFLOAT3 B, XMFLOAT4 color )
 	renderer_->context_->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_LINELIST );
 	renderer_->context_->IASetVertexBuffers( 0, 1, &primitiveVB_, &stride, &offset );
 	renderer_->context_->VSSetConstantBuffers( 1, 1, &renderer_->frameConstantBuffer_ );
-	renderer_->SetShader( primitiveShader_ );
+	renderer_->SetShader( SHADER_PRIMITIVE );
 
 	renderer_->context_->Draw( 2, 0 );
 

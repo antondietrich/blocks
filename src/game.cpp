@@ -31,6 +31,7 @@ bool Game::isInstantiated_ = false;
 
 // scene manager?
 GameObject gGameObjects[ MAX_GAME_OBJECTS ];
+uint gGameObjectCount = 0;
 Mesh gFireMesh;
 Material gFireMaterial;
 
@@ -244,35 +245,12 @@ bool Game::Start( HWND wnd )
 
 	playerProj = XMMatrixPerspectiveFovLH( XMConvertToRadians( 60.0f ), (float)Config.screenWidth / (float)Config.screenHeight, 0.1f, 1000.0f );
 
-
-	float positions[ MAX_VERTS_PER_MESH * 3 ];
-	float normals[ MAX_VERTS_PER_MESH * 3 ];
-	float texcoords[ MAX_VERTS_PER_MESH * 2 ];
-	int vertexCount = LoadObjFromFile( "assets/models/fire.obj", positions, normals, texcoords );
-
-	gFireMesh = Mesh();
-	gFireMesh.Create( positions, normals, texcoords, vertexCount );
-
-	ResourceHandle meshVB = renderer.CreateVertexBufferForMesh( &gFireMesh );
-	if( meshVB == INVALID_HANDLE )
-	{
-		OutputDebugStringA( "Failed to create mesh vertex buffer" );
-		return false;
-	}
-
-	gFireMesh.vertexBufferID = meshVB;
-
-	TEXTURE fireTextureID = TEXTURE::FIRE;
-
-	gFireMaterial.shaderID = 2; // standard shader
-	gFireMaterial.textureID = fireTextureID;
-
 	gGameObjects[0] = GameObject();
-	gGameObjects[0].mesh = &gFireMesh;
+	gGameObjects[0].meshID = MESH_CAMPFIRE;
 	gGameObjects[0].transform.position = { 0.0f, 0.0f, 0.0f };
 	gGameObjects[0].transform.rotation = { 0.0f, 0.0f, 0.0f };
 	gGameObjects[0].transform.scale = 1.0f;
-	gGameObjects[0].material = &gFireMaterial;
+	gGameObjectCount++;
 
 	return true;
 }
@@ -958,7 +936,7 @@ void Game::DoFrame( float dt )
 	renderer.SetChunkDrawingState();
 	renderer.SetDepthStencilState( gDefaultDepthStencilState );
 	renderer.SetSampler( SAMPLER_POINT, ST_FRAGMENT, 1 );
-	renderer.SetShader( 1 );
+	renderer.SetShader( SHADER_SHADOWMAP );
 	renderer.RemoveTexture( ST_FRAGMENT, 1 );
 	//renderer.RemoveTexture( ST_FRAGMENT, 5 );
 	//renderer.RemoveTexture( ST_FRAGMENT, 6 );
@@ -1223,7 +1201,7 @@ void Game::DoFrame( float dt )
 
 	renderer.SetDepthStencilState( gDefaultDepthStencilState );
 	renderer.SetRasterizerState( gDefaultRasterizerState );
-	renderer.SetShader( 0 );
+	renderer.SetShader( SHADER_BLOCK );
 	renderer.SetRenderTarget();
 
 	// set shadow maps
@@ -1278,11 +1256,13 @@ void Game::DoFrame( float dt )
 	ProfileStop();
 
 	// Draw game objects
-	for( int i = 0; i < 1; i++ )
+	for( uint i = 0; i < gGameObjectCount; i++ )
 	{
-		renderer.SetShader( gGameObjects[i].material->shaderID );
-		renderer.SetTexture( gGameObjects[i].material->textureID, ST_FRAGMENT, 0 );
-		renderer.SetVertexBuffer( gGameObjects[i].mesh->vertexBufferID );
+		// TODO: replace
+		Mesh * mesh = GetMeshByID( gGameObjects[i].meshID );
+		renderer.SetShader( mesh->material.shaderID );
+		renderer.SetTexture( mesh->material.textureID, ST_FRAGMENT, 0 );
+		renderer.SetVertexBuffer( mesh->vertexBufferID );
 		// TODO: generic constant buffer handling
 
 		gGameObjects[i].transform.position = { 134.5f, 33.0f, 21.5f };
@@ -1302,7 +1282,6 @@ void Game::DoFrame( float dt )
 		XMMATRIX scale = XMMatrixScaling( gGameObjects[i].transform.scale,
 										  gGameObjects[i].transform.scale,
 										  gGameObjects[i].transform.scale );
-		// XMMATRIX world = scale * rot * pos;
 		XMMATRIX world = scale * rot * pos;
 		scale = XMMatrixTranspose( scale );
 		rot = XMMatrixTranspose( rot );
@@ -1317,7 +1296,7 @@ void Game::DoFrame( float dt )
 
 		renderer.SetGameObjectCBuffer( gameObjectCBData );
 
-		renderer.Draw( gGameObjects[i].mesh->vertexCount );
+		renderer.Draw( mesh->vertexCount );
 
 	}
 

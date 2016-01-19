@@ -10,6 +10,7 @@
 #include "renderer_def.h"
 #include "asset_def.h"
 #include "lib\DDSTextureLoader.h"
+#include "lib\obj_importer.h"
 #include "types.h"
 #include "world.h"
 #include "collision.h"
@@ -22,6 +23,9 @@ namespace Blocks
 bool LoadShader( wchar_t *filename, const char *entry, const char *shaderModel, ID3DBlob **buffer );
 /* Based on the implementation by @BobbyAnguelov. Thank you! */
 HRESULT CreateInputLayoutFromShaderBytecode( ID3DBlob* shaderBytecode, ID3D11Device* device, ID3D11InputLayout** inputLayout );
+
+class Mesh;
+Mesh * GetMeshByID( MESH id );
 
 struct VertexPosition
 {
@@ -83,7 +87,7 @@ struct Transform
 
 struct Material
 {
-	uint shaderID;
+	SHADER shaderID;
 	TEXTURE textureID;
 };
 
@@ -95,12 +99,9 @@ public:
 
 	bool Load( wchar_t* filename, ID3D11Device *device );
 
-private:
 	ID3D11VertexShader *vertexShader_;
 	ID3D11PixelShader *pixelShader_;
 	ID3D11InputLayout *inputLayout_;
-
-	friend class Renderer;
 };
 
 struct Texture
@@ -161,6 +162,8 @@ public:
 	VertexPosNormalTexcoord * vertices;
 
 	ResourceHandle vertexBufferID;
+
+	Material material;
 };
 
 class VertexBuffer
@@ -255,8 +258,8 @@ public:
 	void SetVertexBuffer( ResourceHandle id, uint slot = 0 );
 
 //	void SetMesh( const Mesh& mesh );
-	void SetShader( const Shader& shader );
-	void SetShader( uint shaderID );
+//	void SetShader( const Shader& shader );
+	void SetShader( SHADER shaderID );
 	void SetTexture( TEXTURE id, SHADER_TYPE shader, uint slot = 0 );
 #if 0
 	void SetTexture( const Texture& texture, SHADER_TYPE shader, uint slot = 0 );
@@ -294,7 +297,7 @@ private:
 
 //	uint numCachedVerts_;
 
-	Shader shaders_[ MAX_SHADERS ];
+//	Shader shaders_[ MAX_SHADERS ];
 //	Texture textures_[ MAX_TEXTURES ];
 //	Mesh meshes_[ MAX_MESHES ];
 
@@ -377,8 +380,8 @@ public:
 
 private:
 	Renderer *renderer_;
-	Shader textShader_;
-	Shader primitiveShader_;
+//	Shader textShader_;
+//	Shader primitiveShader_;
 	ID3D11Buffer *textVB_;
 	ID3D11Buffer *primitiveVB_;
 //	Texture texture_;

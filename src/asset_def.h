@@ -1,6 +1,8 @@
 #ifndef __ASSET_DEF__
 #define __ASSET_DEF__
 
+/***	TEXTURE		***/
+
 enum TEXTURE_TYPE
 {
 	SINGLE,
@@ -14,9 +16,9 @@ enum TEXTURE
 	LIGHT_COLOR,
 	FONT,
 	CROSSHAIR,
-	FIRE,
+	CAMPFIRE,
 
-	COUNT
+	TEXTURE_COUNT
 };
 
 enum BLOCK_TEXTURE
@@ -45,11 +47,86 @@ struct TextureDefinition
 void LoadTextureDefinitions( TextureDefinition * textureDefinitions );
 void FreeTextureDefinitions( TextureDefinition * textureDefinitions );
 
+/***	SHADER	***/
+
+enum SHADER
+{
+	SHADER_STANDARD,
+	SHADER_BLOCK,
+	SHADER_SHADOWMAP,
+	SHADER_TEXT,
+	SHADER_PRIMITIVE,
+
+	SHADER_COUNT
+};
+
+struct ShaderDefinition
+{
+	wchar_t * filename;
+};
+
+#ifdef ASSET_DEF_IMPLEMENTATION
+ShaderDefinition gShaderDefinitions[ SHADER::SHADER_COUNT ] =
+{
+	{ L"assets/shaders/standard.fx" },
+	{ L"assets/shaders/global.fx" },
+	{ L"assets/shaders/shadowmap.fx" },
+	{ L"assets/shaders/overlay.fx" },
+	{ L"assets/shaders/primitive.fx" },
+};
+#endif
+
+/***	MATERIAL	***/
+
+enum MATERIAL
+{
+	MATERIAL_CAMPFIRE,
+
+	MATERIAL_COUNT
+};
+
+struct MaterialDefinition
+{
+	SHADER shaderID;
+	TEXTURE diffuseTextureID;
+};
+
+#ifdef ASSET_DEF_IMPLEMENTATION
+MaterialDefinition gMaterialDefinitions[ MATERIAL::MATERIAL_COUNT ] =
+{
+	{ SHADER::SHADER_STANDARD, TEXTURE::CAMPFIRE },
+};
+#endif
+
+/***	MESH	***/
+
+#define MAX_VERTS_PER_MESH (4096 * 3)
+
+enum MESH
+{
+	MESH_CAMPFIRE,
+
+	MESH_COUNT
+};
+
+struct MeshDefinition
+{
+	const char * filename;
+	uint material;
+};
+
+#ifdef ASSET_DEF_IMPLEMENTATION
+MeshDefinition gMeshDefinitions[ MESH::MESH_COUNT ] =
+{
+	{ "assets/models/fire.obj", MATERIAL::MATERIAL_CAMPFIRE },
+};
+#endif
+
 #ifdef ASSET_DEF_IMPLEMENTATION
 
 void LoadTextureDefinitions( TextureDefinition * textureDefinitions )
 {
-	for( int i = 0; i < TEXTURE::COUNT; i++ )
+	for( int i = 0; i < TEXTURE_COUNT; i++ )
 	{
 		textureDefinitions[ i ].type = (TEXTURE_TYPE)0;
 		textureDefinitions[ i ].arraySize = 0;
@@ -97,18 +174,18 @@ void LoadTextureDefinitions( TextureDefinition * textureDefinitions )
 	textureDefinitions[ TEXTURE::CROSSHAIR ].filenames = new char*[ 1 ];
 	textureDefinitions[ TEXTURE::CROSSHAIR ].filenames[0] = "assets/textures/crosshair.png";
 
-	textureDefinitions[ TEXTURE::FIRE ].type = TEXTURE_TYPE::SINGLE;
-	textureDefinitions[ TEXTURE::FIRE ].arraySize = 1;
-	textureDefinitions[ TEXTURE::FIRE ].width = 512;
-	textureDefinitions[ TEXTURE::FIRE ].height = 512;
-	textureDefinitions[ TEXTURE::FIRE ].generateMips = true;
-	textureDefinitions[ TEXTURE::FIRE ].filenames = new char*[ 1 ];
-	textureDefinitions[ TEXTURE::FIRE ].filenames[0] = "assets/textures/fire01.png";
+	textureDefinitions[ TEXTURE::CAMPFIRE ].type = TEXTURE_TYPE::SINGLE;
+	textureDefinitions[ TEXTURE::CAMPFIRE ].arraySize = 1;
+	textureDefinitions[ TEXTURE::CAMPFIRE ].width = 512;
+	textureDefinitions[ TEXTURE::CAMPFIRE ].height = 512;
+	textureDefinitions[ TEXTURE::CAMPFIRE ].generateMips = true;
+	textureDefinitions[ TEXTURE::CAMPFIRE ].filenames = new char*[ 1 ];
+	textureDefinitions[ TEXTURE::CAMPFIRE ].filenames[0] = "assets/textures/fire01.png";
 }
 
 void FreeTextureDefinitions( TextureDefinition * textureDefinitions )
 {
-	for( int i = 0; i < TEXTURE::COUNT; i++ )
+	for( int i = 0; i < TEXTURE::TEXTURE_COUNT; i++ )
 	{
 		if( textureDefinitions[ i ].filenames )
 		{

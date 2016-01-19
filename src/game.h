@@ -32,8 +32,8 @@ namespace Blocks
 struct GameObject
 {
 	Transform transform;
-	Mesh * mesh;
-	Material * material;
+	MESH meshID;
+	// Material * material;
 };
 
 struct GameTime
