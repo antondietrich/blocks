@@ -50,12 +50,12 @@ struct PS_Input
 PS_Input VSMain( VS_Input input )
 {
 	PS_Input output;
-	output.position.xyz = input.position;
-	output.position.w = 1.0f;
+	output.position = float4( input.position, 1.0f );
 	output.position = mul( output.position, world );
 	output.position = mul( output.position, vp );
 
-	output.normal = mul( input.normal, rotation );
+	output.normal = float4( input.normal, 0.0f );
+	output.normal = mul( output.normal, rotation );
 
 	output.texcoord = input.texcoord;
 	return output;

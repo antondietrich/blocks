@@ -1292,8 +1292,6 @@ void Game::DoFrame( float dt )
 												   (float)(pickedBlock.y + 1),
 												   pickedBlock.chunkZ * CHUNK_WIDTH + pickedBlock.z + 0.5f  };
 		}
-		gGameObjects[i].transform.rotation = { 0.0f, 0.0f, 0.0f };
-		gGameObjects[i].transform.scale = 1.0f;
 
 		XMMATRIX rot = XMMatrixRotationRollPitchYaw( gGameObjects[i].transform.rotation.x,
 													 gGameObjects[i].transform.rotation.y,
@@ -1305,7 +1303,9 @@ void Game::DoFrame( float dt )
 										  gGameObjects[i].transform.scale,
 										  gGameObjects[i].transform.scale );
 		// XMMATRIX world = scale * rot * pos;
-		XMMATRIX world = scale * pos;
+		XMMATRIX world = scale * rot * pos;
+		scale = XMMatrixTranspose( scale );
+		rot = XMMatrixTranspose( rot );
 		world = XMMatrixTranspose( world );
 
 		GameObjectCB gameObjectCBData;
