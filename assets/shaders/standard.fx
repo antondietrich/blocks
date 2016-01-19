@@ -1,3 +1,5 @@
+#include "include/lambert.fx"
+
 Texture2D textureAlbedo : register( t0 );
 SamplerState samplerFiltered : register( s0 );
 
@@ -63,7 +65,7 @@ float4 PSMain( PS_Input input ) : SV_TARGET
 {
 	float4 color = textureAlbedo.Sample( samplerFiltered, input.texcoord );
 	float4 negLightDir = normalize( sunDir );
-	float nDotL = saturate( dot( input.normal, negLightDir ) );
+	float nDotL = Lambert( input.normal, negLightDir );
 
 	float4 finalColor = color * nDotL * 0.8 +
 						color * 0.2;

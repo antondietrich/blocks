@@ -2204,7 +2204,7 @@ bool LoadShader( wchar_t *filename, const char *entry, const char *shaderModel, 
 	HRESULT hr;
 	ID3DBlob *errorBuffer = 0;
 
-	hr = D3DCompileFromFile( filename, 0, 0, entry, shaderModel, 0, 0, buffer, &errorBuffer );
+	hr = D3DCompileFromFile( filename, 0, D3D_COMPILE_STANDARD_FILE_INCLUDE , entry, shaderModel, 0, 0, buffer, &errorBuffer );
 	if( FAILED( hr ) )
 	{
 		if( errorBuffer )

@@ -1,3 +1,5 @@
+#include "include/lambert.fx"
+
 Texture2DArray blockTexture : register( t0 );
 // Texture2D blockTexture[4] : register( t0 );
 Texture2DArray shadowmap_ : register( t1 );
@@ -159,7 +161,7 @@ float4 PSMain( PS_Input input ) : SV_TARGET
 	float4 sunColorTex = lightColor.Sample( samplerFiltered, float2( dayTimeNorm, 0.25 ) );
 	float4 ambientColorTex = lightColor.Sample( samplerFiltered, float2( dayTimeNorm, 0.75 ) );
 
-	float nDotL = saturate( dot( input.normal, negLightDir ) );
+	float nDotL = Lambert( input.normal, negLightDir );
 
 	// pick cascade
 	int sliceIndex = 0;
