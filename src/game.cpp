@@ -6,10 +6,12 @@ namespace Blocks
 using namespace DirectX;
 
 // player vars
+// Player spawns looking down X+, with Z+ to his left
+// Left-handed coordinate system
 XMFLOAT3 playerPos 		= { 133.5f, 60.0f, 3.5f };
-XMFLOAT3 playerDir 		= { 0.0f,  0.0f, 1.0f };
-XMFLOAT3 playerLook 	= { 0.0f,  0.0f, 1.0f };
-XMFLOAT3 playerRight 	= { 1.0f,  0.0f, 0.0f };
+XMFLOAT3 playerDir 		= { 1.0f,  0.0f, 0.0f };
+XMFLOAT3 playerLook 	= { 1.0f,  0.0f, 0.0f };
+XMFLOAT3 playerRight 	= { 0.0f,  0.0f, -1.0f };
 XMFLOAT3 playerUp 		= { 0.0f,  1.0f, 0.0f };
 XMFLOAT3 playerSpeed 	= { 0.0f,  0.0f, 0.0f };
 XMFLOAT3 gravity 		= { 0.0f, -9.8f, 0.0f };
@@ -22,7 +24,7 @@ float playerHeight = 1.8f;
 float playerReach = 4.0f;
 bool  playerAirborne = true;
 
-float gPlayerHFOV = 80.0f;
+float gPlayerHFOV = 100.0f;
 float gPlayerNearPlane = 0.1f;
 float gPlayerFarPlane = 1.0f;
 
@@ -31,9 +33,71 @@ bool Game::isInstantiated_ = false;
 
 // scene manager?
 GameObject gGameObjects[ MAX_GAME_OBJECTS ];
+GameObject * gRootNode;
+GameObject * gPlayerNode;
 uint gGameObjectCount = 0;
 Mesh gFireMesh;
 Material gFireMaterial;
+
+GameObject::GameObject()
+{
+	name = "Unknown";
+}
+
+void GameObject::SetPosition(DirectX::XMFLOAT3 position)
+{
+	transform.position = position;
+	this->position = XMMatrixTranslation(transform.position.x,
+								   transform.position.y,
+								   transform.position.z);
+
+}
+void GameObject::SetRotation(DirectX::XMFLOAT3 rotation)
+{
+	transform.rotation = rotation;
+	this->rotation = XMMatrixRotationRollPitchYaw(XMConvertToRadians(transform.rotation.x),
+												  XMConvertToRadians(transform.rotation.y),
+												  XMConvertToRadians(transform.rotation.z));
+}
+void GameObject::SetScale(float scale)
+{
+	transform.scale = scale;
+	this->scale = XMMatrixScaling(scale, scale, scale);
+}
+
+GameObject * GameObject::GetChild(const char * name)
+{
+	GameObject * child;
+	for(int i = 0; i < childrenCount; ++i)
+	{
+		if(strcmp(children[i]->name, name) == 0)
+		{
+			return children[i];
+		}
+		if(child = children[i]->GetChild(name))
+		{
+			return child;
+		}
+	}
+	return 0;
+}
+
+void AttachNodeChild(GameObject * parent, GameObject * child)
+{
+	parent->children[parent->childrenCount] = child;
+	parent->childrenCount++;
+}
+
+void UpdateNode(GameObject * node, const XMMATRIX & parentWorld)
+{
+	node->world = node->rotation * node->scale * node->position * parentWorld;
+	node->rotationNormalMap = node->world;
+
+	for(int i = 0; i < node->childrenCount; ++i)
+	{
+		UpdateNode(node->children[i], node->world);
+	}
+}
 
 // caches
 int gChunkCacheHalfDim = 0;
@@ -89,6 +153,7 @@ void GameTime::AdvanceTime( float ms )
 			}
 		}
 	}
+	elapsedMS += ms;
 }
 
 void GameTime::DecreaseTime( float ms )
@@ -121,6 +186,7 @@ void GameTime::DecreaseTime( float ms )
 			}
 		}
 	}
+	elapsedMS -= ms;
 }
 
 Game::Game()
@@ -189,7 +255,7 @@ bool Game::Start( HWND wnd )
 	input.mouse = {0, 0};
 
 	// gameTime_ = { 2015, 1, 1, 12, 0, 0.0f, 60.0f*60.0f };
-	gameTime_ = { 2015, 1, 1, 12, 0, 0.0f, 60.0f };
+	gameTime_ = { 2015, 1, 1, 12, 0, 0.0f, 0.0f, 60.0f };
 
 	gPlayerFarPlane = float(Config.viewDistanceChunks * CHUNK_WIDTH);
 
@@ -245,11 +311,105 @@ bool Game::Start( HWND wnd )
 
 	playerProj = XMMatrixPerspectiveFovLH( XMConvertToRadians( 60.0f ), (float)Config.screenWidth / (float)Config.screenHeight, 0.1f, 1000.0f );
 
-	gGameObjects[0] = GameObject();
-	gGameObjects[0].meshID = MESH_CAMPFIRE;
-	gGameObjects[0].transform.position = { 0.0f, 0.0f, 0.0f };
-	gGameObjects[0].transform.rotation = { 0.0f, 0.0f, 0.0f };
-	gGameObjects[0].transform.scale = 1.0f;
+	// root
+	gGameObjects[gGameObjectCount] = GameObject();
+	gGameObjects[gGameObjectCount].renderable = false;
+	gGameObjects[gGameObjectCount].meshID = (MESH)0;
+	gGameObjects[gGameObjectCount].SetPosition({ 0.0f, 0.0f, 0.0f });
+	gGameObjects[gGameObjectCount].SetRotation({ 0.0f, 0.0f, 0.0f });
+	gGameObjects[gGameObjectCount].SetScale(1.0f);
+	gGameObjects[gGameObjectCount].childrenCount = 0;
+	gGameObjects[gGameObjectCount].name = "WorldRoot";
+	gRootNode = &gGameObjects[gGameObjectCount];
+	gGameObjectCount++;
+
+	// campfire
+	gGameObjects[gGameObjectCount] = GameObject();
+	gGameObjects[gGameObjectCount].renderable = true;
+	gGameObjects[gGameObjectCount].meshID = MESH_CAMPFIRE;
+	gGameObjects[gGameObjectCount].SetPosition({ 134.5f, 33.0f, 21.5f });
+	gGameObjects[gGameObjectCount].SetRotation({ 0.0f, 180.0f, 0.0f });
+	gGameObjects[gGameObjectCount].SetScale(1.0f);
+	gGameObjects[gGameObjectCount].childrenCount = 0;
+	gGameObjects[gGameObjectCount].name = "CampFire";
+
+	AttachNodeChild(gRootNode, &gGameObjects[gGameObjectCount]);
+
+	gGameObjectCount++;
+
+	// player
+	gGameObjects[gGameObjectCount] = GameObject();
+	gGameObjects[gGameObjectCount].renderable = false;
+	gGameObjects[gGameObjectCount].meshID = (MESH)0;
+	gGameObjects[gGameObjectCount].SetPosition({ 0.0f, 0.0f, 0.0f });
+	gGameObjects[gGameObjectCount].SetRotation({ 0.0f, 0.0f, 0.0f });
+	gGameObjects[gGameObjectCount].SetScale(1.0f);
+	gGameObjects[gGameObjectCount].childrenCount = 0;
+	gGameObjects[gGameObjectCount].name = "PlayerRoot";
+
+	gPlayerNode = &gGameObjects[gGameObjectCount];
+
+	AttachNodeChild(gRootNode, &gGameObjects[gGameObjectCount]);
+
+	gGameObjectCount++;
+
+
+	// TODO: held weapon is only visible if the soulder is eye-high due
+	//  to the narrow FOV. Do I want to do anything about it?
+	// bone_shoulder_r
+	gGameObjects[gGameObjectCount] = GameObject();
+	gGameObjects[gGameObjectCount].renderable = false;
+	gGameObjects[gGameObjectCount].meshID = (MESH)0;
+	gGameObjects[gGameObjectCount].SetPosition({ 0.0f, playerHeight, -0.17f });
+	gGameObjects[gGameObjectCount].SetRotation({ 0.0f, 0.0f, 0.0f });
+	gGameObjects[gGameObjectCount].SetScale(1.0f);
+	gGameObjects[gGameObjectCount].childrenCount = 0;
+	gGameObjects[gGameObjectCount].name = "BoneShoulderR";
+
+	AttachNodeChild(gPlayerNode, &gGameObjects[gGameObjectCount]);
+
+	gGameObjectCount++;
+
+	// bone_forearm_r
+	gGameObjects[gGameObjectCount] = GameObject();
+	gGameObjects[gGameObjectCount].renderable = false;
+	gGameObjects[gGameObjectCount].meshID = (MESH)0;
+	gGameObjects[gGameObjectCount].SetPosition({ 0.0f, -0.3f, 0.0f });
+	gGameObjects[gGameObjectCount].SetRotation({ 0.0f, 0.0f, 90.0f });
+	gGameObjects[gGameObjectCount].SetScale(1.0f);
+	gGameObjects[gGameObjectCount].childrenCount = 0;
+	gGameObjects[gGameObjectCount].name = "BoneForearmR";
+
+	AttachNodeChild(gPlayerNode->GetChild("BoneShoulderR"), &gGameObjects[gGameObjectCount]);
+
+	gGameObjectCount++;
+
+	// bone_hand_r / weapon slot
+	gGameObjects[gGameObjectCount] = GameObject();
+	gGameObjects[gGameObjectCount].renderable = false;
+	gGameObjects[gGameObjectCount].meshID = (MESH)0;
+	gGameObjects[gGameObjectCount].SetPosition({ 0.0f, -0.35f, 0.0f });
+	gGameObjects[gGameObjectCount].SetRotation({ 0.0f, 0.0f, 0.0f });
+	gGameObjects[gGameObjectCount].SetScale(1.0f);
+	gGameObjects[gGameObjectCount].childrenCount = 0;
+	gGameObjects[gGameObjectCount].name = "BoneHandR";
+
+	AttachNodeChild(gPlayerNode->GetChild("BoneForearmR"), &gGameObjects[gGameObjectCount]);
+
+	gGameObjectCount++;
+
+	// axe
+	gGameObjects[gGameObjectCount] = GameObject();
+	gGameObjects[gGameObjectCount].renderable = true;
+	gGameObjects[gGameObjectCount].meshID = MESH_AXE;
+	gGameObjects[gGameObjectCount].SetPosition({ 0.0f, 0.0f, 0.0f });
+	gGameObjects[gGameObjectCount].SetRotation({ -90.0f, 0.0f, -90.0f });
+	gGameObjects[gGameObjectCount].SetScale(1.0f);
+	gGameObjects[gGameObjectCount].childrenCount = 0;
+	gGameObjects[gGameObjectCount].name = "Axe";
+
+	AttachNodeChild(gPlayerNode->GetChild("BoneHandR"), &gGameObjects[gGameObjectCount]);
+
 	gGameObjectCount++;
 
 	return true;
@@ -569,15 +729,20 @@ void Game::DoFrame( float dt )
 	vPlayerPos = vTargetPos;
 	vSpeed = vSpeed + acceleration * dTSec;
 
+	float yawDegrees = 0;
+	float pitchDegrees = 0;
+	static float playerYawDegrees = 0;
+	static float playerPitchDegrees = 0;
+
 	if( input.mouse.x ) {
-		float yawDegrees = input.mouse.x / 10.0f;
+		yawDegrees = input.mouse.x / 10.0f;
 		XMMATRIX yaw = XMMatrixRotationY( XMConvertToRadians( yawDegrees ) );
 		vDir = XMVector4Transform( vDir, yaw );
 		vLook = XMVector4Transform( vLook, yaw );
 		vRight = XMVector4Transform( vRight, yaw );
 	}
 	if( input.mouse.y ) {
-		float pitchDegrees = input.mouse.y / 10.0f;
+		pitchDegrees = input.mouse.y / 10.0f;
 		XMMATRIX pitch = XMMatrixRotationAxis( vRight,
 											   XMConvertToRadians( pitchDegrees ) );
 		XMVECTOR newLook = XMVector4Transform( vLook, pitch );
@@ -586,8 +751,20 @@ void Game::DoFrame( float dt )
 		if( fabsf( elevationAngleCos ) > 0.1 )
 		{
 			vLook = newLook;
+
+			playerPitchDegrees += pitchDegrees;
 		}
 	}
+
+	playerYawDegrees += yawDegrees;
+	if(playerYawDegrees >= 360.0f)
+		playerYawDegrees -= 360.0f;
+	else if(playerYawDegrees < 0)
+		playerYawDegrees = 360.0f + playerYawDegrees;
+
+	XMMATRIX mPlayerYaw = XMMatrixRotationY( XMConvertToRadians( playerYawDegrees ) );
+	XMMATRIX mPlayerPitch = XMMatrixRotationAxis( vRight,
+												  XMConvertToRadians( playerPitchDegrees ) );
 
 	XMStoreFloat3( &playerPos, vPlayerPos );
 	XMStoreFloat3( &playerDir, vDir );
@@ -599,6 +776,93 @@ void Game::DoFrame( float dt )
 	XMFLOAT3 playerEyePos = playerPos;
 	playerEyePos.y += playerHeight;
 	XMVECTOR vEyePos = XMLoadFloat3( &playerEyePos );
+
+	// update player skeleton in the scene graph
+	gPlayerNode->rotation = mPlayerYaw;
+	gPlayerNode->SetPosition({ playerPos.x, playerPos.y, playerPos.z});
+	gPlayerNode->GetChild("BoneShoulderR")->SetRotation({ gPlayerNode->GetChild("BoneShoulderR")->transform.rotation.x,
+														  gPlayerNode->GetChild("BoneShoulderR")->transform.rotation.y,
+														  -playerPitchDegrees*0.6f} );
+
+	// weapon motion
+	// TODO: motion is too plain and arbitrary, add detail
+	float st = ((float)gameTime_.elapsedMS * 0.0005f);
+	float forearmY = (0.5f * (cosf(st) + 0.5f*cosf(3*st + 11) + 0.4*cosf(7*st + 41)));
+	float forearmZ = (90.0f + 0.8*cos(st) + 0.6*cos(3*st + 37) + 0.3*cos(5*st + 41));
+	gPlayerNode->GetChild("BoneForearmR")->SetRotation({ gPlayerNode->GetChild("BoneForearmR")->transform.rotation.x, forearmY, forearmZ });
+
+	char playerLookDirectionName[3];
+	// detect player look direction
+	{
+		if(fabs(playerLook.x) > fabs(playerLook.y))
+		{
+			if(fabs(playerLook.z) > fabs(playerLook.x))
+			{
+				if(playerLook.z >= 0)
+				{
+					playerLookDirectionName[0] = '+';
+					playerLookDirectionName[1] = 'Z';
+					playerLookDirectionName[2] = '\0';
+				}
+				else
+				{
+					playerLookDirectionName[0] = '-';
+					playerLookDirectionName[1] = 'Z';
+					playerLookDirectionName[2] = '\0';
+				}
+			}
+			else
+			{
+				if(playerLook.x >= 0)
+				{
+					playerLookDirectionName[0] = '+';
+					playerLookDirectionName[1] = 'X';
+					playerLookDirectionName[2] = '\0';
+				}
+				else
+				{
+					playerLookDirectionName[0] = '-';
+					playerLookDirectionName[1] = 'X';
+					playerLookDirectionName[2] = '\0';
+				}
+			}
+		}
+		else
+		{
+			if(fabs(playerLook.z) > fabs(playerLook.y))
+			{
+				if(playerLook.z >= 0)
+				{
+					playerLookDirectionName[0] = '+';
+					playerLookDirectionName[1] = 'Z';
+					playerLookDirectionName[2] = '\0';
+				}
+				else
+				{
+					playerLookDirectionName[0] = '-';
+					playerLookDirectionName[1] = 'Z';
+					playerLookDirectionName[2] = '\0';
+				}
+			}
+			else
+			{
+				if(playerLook.y >= 0)
+				{
+					playerLookDirectionName[0] = '+';
+					playerLookDirectionName[1] = 'Y';
+					playerLookDirectionName[2] = '\0';
+				}
+				else
+				{
+					playerLookDirectionName[0] = '-';
+					playerLookDirectionName[1] = 'Y';
+					playerLookDirectionName[2] = '\0';
+				}
+			}
+		}
+	}
+
+
 
 	bool blockPicked = false;
 	XMFLOAT3 lookAtTarget;
@@ -1255,9 +1519,33 @@ void Game::DoFrame( float dt )
 #endif
 	ProfileStop();
 
+
+#if 0
+	// temp move held tool
+	XMFLOAT3 toolLocalOffset1 = XMFLOAT3(0.2f, -0.3f, 0.5f);// + playerLook*0.47f;// + playerRight*0.23f;
+	XMMATRIX toolOffset1 = XMMatrixTranslation( toolLocalOffset1.x, toolLocalOffset1.y, toolLocalOffset1.z );
+	// XMMATRIX toolOffset2 = XMMatrixTranslation( playerPos.x, playerPos.y, playerPos.z );
+	XMMATRIX toolOffset2 = XMMatrixTranslation( playerEyePos.x, playerEyePos.y, playerEyePos.z );
+
+	float angleH = AngleBetweenNormals(XMFLOAT3(1.0f, 0.0f, 0.0f), Normalize(XMFLOAT3(playerLook.x, 0.0f, playerLook.z)));
+	if(playerLook.z > 0)
+	{
+		angleH = -angleH;
+	}
+	float angleZ = AngleBetweenNormals(playerLook, Normalize(XMFLOAT3(playerLook.x, 0.0f, playerLook.z)));
+	gGameObjects[1].transform.rotation.y = XMConvertToDegrees(angleH) - 90.0f;
+	gGameObjects[1].transform.rotation.x = XMConvertToDegrees(angleZ);
+#endif
+
+	// propagate hierarchical transform
+	UpdateNode(&gGameObjects[0], XMMatrixIdentity());
+
 	// Draw game objects
 	for( uint i = 0; i < gGameObjectCount; i++ )
 	{
+		if(!gGameObjects[i].renderable)
+			continue;
+
 		// TODO: replace
 		Mesh * mesh = GetMeshByID( gGameObjects[i].meshID );
 		renderer.SetShader( mesh->material.shaderID );
@@ -1265,31 +1553,9 @@ void Game::DoFrame( float dt )
 		renderer.SetVertexBuffer( mesh->vertexBufferID );
 		// TODO: generic constant buffer handling
 
-		gGameObjects[i].transform.position = { 134.5f, 33.0f, 21.5f };
-		if( blockPicked )
-		{
-			gGameObjects[i].transform.position = { pickedBlock.chunkX * CHUNK_WIDTH + pickedBlock.x + 0.5f,
-												   (float)(pickedBlock.y + 1),
-												   pickedBlock.chunkZ * CHUNK_WIDTH + pickedBlock.z + 0.5f  };
-		}
-
-		XMMATRIX rot = XMMatrixRotationRollPitchYaw( gGameObjects[i].transform.rotation.x,
-													 gGameObjects[i].transform.rotation.y,
-													 gGameObjects[i].transform.rotation.z );
-		XMMATRIX pos = XMMatrixTranslation( gGameObjects[i].transform.position.x,
-											gGameObjects[i].transform.position.y,
-											gGameObjects[i].transform.position.z );
-		XMMATRIX scale = XMMatrixScaling( gGameObjects[i].transform.scale,
-										  gGameObjects[i].transform.scale,
-										  gGameObjects[i].transform.scale );
-		XMMATRIX world = scale * rot * pos;
-		scale = XMMatrixTranspose( scale );
-		rot = XMMatrixTranspose( rot );
-		world = XMMatrixTranspose( world );
-
 		GameObjectCB gameObjectCBData;
-		XMStoreFloat4x4( &gameObjectCBData.world, world );
-		XMStoreFloat4x4( &gameObjectCBData.rotation, rot );
+		XMStoreFloat4x4( &gameObjectCBData.world, XMMatrixTranspose(gGameObjects[i].world) );
+		XMStoreFloat4x4( &gameObjectCBData.rotation, XMMatrixTranspose(gGameObjects[i].rotationNormalMap) );
 		gameObjectCBData.translation = gGameObjects[i].transform.position;
 		gameObjectCBData.rotationEuler = gGameObjects[i].transform.rotation;
 		gameObjectCBData.scale = gGameObjects[i].transform.scale;
@@ -1297,7 +1563,6 @@ void Game::DoFrame( float dt )
 		renderer.SetGameObjectCBuffer( gameObjectCBData );
 
 		renderer.Draw( mesh->vertexCount );
-
 	}
 
 	CROSSHAIR_STATE chState = CROSSHAIR_STATE::INACTIVE;
@@ -1337,10 +1602,11 @@ void Game::DoFrame( float dt )
 //		overlay.WriteLine( "Chunk meshes rebuild: %i", chunkMeshesRebuilt );
 //		overlay.WriteLine( "Mouse offset: %+03i - %+03i", input.mouse.x, input.mouse.y );
 		overlay.WriteLine( "" );
-		overlay.WriteLine( "Player pos: %5.2f %5.2f %5.2f", playerPos.x, playerPos.y, playerPos.z );
+		overlay.WriteLine( "Player pos: %5.2f %5.2f %5.2f (%s)", playerPos.x, playerPos.y, playerPos.z, playerLookDirectionName );
 		overlay.WriteLine( "Chunk pos:  %5i ----- %5i", playerChunkPos.x, playerChunkPos.z );
-		overlay.WriteLine( "Splits:  %5.2f - %5.2f - %5.2f - %5.2f - %5.2f", sliceDistances[0], sliceDistances[1], sliceDistances[2], sliceDistances[3], sliceDistances[4] );
-		overlay.WriteLine( "SM texel:  %5.2f, %5.2f, %5.2f, %5.2f", cbData.smTexelSize[0], cbData.smTexelSize[1], cbData.smTexelSize[2], cbData.smTexelSize[3] );
+		overlay.WriteLine( "Yaw: %4.1f Pitch: %4.1f", playerYawDegrees, playerPitchDegrees );
+//		overlay.WriteLine( "Splits:  %5.2f - %5.2f - %5.2f - %5.2f - %5.2f", sliceDistances[0], sliceDistances[1], sliceDistances[2], sliceDistances[3], sliceDistances[4] );
+//		overlay.WriteLine( "SM texel:  %5.2f, %5.2f, %5.2f, %5.2f", cbData.smTexelSize[0], cbData.smTexelSize[1], cbData.smTexelSize[2], cbData.smTexelSize[3] );
 //		overlay.WriteLine( "Radius:  %8.6f", smBoundRadius );
 //		overlay.WriteLine( "Diagonal:  %8.6f", boundSphereRadius );
 //		overlay.WriteLine( "Speed:  %5.2f", XMVectorGetX( XMVector4Length( vSpeed ) ) );

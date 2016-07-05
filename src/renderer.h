@@ -111,7 +111,7 @@ struct Texture
 
 	bool LoadFile( wchar_t* filename, ID3D11Device *device );
 	bool Load( const TextureDefinition & textureDefinition,
-				  		ID3D11Device * device, ID3D11DeviceContext * context );
+						ID3D11Device * device, ID3D11DeviceContext * context );
 
 	ID3D11Texture2D * texture_;
 	ID3D11ShaderResourceView * textureView_;
@@ -326,7 +326,7 @@ private:
 #define FONT_BITMAP_WIDTH 1024.0f
 #define FONT_NUM_CHARS 86.0f
 #define NORMALIZED_CHAR_WIDTH ( CHAR_WIDTH / FONT_BITMAP_WIDTH )
-#define MAX_CHARS_IN_LINE 32
+#define MAX_CHARS_IN_LINE 48
 // #define FONT_CHAR_OFFSET 0.01171875f
 
 struct OverlayVertex2D

@@ -152,4 +152,17 @@ inline float Distance3( DirectX::XMFLOAT3 A, DirectX::XMFLOAT3 B )
 	return result;
 }
 
+inline float Dot( DirectX::XMFLOAT3 A, DirectX::XMFLOAT3 B )
+{
+	float result = A.x*B.x + A.y*B.y + A.z*B.z;
+	return result;
+}
+
+inline float AngleBetweenNormals( DirectX::XMFLOAT3 A, DirectX::XMFLOAT3 B )
+{
+	float result = Dot( A, B );
+	result = acosf(result);
+	return result;
+}
+
 #endif

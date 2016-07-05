@@ -31,9 +31,31 @@ namespace Blocks
 
 struct GameObject
 {
+	GameObject();
+
 	Transform transform;
+
+	DirectX::XMMATRIX position;
+	DirectX::XMMATRIX rotation;
+	DirectX::XMMATRIX rotationNormalMap;
+	DirectX::XMMATRIX scale;
+	DirectX::XMMATRIX world;
+
+	void SetPosition(DirectX::XMFLOAT3);
+	void SetRotation(DirectX::XMFLOAT3);
+	void SetScale(float);
+
 	MESH meshID;
 	// Material * material;
+
+	bool renderable;
+
+	GameObject * children[32];
+	int childrenCount;
+
+	const char * name;
+
+	GameObject * GetChild(const char * name);
 };
 
 struct GameTime
@@ -44,6 +66,7 @@ struct GameTime
 	uint hours; // 0 .. 23
 	uint minutes; // 0 .. 59
 	float seconds; // 0.0f..59.(9)f
+	double elapsedMS;
 
 	// game seconds per real-world second
 	float scale;

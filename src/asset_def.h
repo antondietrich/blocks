@@ -17,6 +17,7 @@ enum TEXTURE
 	FONT,
 	CROSSHAIR,
 	CAMPFIRE,
+	AXE,
 
 	TEXTURE_COUNT
 };
@@ -81,6 +82,7 @@ ShaderDefinition gShaderDefinitions[ SHADER::SHADER_COUNT ] =
 enum MATERIAL
 {
 	MATERIAL_CAMPFIRE,
+	MATERIAL_AXE,
 
 	MATERIAL_COUNT
 };
@@ -95,6 +97,7 @@ struct MaterialDefinition
 MaterialDefinition gMaterialDefinitions[ MATERIAL::MATERIAL_COUNT ] =
 {
 	{ SHADER::SHADER_STANDARD, TEXTURE::CAMPFIRE },
+	{ SHADER::SHADER_STANDARD, TEXTURE::AXE },
 };
 #endif
 
@@ -105,6 +108,7 @@ MaterialDefinition gMaterialDefinitions[ MATERIAL::MATERIAL_COUNT ] =
 enum MESH
 {
 	MESH_CAMPFIRE,
+	MESH_AXE,
 
 	MESH_COUNT
 };
@@ -119,6 +123,7 @@ struct MeshDefinition
 MeshDefinition gMeshDefinitions[ MESH::MESH_COUNT ] =
 {
 	{ "assets/models/fire.obj", MATERIAL::MATERIAL_CAMPFIRE },
+	{ "assets/models/axe.obj", MATERIAL::MATERIAL_AXE },
 };
 #endif
 
@@ -181,6 +186,14 @@ void LoadTextureDefinitions( TextureDefinition * textureDefinitions )
 	textureDefinitions[ TEXTURE::CAMPFIRE ].generateMips = true;
 	textureDefinitions[ TEXTURE::CAMPFIRE ].filenames = new char*[ 1 ];
 	textureDefinitions[ TEXTURE::CAMPFIRE ].filenames[0] = "assets/textures/fire01.png";
+
+	textureDefinitions[ TEXTURE::AXE ].type = TEXTURE_TYPE::SINGLE;
+	textureDefinitions[ TEXTURE::AXE ].arraySize = 1;
+	textureDefinitions[ TEXTURE::AXE ].width = 2048;
+	textureDefinitions[ TEXTURE::AXE ].height = 2048;
+	textureDefinitions[ TEXTURE::AXE ].generateMips = true;
+	textureDefinitions[ TEXTURE::AXE ].filenames = new char*[ 1 ];
+	textureDefinitions[ TEXTURE::AXE ].filenames[0] = "assets/textures/axe.png";
 }
 
 void FreeTextureDefinitions( TextureDefinition * textureDefinitions )
